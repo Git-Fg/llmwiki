@@ -1,7 +1,8 @@
 use clap::Parser;
 use wiki::cli::Cli;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
-    wiki::cli::run(cli);
+    wiki::cli::run(cli).await;
 }
