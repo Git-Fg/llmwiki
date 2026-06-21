@@ -27,6 +27,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 indicatif = "0.17"
 schemars = "0.8"
+regex = "1.12.4"
 
 [dev-dependencies]
 assert_cmd = "2"
