@@ -1,0 +1,38 @@
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum WikiError {
+    #[error("config invalid at {path} line {line}: {message}")]
+    ConfigInvalid {
+        path: String,
+        line: usize,
+        message: String,
+    },
+
+    #[error("NVIDIA NIM API key not set. Set NVIDIA_NIM_API_KEY env var or add to shell rc.")]
+    NimApiKeyMissing,
+
+    #[error("NIM unreachable: {0}")]
+    NimUnreachable(String),
+
+    #[error("workspace not found. Use --workspace <path>, set WIKI_WORKSPACE, or cd into a wiki folder")]
+    WorkspaceNotFound,
+
+    #[error("no embeddings yet. Run `wiki embed` first.")]
+    NoEmbeddings,
+
+    #[error("unknown topic '{0}'. Run `wiki skill list` for available topics.")]
+    UnknownSkillTopic(String),
+
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    Yaml(#[from] serde_yaml::Error),
+
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
