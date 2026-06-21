@@ -1,4 +1,5 @@
 pub mod init;
+pub mod models;
 
 use clap::{Parser, Subcommand};
 
@@ -13,6 +14,17 @@ pub struct Cli {
 pub enum Command {
     /// Scaffold a new wiki at <path>
     Init { path: std::path::PathBuf },
+    /// List whitelisted NVIDIA NIM Models
+    Models {
+        #[arg(long)]
+        embed: bool,
+        #[arg(long)]
+        rerank: bool,
+        #[arg(long)]
+        commercial: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Print version
     Version,
 }
@@ -20,6 +32,12 @@ pub enum Command {
 pub fn run(cli: Cli) {
     let result: Result<(), crate::error::WikiError> = match cli.command {
         Some(Command::Init { path }) => crate::cli::init::run(path),
+        Some(Command::Models {
+            embed,
+            rerank,
+            commercial,
+            json,
+        }) => crate::cli::models::run(embed, rerank, commercial, json),
         Some(Command::Version) | None => {
             println!("wiki {}", env!("CARGO_PKG_VERSION"));
             Ok(())

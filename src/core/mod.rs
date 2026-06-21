@@ -1,4 +1,6 @@
-pub mod workspace;
+pub mod chunker;
 pub mod config;
 pub mod markdown;
-pub mod chunker;
+pub mod models_registry;
+pub mod nim;
+pub mod workspace;
