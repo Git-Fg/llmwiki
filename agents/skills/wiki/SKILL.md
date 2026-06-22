@@ -9,7 +9,7 @@ description: |
   subcommands only when semantic search or NIM-backed operations are
   explicitly needed.
 has-sub-skill: true
-allowed-tools: Bash(wiki:*)
+allowed-tools: Bash(llmwiki-cli:*)
 ---
 
 # wiki
@@ -33,7 +33,7 @@ Personal Karpathy-style LLM Wiki — markdown + JSONL embeddings, no database.
 
 The user has markdown notes. Use the `wiki` CLI when:
 - **Search/query** — semantic search or RAG against NIM embeddings
-- **Add sources** — `wiki ingest` to add a new source
+- **Add sources** — `llmwiki-cli ingest` to add a new source
 - **Manage config** — switch embedding model, manage multiple wikis
 - **Setup on a new device** — install CLI, register wikis, install skill
 
@@ -41,7 +41,7 @@ Otherwise: use `Read` / `Grep` / `Glob` directly on the wiki's `wiki/`, `raw/`, 
 
 ## Sub-skills
 
-Run `wiki skill show <topic>` to load the full content for a sub-skill.
+Run `llmwiki-cli skill show <topic>` to load the full content for a sub-skill.
 
 | Topic | Use when |
 |-------|----------|
@@ -57,13 +57,13 @@ Run `wiki skill show <topic>` to load the full content for a sub-skill.
 ## Quick commands
 
 ```bash
-wiki config list                    # show registered wikis
-wiki config validate                # check [defaults] + every alias parses + passes
-wiki --wiki pharma search "..."     # semantic search
-wiki --wiki pharma ingest foo.md    # add a source
-wiki --wiki pharma query "..."      # RAG question
-wiki --wiki pharma lint             # check hygiene
-wiki doctor                          # diagnose NIM + config
+llmwiki-cli config list                    # show registered wikis
+llmwiki-cli config validate                # check [defaults] + every alias parses + passes
+llmwiki-cli --wiki pharma search "..."     # semantic search
+llmwiki-cli --wiki pharma ingest foo.md    # add a source
+llmwiki-cli --wiki pharma query "..."      # RAG question
+llmwiki-cli --wiki pharma lint             # check hygiene
+llmwiki-cli doctor                          # diagnose NIM + config
 ```
 
 ## Multiple wikis
