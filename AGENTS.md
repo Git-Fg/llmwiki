@@ -91,3 +91,29 @@ wiki lint --scope wiki --fix
 ## Removed
 
 - The `web/` Svelte viewer and `wiki build-viewer` / `wiki serve` commands were removed from the project. The wiki content is consumed directly by the CLI and skill; no static site is generated.
+
+## CLI Commands Reference
+
+### `wiki ls` — Granular workspace listing
+
+```
+wiki ls [--pages] [--raw] [--embed] [--links] [--config] [--json]
+```
+
+- **No flags** → shows all sections (pages, raw, embed, links, config).
+- **Specific flags** → shows only those sections.
+- `--pages` — wiki pages with title, tags, outbound/inbound links, embedded status, chunks, line count.
+- `--raw` — raw source files with type, SHA256, ingested date, bytes, frontmatter validity.
+- `--embed` — embedded pages with chunk count and embedding dimension.
+- `--links` — wikilink pairs (from → to).
+- `--config` — resolved config key/value pairs.
+- `--json` — machine-readable output (null fields omitted via `skip_serializing_if`).
+
+### `wiki tree` — Flat, grep-friendly page listing
+
+```
+wiki tree [--json]
+```
+
+Outputs one line per page: `slug  title [tags] ✓(if embedded)`. Designed for piping to `grep`, `fzf`, etc.
+With `--json`: structured array with `slug`, `path`, `title`, `tags`, `embedded`.
