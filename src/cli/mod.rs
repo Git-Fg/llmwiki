@@ -11,6 +11,7 @@ pub mod query;
 pub mod search;
 pub mod skill;
 pub mod status;
+pub mod tree;
 
 use clap::{Parser, Subcommand};
 
@@ -110,6 +111,11 @@ pub enum Command {
     },
     /// Diagnose workspace, config, and NIM connectivity
     Doctor {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Flat, grep-friendly listing of wiki pages (slug, path, title, tags, embedded)
+    Tree {
         #[arg(long)]
         json: bool,
     },
@@ -262,6 +268,10 @@ pub async fn run(cli: Cli) {
             embed,
             links,
             config,
+            json,
+        }),
+        Some(Command::Tree { json }) => crate::cli::tree::run(crate::cli::tree::TreeArgs {
+            workspace: cli.workspace,
             json,
         }),
         Some(Command::Version) | None => {

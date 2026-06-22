@@ -20,6 +20,7 @@ struct DoctorReport {
     nim_reachable: bool,
     nim_status: Option<u16>,
     nim_error: Option<String>,
+    embed_model_available: bool,
 }
 
 pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
@@ -46,6 +47,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                         nim_reachable: false,
                         nim_status: None,
                         nim_error: Some(format!("config load failed: {e}")),
+                        embed_model_available: false,
                     })?
                 );
                 return Ok(());
@@ -70,15 +72,35 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
         ))
         .build()?;
 
-    let (nim_reachable, nim_status, nim_error) =
+    let (nim_reachable, nim_status, nim_error, embed_model_available) =
         match client.get(&url).bearer_auth(&api_key).send().await {
-            Ok(resp) if resp.status().is_success() => (true, Some(resp.status().as_u16()), None),
+            Ok(resp) if resp.status().is_success() => {
+                let status = resp.status();
+                let embed_model_available = if let Ok(body) = resp.json::<serde_json::Value>().await
+                {
+                    body.get("data")
+                        .and_then(|d| d.as_array())
+                        .map(|arr| {
+                            arr.iter().any(|m| {
+                                m.get("id")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s == cfg.nim.embed_model)
+                                    .unwrap_or(false)
+                            })
+                        })
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+                (true, Some(status.as_u16()), None, embed_model_available)
+            }
             Ok(resp) => (
                 false,
                 Some(resp.status().as_u16()),
                 Some(format!("HTTP {}", resp.status())),
+                false,
             ),
-            Err(e) => (false, None, Some(format!("{e}"))),
+            Err(e) => (false, None, Some(format!("{e}")), false),
         };
 
     if args.json {
@@ -94,6 +116,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                 nim_reachable,
                 nim_status,
                 nim_error,
+                embed_model_available,
             })?
         );
     } else {
