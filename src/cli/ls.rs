@@ -9,6 +9,7 @@ use crate::error::WikiError;
 
 pub struct LsArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub pages: bool,
     pub raw: bool,
     pub embed: bool,
@@ -75,7 +76,9 @@ struct LsOutput {
 pub fn run(args: LsArgs) -> Result<(), WikiError> {
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
 
@@ -360,48 +363,11 @@ fn build_link_entries(ws: &Path) -> Result<Vec<LinkEntry>, WikiError> {
 }
 
 fn build_config_entries(cfg: &crate::core::config::Config) -> Vec<ConfigEntry> {
-    vec![
-        ConfigEntry {
-            key: "nim.embed_model".into(),
-            value: cfg.nim.embed_model.clone(),
-        },
-        ConfigEntry {
-            key: "nim.base_url".into(),
-            value: cfg.nim.base_url.clone(),
-        },
-        ConfigEntry {
-            key: "nim.api_key_env".into(),
-            value: cfg.nim.api_key_env.clone(),
-        },
-        ConfigEntry {
-            key: "nim.batch_size".into(),
-            value: cfg.nim.batch_size.to_string(),
-        },
-        ConfigEntry {
-            key: "nim.request_timeout_secs".into(),
-            value: cfg.nim.request_timeout_secs.to_string(),
-        },
-        ConfigEntry {
-            key: "wiki.default_chunk_tokens".into(),
-            value: cfg.wiki.default_chunk_tokens.to_string(),
-        },
-        ConfigEntry {
-            key: "wiki.chunk_overlap_tokens".into(),
-            value: cfg.wiki.chunk_overlap_tokens.to_string(),
-        },
-        ConfigEntry {
-            key: "wiki.min_chunk_tokens".into(),
-            value: cfg.wiki.min_chunk_tokens.to_string(),
-        },
-        ConfigEntry {
-            key: "wiki.require_wikilinks_min".into(),
-            value: cfg.wiki.require_wikilinks_min.to_string(),
-        },
-        ConfigEntry {
-            key: "config_version".into(),
-            value: cfg.config_version.to_string(),
-        },
-    ]
+    let value = crate::cli::config::config_to_value(cfg);
+    crate::cli::config::collect_dotted(&value, "")
+        .into_iter()
+        .map(|(key, value)| ConfigEntry { key, value })
+        .collect()
 }
 
 fn print_human(output: &LsOutput) {

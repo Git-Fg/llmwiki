@@ -1,4 +1,5 @@
 pub mod build;
+pub mod config;
 pub mod doctor;
 pub mod embed;
 pub mod ingest;
@@ -22,6 +23,9 @@ use crate::cli::skill::SkillArgs;
 pub struct Cli {
     #[arg(long, global = true)]
     pub workspace: Option<std::path::PathBuf>,
+    /// Select wiki by alias from wiki-root.toml
+    #[arg(long, global = true)]
+    pub wiki: Option<String>,
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -36,7 +40,15 @@ pub enum Command {
         dry_run: bool,
     },
     /// Scaffold a new wiki at <path>
-    Init { path: std::path::PathBuf },
+    Init {
+        path: std::path::PathBuf,
+        /// Wiki alias for wiki-root.toml registration
+        #[arg(long)]
+        alias: Option<String>,
+        /// Tags for this wiki (repeatable)
+        #[arg(long = "tag", value_name = "TAG")]
+        tags: Vec<String>,
+    },
     /// List whitelisted NVIDIA NIM Models
     Models {
         #[arg(long)]
@@ -143,6 +155,76 @@ pub enum Command {
     },
     /// Print version
     Version,
+    /// Manage wiki-root.toml configuration
+    Config {
+        #[command(subcommand)]
+        cmd: ConfigCmd,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum ConfigCmd {
+    /// Print the resolved wiki-root.toml file path
+    Path,
+    /// List all wikis or show merged config for a specific wiki
+    List {
+        /// Show config for this alias
+        #[arg(long)]
+        wiki: Option<String>,
+        /// JSON output
+        #[arg(long)]
+        json: bool,
+    },
+    /// Get a config value by dotted key
+    Get {
+        /// e.g. nim.embed_model
+        key: String,
+        /// Wiki alias (defaults to [defaults])
+        #[arg(long)]
+        wiki: Option<String>,
+    },
+    /// Set a config value by dotted key
+    Set {
+        /// e.g. nim.embed_model
+        key: String,
+        /// e.g. nvidia/nv-embed-v1
+        value: String,
+        /// Wiki alias (defaults to [defaults])
+        #[arg(long)]
+        wiki: Option<String>,
+    },
+    /// Remove a config override (revert to default)
+    Unset {
+        /// e.g. nim.embed_model
+        key: String,
+        /// Wiki alias
+        #[arg(long)]
+        wiki: Option<String>,
+    },
+    /// Register a new wiki
+    Add {
+        /// Wiki alias
+        alias: String,
+        /// Path to wiki directory
+        path: std::path::PathBuf,
+        /// Tags (repeatable)
+        #[arg(long = "tag", value_name = "TAG")]
+        tags: Vec<String>,
+        /// Description
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// Remove a wiki from the registry
+    Rm {
+        /// Wiki alias to remove
+        alias: String,
+    },
+    /// Open wiki-root.toml in $EDITOR
+    Edit,
+    /// Validate wiki-root.toml: parse [defaults] + every [alias], run field-level checks
+    Validate,
+    /// Print the JSON Schema for the resolved Config type (for editor / LSP use)
+    ShowSchema,
 }
 
 pub async fn run(cli: Cli) {
@@ -150,11 +232,14 @@ pub async fn run(cli: Cli) {
         Some(Command::Build { since, dry_run }) => {
             crate::cli::build::run(crate::cli::build::BuildArgs {
                 workspace: cli.workspace,
+                wiki: cli.wiki,
                 since,
                 dry_run,
             })
         }
-        Some(Command::Init { path }) => crate::cli::init::run(path),
+        Some(Command::Init { path, alias, tags }) => {
+            crate::cli::init::run(crate::cli::init::InitArgs { path, alias, tags })
+        }
         Some(Command::Models {
             embed,
             rerank,
@@ -169,6 +254,7 @@ pub async fn run(cli: Cli) {
         }) => {
             crate::cli::embed::run(crate::cli::embed::EmbedArgs {
                 workspace: cli.workspace,
+                wiki: cli.wiki.clone(),
                 model,
                 dims,
                 skip_existing,
@@ -185,6 +271,7 @@ pub async fn run(cli: Cli) {
         }) => {
             crate::cli::search::run(crate::cli::search::SearchArgs {
                 workspace: cli.workspace,
+                wiki: cli.wiki.clone(),
                 query,
                 top_k,
                 threshold,
@@ -203,6 +290,7 @@ pub async fn run(cli: Cli) {
         }) => {
             crate::cli::query::run(crate::cli::query::QueryArgs {
                 workspace: cli.workspace,
+                wiki: cli.wiki.clone(),
                 question,
                 top_k,
                 model,
@@ -215,12 +303,14 @@ pub async fn run(cli: Cli) {
         Some(Command::Doctor { json }) => {
             crate::cli::doctor::run(crate::cli::doctor::DoctorArgs {
                 workspace: cli.workspace,
+                wiki: cli.wiki,
                 json,
             })
             .await
         }
         Some(Command::Status { json }) => crate::cli::status::run(crate::cli::status::StatusArgs {
             workspace: cli.workspace,
+            wiki: cli.wiki.clone(),
             json,
         }),
         Some(Command::Skill(args)) => crate::cli::skill::run(args),
@@ -237,6 +327,7 @@ pub async fn run(cli: Cli) {
             source_type,
         }) => crate::cli::ingest::run(crate::cli::ingest::IngestArgs {
             workspace: cli.workspace,
+            wiki: cli.wiki.clone(),
             source,
             no_compile,
             source_type,
@@ -248,6 +339,7 @@ pub async fn run(cli: Cli) {
         }) => {
             crate::cli::lint::run(crate::cli::lint::LintArgs {
                 workspace: cli.workspace,
+                wiki: cli.wiki.clone(),
                 scope,
                 strict,
                 json,
@@ -263,6 +355,7 @@ pub async fn run(cli: Cli) {
             json,
         }) => crate::cli::ls::run(crate::cli::ls::LsArgs {
             workspace: cli.workspace,
+            wiki: cli.wiki.clone(),
             pages,
             raw,
             embed,
@@ -272,8 +365,10 @@ pub async fn run(cli: Cli) {
         }),
         Some(Command::Tree { json }) => crate::cli::tree::run(crate::cli::tree::TreeArgs {
             workspace: cli.workspace,
+            wiki: cli.wiki.clone(),
             json,
         }),
+        Some(Command::Config { cmd }) => crate::cli::config::run(cmd).await,
         Some(Command::Version) | None => {
             println!("wiki {}", env!("CARGO_PKG_VERSION"));
             Ok(())

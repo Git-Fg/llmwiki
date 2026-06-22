@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::WikiError;
+use crate::skills;
 
 pub struct InstallSkillArgs {
     pub global: bool,
@@ -9,8 +10,6 @@ pub struct InstallSkillArgs {
 }
 
 pub fn run(args: InstallSkillArgs) -> Result<(), WikiError> {
-    let source = resolve_skill_source(args.target)?;
-
     let target = if args.global {
         let home =
             std::env::var("HOME").map_err(|_| WikiError::Other(anyhow::anyhow!("HOME not set")))?;
@@ -26,32 +25,24 @@ pub fn run(args: InstallSkillArgs) -> Result<(), WikiError> {
         std::fs::create_dir_all(parent)?;
     }
     remove_existing_target(&target)?;
-    std::os::unix::fs::symlink(&source, &target)?;
+    std::fs::create_dir_all(&target)?;
+
+    // Write the hub SKILL.md from the binary-embedded content
+    std::fs::write(target.join("SKILL.md"), skills::SKILL_MD)?;
+
+    // Write each sub-skill from the binary-embedded content
+    for (name, content) in skills::TOPICS {
+        let sub_dir = target.join(name.to_uppercase());
+        std::fs::create_dir_all(&sub_dir)?;
+        std::fs::write(sub_dir.join("SKILL.md"), content)?;
+    }
 
     println!(
-        "✓ Installed skill: {} -> {}",
+        "✓ Installed skill bundle to {} (1 hub + {} sub-skills)",
         target.display(),
-        source.display()
+        skills::TOPICS.len()
     );
     Ok(())
-}
-
-fn resolve_skill_source(target: Option<PathBuf>) -> Result<PathBuf, WikiError> {
-    let candidate = target.unwrap_or_else(|| PathBuf::from("agents/skills/wiki"));
-
-    if candidate.join("SKILL.md").exists() {
-        return Ok(candidate);
-    }
-
-    let nested = candidate.join("wiki");
-    if nested.join("SKILL.md").exists() {
-        return Ok(nested);
-    }
-
-    Err(WikiError::Other(anyhow::anyhow!(
-        "skill source not found: {}",
-        candidate.display()
-    )))
 }
 
 fn remove_existing_target(target: &Path) -> Result<(), WikiError> {

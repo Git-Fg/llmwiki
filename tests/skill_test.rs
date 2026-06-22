@@ -9,7 +9,7 @@ fn skill_show_prints_full_content() {
         .arg("show")
         .assert()
         .success()
-        .stdout(str::contains("Wiki Skill"));
+        .stdout(str::contains("Personal Karpathy-style"));
 }
 
 #[test]

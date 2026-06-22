@@ -5,6 +5,7 @@ use crate::error::WikiError;
 
 pub struct TreeArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub json: bool,
 }
 
@@ -25,7 +26,9 @@ struct TreeOutput {
 pub fn run(args: TreeArgs) -> Result<(), WikiError> {
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
 

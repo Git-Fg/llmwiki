@@ -7,6 +7,7 @@ use crate::error::WikiError;
 
 pub struct IngestArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub source: PathBuf,
     pub no_compile: bool,
     pub source_type: Option<String>,
@@ -15,7 +16,9 @@ pub struct IngestArgs {
 pub fn run(args: IngestArgs) -> Result<(), WikiError> {
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
 

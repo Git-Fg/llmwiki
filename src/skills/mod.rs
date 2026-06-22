@@ -1,23 +1,23 @@
-pub const SKILL_MD: &str = include_str!("skill_md.md");
+pub const SKILL_MD: &str = include_str!("WIKI.md");
 
-pub const TOPIC_SETUP: &str = include_str!("topics/setup.md");
-pub const TOPIC_INGEST: &str = include_str!("topics/ingest.md");
-pub const TOPIC_SEARCH: &str = include_str!("topics/search.md");
-pub const TOPIC_QUERY: &str = include_str!("topics/query.md");
-pub const TOPIC_LINT: &str = include_str!("topics/lint.md");
-pub const TOPIC_MODELS: &str = include_str!("topics/models.md");
-pub const TOPIC_SYNC: &str = include_str!("topics/sync.md");
-pub const TOPIC_TROUBLESHOOTING: &str = include_str!("topics/troubleshooting.md");
+pub const SETUP: &str = include_str!("SETUP/SKILL.md");
+pub const INGEST: &str = include_str!("INGEST/SKILL.md");
+pub const SEARCH: &str = include_str!("SEARCH/SKILL.md");
+pub const QUERY: &str = include_str!("QUERY/SKILL.md");
+pub const LINT: &str = include_str!("LINT/SKILL.md");
+pub const MODELS: &str = include_str!("MODELS/SKILL.md");
+pub const SYNC: &str = include_str!("SYNC/SKILL.md");
+pub const TROUBLESHOOTING: &str = include_str!("TROUBLESHOOTING/SKILL.md");
 
 pub const TOPICS: &[(&str, &str)] = &[
-    ("setup", TOPIC_SETUP),
-    ("ingest", TOPIC_INGEST),
-    ("search", TOPIC_SEARCH),
-    ("query", TOPIC_QUERY),
-    ("lint", TOPIC_LINT),
-    ("models", TOPIC_MODELS),
-    ("sync", TOPIC_SYNC),
-    ("troubleshooting", TOPIC_TROUBLESHOOTING),
+    ("setup", SETUP),
+    ("ingest", INGEST),
+    ("search", SEARCH),
+    ("query", QUERY),
+    ("lint", LINT),
+    ("models", MODELS),
+    ("sync", SYNC),
+    ("troubleshooting", TROUBLESHOOTING),
 ];
 
 pub fn find_topic(name: &str) -> Option<&'static str> {

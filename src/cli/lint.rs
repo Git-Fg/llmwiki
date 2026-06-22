@@ -11,6 +11,7 @@ use crate::lint::LintIssue;
 
 pub struct LintArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub scope: String,
     pub strict: bool,
     pub json: bool,
@@ -19,7 +20,9 @@ pub struct LintArgs {
 pub async fn run(args: LintArgs) -> Result<(), WikiError> {
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
 

@@ -20,6 +20,12 @@ pub enum WikiError {
     )]
     WorkspaceNotFound,
 
+    #[error("wiki-root.toml not found in any of: {searched:?}")]
+    WikiRootNotFound { searched: Vec<std::path::PathBuf> },
+
+    #[error("wiki alias '{alias}' not found in registry. Available: {available}")]
+    AliasNotFound { alias: String, available: String },
+
     #[error("no embeddings yet. Run `wiki embed` first.")]
     NoEmbeddings,
 

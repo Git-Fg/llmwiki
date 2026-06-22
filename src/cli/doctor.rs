@@ -1,17 +1,22 @@
 use std::path::PathBuf;
 
 use crate::core::config::{resolve_api_key, resolve_config};
+use crate::core::registry::Registry;
 use crate::core::workspace::discover_workspace;
 use crate::error::WikiError;
 
 pub struct DoctorArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub json: bool,
 }
 
 #[derive(serde::Serialize)]
 struct DoctorReport {
     workspace: String,
+    active_alias: String,
+    wiki_root_path: String,
+    registry_entries: usize,
     config_loaded: bool,
     embed_model: String,
     nim_base_url: String,
@@ -21,14 +26,37 @@ struct DoctorReport {
     nim_status: Option<u16>,
     nim_error: Option<String>,
     embed_model_available: bool,
+    /// Full reflective config dump as `key → value` pairs (dotted keys).
+    config: std::collections::BTreeMap<String, String>,
 }
 
 pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
+    // Report wiki-root.toml info
+    let registry_info = match Registry::discover() {
+        Ok(reg) => Some((reg.root_path.display().to_string(), reg.entries.len())),
+        Err(_) => None,
+    };
+
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
+
+    // Determine active alias
+    let active_alias = if let Some(w) = &args.wiki {
+        w.clone()
+    } else if let Ok(reg) = Registry::discover() {
+        reg.entries
+            .iter()
+            .find(|e| e.path == ws)
+            .map(|e| e.alias.clone())
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
 
     let cfg_result = resolve_config(&ws);
     let mut cfg = match cfg_result {
@@ -39,6 +67,12 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                     "{}",
                     serde_json::to_string_pretty(&DoctorReport {
                         workspace: ws.display().to_string(),
+                        active_alias: active_alias.clone(),
+                        wiki_root_path: registry_info
+                            .as_ref()
+                            .map(|(p, _)| p.clone())
+                            .unwrap_or_default(),
+                        registry_entries: registry_info.as_ref().map(|(_, c)| *c).unwrap_or(0),
                         config_loaded: false,
                         embed_model: String::new(),
                         nim_base_url: String::new(),
@@ -48,6 +82,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                         nim_status: None,
                         nim_error: Some(format!("config load failed: {e}")),
                         embed_model_available: false,
+                        config: Default::default(),
                     })?
                 );
                 return Ok(());
@@ -62,6 +97,12 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
 
     let api_key = resolve_api_key(&cfg.nim);
     let api_key_length = api_key.len();
+
+    // Reflective dump of all config keys (dotted) for machine-readable diagnostics.
+    let config_dump: std::collections::BTreeMap<String, String> =
+        crate::cli::config::collect_dotted(&crate::cli::config::config_to_value(&cfg), "")
+            .into_iter()
+            .collect();
 
     // base_url is the host (e.g. https://integrate.api.nvidia.com);
     // the NIM API lives under /v1/<endpoint>.
@@ -108,6 +149,12 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
             "{}",
             serde_json::to_string_pretty(&DoctorReport {
                 workspace: ws.display().to_string(),
+                active_alias,
+                wiki_root_path: registry_info
+                    .as_ref()
+                    .map(|(p, _)| p.clone())
+                    .unwrap_or_default(),
+                registry_entries: registry_info.as_ref().map(|(_, c)| *c).unwrap_or(0),
                 config_loaded: true,
                 embed_model: cfg.nim.embed_model,
                 nim_base_url: cfg.nim.base_url,
@@ -117,10 +164,19 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                 nim_status,
                 nim_error,
                 embed_model_available,
+                config: config_dump,
             })?
         );
     } else {
         println!("✓ Workspace: {}", ws.display());
+        if let Some((path, count)) = &registry_info {
+            println!("✓ Wiki registry: {} ({} entries)", path, count);
+        } else {
+            println!("✗ Wiki registry: not found");
+        }
+        if !active_alias.is_empty() {
+            println!("✓ Active alias: {}", active_alias);
+        }
         println!("✓ Config loaded");
         println!("  Embed model: {}", cfg.nim.embed_model);
         println!("  NIM base URL: {}", cfg.nim.base_url);

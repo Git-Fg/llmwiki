@@ -1,8 +1,9 @@
+use crate::core::registry::Registry;
 use crate::error::WikiError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Config {
     #[serde(default = "default_nim")]
     pub nim: NimConfig,
@@ -12,7 +13,7 @@ pub struct Config {
     pub config_version: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NimConfig {
     #[serde(default = "default_nim_base_url")]
     pub base_url: String,
@@ -32,7 +33,7 @@ pub struct NimConfig {
     pub retry: RetryConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, schemars::JsonSchema)]
 pub struct RetryConfig {
     #[serde(default = "default_max_attempts")]
     pub max_attempts: u32,
@@ -40,7 +41,7 @@ pub struct RetryConfig {
     pub backoff_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct WikiConfig {
     #[serde(default = "default_chunk_tokens")]
     pub default_chunk_tokens: usize,
@@ -189,10 +190,80 @@ fn merge(mut base: Config, over: Config) -> Config {
 }
 
 pub fn resolve_config(workspace: &Path) -> Result<Config, WikiError> {
+    // Prefer wiki-root.toml registry if it has a matching entry
+    if let Ok(reg) = Registry::discover() {
+        // Canonicalize workspace to match registry paths
+        let ws_canon = workspace
+            .canonicalize()
+            .unwrap_or_else(|_| workspace.to_path_buf());
+        for entry in &reg.entries {
+            if entry.path == ws_canon || entry.path == workspace {
+                return reg.resolve_config(&entry.alias);
+            }
+        }
+    }
+
+    // Legacy: load from ~/.config/wiki/config.yaml and .wiki/config.yaml
     let mut paths = vec![home_dir().map(|h| h.join(".config/wiki/config.yaml"))];
     paths.push(Some(workspace.join(".wiki/config.yaml")));
     let paths: Vec<PathBuf> = paths.into_iter().flatten().collect();
     load_config(&paths)
+}
+
+/// Field-level validation independent of `load_config`. Used by `wiki config
+/// validate` and by callers that load a `Config` directly from the registry.
+/// Returns `Ok(())` if all whitelisted values are valid; otherwise a list of
+/// human-readable errors.
+pub fn validate(cfg: &Config) -> Result<(), Vec<String>> {
+    let mut errs = Vec::new();
+    let whitelisted = [
+        "nvidia/nv-embed-v1",
+        "nvidia/nv-embedqa-e5-v5",
+        "nvidia/nv-embedcode-7b-v1",
+        "nvidia/llama-nemotron-embed-1b-v2",
+        "nvidia/llama-nemotron-embed-vl-1b-v2",
+        "nvidia/llama-nemotron-rerank-1b-v2",
+        "nvidia/llama-nemotron-rerank-vl-1b-v2",
+        "nvidia/nv-rerankqa-mistral-4b-v3",
+    ];
+    if !cfg.nim.embed_model.is_empty() && !whitelisted.contains(&cfg.nim.embed_model.as_str()) {
+        errs.push(format!(
+            "unsupported embed_model: {} (allowed: {})",
+            cfg.nim.embed_model,
+            whitelisted.join(", ")
+        ));
+    }
+    if cfg.nim.batch_size == 0 {
+        errs.push("nim.batch_size must be >= 1".into());
+    }
+    if cfg.wiki.default_chunk_tokens == 0 {
+        errs.push("wiki.default_chunk_tokens must be >= 1".into());
+    }
+    if cfg.wiki.chunk_overlap_tokens >= cfg.wiki.default_chunk_tokens {
+        errs.push(format!(
+            "wiki.chunk_overlap_tokens ({}) must be < wiki.default_chunk_tokens ({})",
+            cfg.wiki.chunk_overlap_tokens, cfg.wiki.default_chunk_tokens
+        ));
+    }
+    if cfg.wiki.min_chunk_tokens > cfg.wiki.default_chunk_tokens {
+        errs.push(format!(
+            "wiki.min_chunk_tokens ({}) must be <= wiki.default_chunk_tokens ({})",
+            cfg.wiki.min_chunk_tokens, cfg.wiki.default_chunk_tokens
+        ));
+    }
+    if errs.is_empty() {
+        Ok(())
+    } else {
+        Err(errs)
+    }
+}
+
+/// Convenience wrapper that returns a single `WikiError` instead of a `Vec`.
+/// Use this from CLI handlers that just want to fail fast with one error.
+pub fn validate_or_error(cfg: &Config) -> Result<(), crate::error::WikiError> {
+    validate(cfg).map_err(|errs| {
+        crate::error::WikiError::Other(anyhow::anyhow!(errs.join("\n  - ")))
+    })
 }
 
 fn home_dir() -> Option<PathBuf> {

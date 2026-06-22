@@ -122,6 +122,24 @@ fn ls_config_flag() {
 }
 
 #[test]
+fn ls_config_flag_includes_nested_retry_keys() {
+    // Reflection-based config listing must include nested keys like
+    // `nim.retry.max_attempts` that the previous hardcoded version missed.
+    let tmp = make_workspace();
+    Command::cargo_bin("wiki")
+        .unwrap()
+        .arg("--workspace")
+        .arg(tmp.path())
+        .arg("ls")
+        .arg("--config")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("nim.retry.max_attempts:"))
+        .stdout(predicate::str::contains("nim.retry.backoff_ms:"))
+        .stdout(predicate::str::contains("wiki.require_frontmatter:"));
+}
+
+#[test]
 fn ls_raw_flag() {
     let tmp = make_workspace();
     Command::cargo_bin("wiki")

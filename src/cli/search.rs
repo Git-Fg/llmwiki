@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::core::config::{resolve_api_key, resolve_config};
+use crate::core::config::{resolve_api_key, resolve_config, validate_or_error};
 use crate::core::embeddings::{cosine_similarity, EmbeddingsFile};
 use crate::core::nim::NimClient;
 use crate::core::workspace::discover_workspace;
@@ -8,6 +8,7 @@ use crate::error::WikiError;
 
 pub struct SearchArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub query: String,
     pub top_k: usize,
     pub threshold: f32,
@@ -18,10 +19,13 @@ pub struct SearchArgs {
 pub async fn run(args: SearchArgs) -> Result<(), WikiError> {
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
     let mut cfg = resolve_config(&ws)?;
+    validate_or_error(&cfg)?;
     if let Ok(base_url) = std::env::var("WIKI_NIM_BASE_URL") {
         cfg.nim.base_url = base_url;
     }

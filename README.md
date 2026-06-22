@@ -5,21 +5,40 @@ A markdown-based personal knowledge base, built on Andrej Karpathy's LLM Wiki pa
 ## Install
 
 ```bash
+# 1. Install the CLI
 git clone https://github.com/you/wiki.git ~/code/wiki
 cd ~/code/wiki
 cargo install --path .
+
+# 2. Install the agent skill
+wiki install-skill --global
 ```
 
-This installs `wiki` to `~/.cargo/bin/wiki`. Add to your shell rc if not already on PATH.
+This installs `wiki` to `~/.cargo/bin/wiki` and the skill to `~/.agents/skills/wiki/`. Add `~/.cargo/bin` to your shell PATH if not already there.
+
+### Alternative: Workspace-local skill
+
+```bash
+wiki install-skill  # installs to .agents/skills/wiki/ in current workspace
+```
+
+Use `--global` for system-wide access, omit for workspace-local.
 
 ## First-run setup
 
 ```bash
 export NVIDIA_NIM_API_KEY="nvapi-..."        # Get one at https://build.nvidia.com/
-wiki install-skill --global                 # install the agent skill
 wiki init ~/my-wiki                         # create your wiki
 cd ~/my-wiki
 wiki doctor                                 # verify config + NIM reachability
+```
+
+## Quick Help
+
+```bash
+wiki help              # full command reference
+wiki skill show        # complete agent skill guide
+wiki skill list        # list all skill topics
 ```
 
 ## Daily use

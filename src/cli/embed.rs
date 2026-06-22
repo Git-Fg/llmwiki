@@ -12,6 +12,7 @@ use crate::error::WikiError;
 
 pub struct EmbedArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub model: Option<String>,
     pub dims: Option<usize>,
     pub skip_existing: bool,
@@ -21,7 +22,9 @@ pub struct EmbedArgs {
 pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
     let mut cfg = resolve_config(&ws)?;

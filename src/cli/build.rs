@@ -5,6 +5,7 @@ use crate::error::WikiError;
 
 pub struct BuildArgs {
     pub workspace: Option<PathBuf>,
+    pub wiki: Option<String>,
     pub since: Option<String>,
     pub dry_run: bool,
 }
@@ -12,7 +13,9 @@ pub struct BuildArgs {
 pub fn run(args: BuildArgs) -> Result<(), WikiError> {
     let ws = discover_workspace(
         args.workspace.clone(),
+        args.wiki.as_deref(),
         std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
 
