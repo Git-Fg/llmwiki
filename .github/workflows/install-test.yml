@@ -1,0 +1,28 @@
+name: install-test
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run install.sh
+        run: |
+          set -e
+          # Use the latest release tag; for workflow_dispatch, use main.
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            bash install.sh
+          else
+            # For dev, install from main via raw URL.
+            curl -LsSf https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+          fi
+      - name: Verify the install
+        run: |
+          "$HOME/.local/bin/llmwiki-cli" --version
+          "$HOME/.local/bin/llmwiki-cli" doctor --json || true
