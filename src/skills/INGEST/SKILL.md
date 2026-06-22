@@ -15,26 +15,26 @@ allowed-tools: Bash(wiki:*), Read, Write
 
 1. **Add the source file** to the `raw/` subdirectory:
    ```bash
-   wiki ingest path/to/source.md
+   llmwiki-cli ingest path/to/source.md
    ```
    This computes SHA256, writes frontmatter, appends a log entry, and (unless `--no-compile`) compiles the source into a page in `wiki/`.
 
 2. **Verify the page**:
    ```bash
-   wiki ls --pages
+   llmwiki-cli ls --pages
    ```
 
 3. **Add wikilinks** between pages so the graph stays connected.
 
 4. **Embed the new pages** (so semantic search picks them up):
    ```bash
-   wiki embed
+   llmwiki-cli embed
    ```
 
 ## Multiple wikis
 
 - `--wiki <alias>` selects which wiki to ingest into
-- `wiki config add <alias> <path>` registers a new wiki first
+- `llmwiki-cli config add <alias> <path>` registers a new wiki first
 
 ## Common flags
 
@@ -43,5 +43,5 @@ allowed-tools: Bash(wiki:*), Read, Write
 
 ## See also
 
-- `wiki search` — semantic search
-- `wiki query` — RAG question-answering
+- `llmwiki-cli search` — semantic search
+- `llmwiki-cli query` — RAG question-answering

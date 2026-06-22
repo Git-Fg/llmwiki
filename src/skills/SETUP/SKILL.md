@@ -3,8 +3,8 @@ name: setup
 description: |
   Install the wiki CLI, create a wiki, register it in wiki-root.toml,
   set up the bundled skill, and verify the first-run setup. Use when
-  the user asks about setup, first-run, wiki init, wiki config add,
-  or installing the wiki skill.
+  the user asks about setup, first-run, llmwiki-cli init, llmwiki-cli config add,
+  or installing the llmwiki-cli skill.
 whenToUse: |
   Do NOT use for searching or querying an already-working wiki.
 allowed-tools: Bash(wiki:*)
@@ -33,38 +33,38 @@ cargo install --path /path/to/wiki
 
 ## First-run setup
 
-1. **Initialize a wiki at a path** — `wiki init` auto-registers in `wiki-root.toml`:
+1. **Initialize a wiki at a path** — `llmwiki-cli init` auto-registers in `wiki-root.toml`:
    ```bash
-   wiki init ~/my-wiki --alias mywiki --tag personal --tag reference
+   llmwiki-cli init ~/my-wiki --alias mywiki --tag personal --tag reference
    ```
    Creates `wiki/`, `raw/articles/`, `index.md`, `log.md`, `.gitignore` and `git init`. **No `.wiki/` directory is created.**
 
-2. **Register an existing wiki** (no `wiki init`):
+2. **Register an existing wiki** (no `llmwiki-cli init`):
    ```bash
-   wiki config add <alias> <path> --tag tag1 --tag tag2 --description "Description"
+   llmwiki-cli config add <alias> <path> --tag tag1 --tag tag2 --description "Description"
    ```
 
 3. **Verify the registry**:
    ```bash
-   wiki config list
+   llmwiki-cli config list
    ```
 
 4. **Find the active config**:
    ```bash
-   wiki config path
+   llmwiki-cli config path
    ```
 
-5. **Install the wiki skill globally**:
+5. **Install the llmwiki-cli skill globally**:
    ```bash
-   wiki install-skill --global
+   llmwiki-cli install-skill --global
    ```
    This creates `~/.agents/skills/wiki/` with the full skill bundle (hub + 8 sub-skills).
 
 ## Switching wikis
 
-- By CWD: `cd ~/my-wiki && wiki ls` (auto-detected)
+- By CWD: `cd ~/my-wiki && llmwiki-cli ls` (auto-detected)
 - By flag: `wiki --wiki pharma ls`
-- By env: `WIKI_ACTIVE=pharma wiki ls`
+- By env: `WIKI_ACTIVE=pharma llmwiki-cli ls`
 
 ## Where the config lives
 
@@ -78,11 +78,11 @@ cargo install --path /path/to/wiki
 The installed skill is a copy, not a symlink. After upgrading the CLI, re-run:
 
 ```bash
-wiki install-skill --global
+llmwiki-cli install-skill --global
 ```
 
 ## Troubleshooting
 
-- `wiki-root.toml not found` — `wiki init` (creates one) or `wiki config add`
-- `alias not found` — `wiki config list` to see registered wikis
+- `wiki-root.toml not found` — `llmwiki-cli init` (creates one) or `llmwiki-cli config add`
+- `alias not found` — `llmwiki-cli config list` to see registered wikis
 - Old `.wiki/config.yaml` ignored — registry is the source of truth; safe to delete after migration

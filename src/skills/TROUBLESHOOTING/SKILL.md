@@ -14,17 +14,17 @@ allowed-tools: Bash(wiki:*), Read
 ## "wiki-root.toml not found"
 
 ```bash
-wiki config path        # see where the CLI is looking
-wiki config list        # see all registered wikis
-wiki config add <alias> <path>   # register a wiki
-wiki config validate    # check that [defaults] and every alias parse + pass field validation
-wiki init <path> --alias <name>  # create a new wiki
+llmwiki-cli config path        # see where the CLI is looking
+llmwiki-cli config list        # see all registered wikis
+llmwiki-cli config add <alias> <path>   # register a wiki
+llmwiki-cli config validate    # check that [defaults] and every alias parse + pass field validation
+llmwiki-cli init <path> --alias <name>  # create a new wiki
 ```
 
 ## "alias not found"
 
 ```bash
-wiki config list        # see all registered aliases
+llmwiki-cli config list        # see all registered aliases
 wiki --wiki <alias> <cmd>  # use the right alias
 ```
 
@@ -46,37 +46,37 @@ export NVIDIA_NIM_API_KEY="nvapi-..."   # add to ~/.zshrc
 ## "NIM endpoint unreachable"
 
 ```bash
-wiki doctor             # detailed report
-wiki config get nim.base_url
-WIKI_NIM_BASE_URL=https://integrate.api.nvidia.com wiki doctor
+llmwiki-cli doctor             # detailed report
+llmwiki-cli config get nim.base_url
+WIKI_NIM_BASE_URL=https://integrate.api.nvidia.com llmwiki-cli doctor
 ```
 
 ## "wrong embedding model"
 
 ```bash
-wiki config get nim.embed_model --wiki <alias>
-wiki config set nim.embed_model nvidia/<model> --wiki <alias>
-wiki config show-schema    # JSON Schema for the full Config (for editor autocomplete)
+llmwiki-cli config get nim.embed_model --wiki <alias>
+llmwiki-cli config set nim.embed_model nvidia/<model> --wiki <alias>
+llmwiki-cli config show-schema    # JSON Schema for the full Config (for editor autocomplete)
 ```
 
 ## "no embeddings yet"
 
 ```bash
-wiki embed
-wiki config validate   # catches bad embed_model / chunk token sizes before NIM call
+llmwiki-cli embed
+llmwiki-cli config validate   # catches bad embed_model / chunk token sizes before NIM call
 ```
 
 ## "no wiki found" (no CWD match, no flag, no env)
 
 ```bash
-wiki config list        # see all wikis
+llmwiki-cli config list        # see all wikis
 wiki --wiki <alias> <cmd>
 ```
 
 ## "broken wikilink"
 
 ```bash
-wiki lint --scope wiki --strict
+llmwiki-cli lint --scope wiki --strict
 ```
 
 ## Where the config lives

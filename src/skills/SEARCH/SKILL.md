@@ -14,7 +14,7 @@ allowed-tools: Bash(wiki:*)
 ## Workflow
 
 ```bash
-wiki search "pharmacology of beta-blockers" --top-k 10 --threshold 0.3
+llmwiki-cli search "pharmacology of beta-blockers" --top-k 10 --threshold 0.3
 ```
 
 ## Flags
@@ -27,9 +27,9 @@ wiki search "pharmacology of beta-blockers" --top-k 10 --threshold 0.3
 
 ## Tips
 
-- Embeddings must exist first: `wiki embed`
+- Embeddings must exist first: `llmwiki-cli embed`
 - Lower threshold = more results; raise to 0.5+ for high-precision
-- Combine with `wiki tree | grep` for slug-based filtering before search
+- Combine with `llmwiki-cli tree | grep` for slug-based filtering before search
 
 ## Multiple wikis
 

@@ -5,7 +5,7 @@ description: |
   Use when the user asks "switch embedding model", "use a different
   reranker", "what models are available", or "configure NIM".
 whenToUse: |
-  Do NOT use for embedding existing pages (use `wiki embed`).
+  Do NOT use for embedding existing pages (use `llmwiki-cli embed`).
 allowed-tools: Bash(wiki:*)
 ---
 
@@ -14,21 +14,21 @@ allowed-tools: Bash(wiki:*)
 ## List whitelisted models
 
 ```bash
-wiki models --embed
-wiki models --rerank
-wiki models --commercial
+llmwiki-cli models --embed
+llmwiki-cli models --rerank
+llmwiki-cli models --commercial
 ```
 
 ## Set the embedding model
 
 For all wikis (default):
 ```bash
-wiki config set nim.embed_model nvidia/llama-nemotron-embed-1b-v2
+llmwiki-cli config set nim.embed_model nvidia/llama-nemotron-embed-1b-v2
 ```
 
 For a specific wiki:
 ```bash
-wiki config set nim.embed_model nvidia/nv-embedqa-e5-v5 --wiki pharma
+llmwiki-cli config set nim.embed_model nvidia/nv-embedqa-e5-v5 --wiki pharma
 ```
 
 This writes `[pharma.nim] embed_model = "..."` to `wiki-root.toml`.
@@ -36,7 +36,7 @@ This writes `[pharma.nim] embed_model = "..."` to `wiki-root.toml`.
 ## Verify
 
 ```bash
-wiki doctor
+llmwiki-cli doctor
 ```
 
 ## Supported whitelisted models

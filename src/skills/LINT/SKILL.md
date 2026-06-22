@@ -14,7 +14,7 @@ allowed-tools: Bash(wiki:*), Read
 ## Workflow
 
 ```bash
-wiki lint --scope wiki --strict
+llmwiki-cli lint --scope wiki --strict
 ```
 
 ## Scopes
@@ -43,7 +43,7 @@ wiki lint --scope wiki --strict
 Adjust thresholds in `wiki-root.toml`:
 
 ```bash
-wiki config set wiki.require_wikilinks_min 3
+llmwiki-cli config set wiki.require_wikilinks_min 3
 ```
 
 This writes `[defaults].wiki.require_wikilinks_min = 3` (or `[<alias>].wiki...` with `--wiki <alias>`).

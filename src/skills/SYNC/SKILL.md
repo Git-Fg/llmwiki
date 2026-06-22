@@ -25,7 +25,7 @@ allowed-tools: Bash(wiki:*), Bash(git:*)
 
 3. **Register the wiki in wiki-root.toml**:
    ```bash
-   wiki config add mywiki ~/my-wiki --tag personal
+   llmwiki-cli config add mywiki ~/my-wiki --tag personal
    ```
    No `.wiki/` directory needs to exist — the registry is the source of truth.
 
@@ -34,14 +34,14 @@ allowed-tools: Bash(wiki:*), Bash(git:*)
    export NVIDIA_NIM_API_KEY="nvapi-..."
    ```
 
-5. **Install the wiki skill globally**:
+5. **Install the llmwiki-cli skill globally**:
    ```bash
-   wiki install-skill --global
+   llmwiki-cli install-skill --global
    ```
 
 6. **Verify**:
    ```bash
-   wiki doctor
+   llmwiki-cli doctor
    ```
 
 ## Switching wikis without `cd`
@@ -57,5 +57,5 @@ The `--wiki <alias>` flag works on every command.
 
 ```bash
 cd ~/my-wiki && git pull
-wiki embed   # refresh embeddings for any new pages
+llmwiki-cli embed   # refresh embeddings for any new pages
 ```
