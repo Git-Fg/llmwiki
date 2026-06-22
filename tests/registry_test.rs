@@ -1,5 +1,5 @@
-use std::io::Write;
 use llmwiki_cli::core::registry::Registry;
+use std::io::Write;
 
 fn write_tmp_toml(content: &str) -> std::path::PathBuf {
     let dir = tempfile::tempdir().unwrap();

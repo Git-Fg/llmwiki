@@ -261,9 +261,8 @@ pub fn validate(cfg: &Config) -> Result<(), Vec<String>> {
 /// Convenience wrapper that returns a single `WikiError` instead of a `Vec`.
 /// Use this from CLI handlers that just want to fail fast with one error.
 pub fn validate_or_error(cfg: &Config) -> Result<(), crate::error::WikiError> {
-    validate(cfg).map_err(|errs| {
-        crate::error::WikiError::Other(anyhow::anyhow!(errs.join("\n  - ")))
-    })
+    validate(cfg)
+        .map_err(|errs| crate::error::WikiError::Other(anyhow::anyhow!(errs.join("\n  - "))))
 }
 
 fn home_dir() -> Option<PathBuf> {

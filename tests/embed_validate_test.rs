@@ -4,7 +4,10 @@ use std::io::Write;
 fn isolated_registry(content: &str) -> (std::path::PathBuf, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("wiki-root.toml");
-    std::fs::File::create(&path).unwrap().write_all(content.as_bytes()).unwrap();
+    std::fs::File::create(&path)
+        .unwrap()
+        .write_all(content.as_bytes())
+        .unwrap();
     (path, dir)
 }
 
