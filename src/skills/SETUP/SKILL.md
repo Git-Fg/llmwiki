@@ -86,3 +86,169 @@ llmwiki-cli install-skill --global
 - `wiki-root.toml not found` — `llmwiki-cli init` (creates one) or `llmwiki-cli config add`
 - `alias not found` — `llmwiki-cli config list` to see registered wikis
 - Old `.wiki/config.yaml` ignored — registry is the source of truth; safe to delete after migration
+
+## JSON Schema (for editor autocomplete)
+
+The full JSON Schema for `wiki-root.toml` is regenerated at build time. Editors that read this file (Cursor's `.cursorrules` autoload, Continue's `config.yaml` rules block) pick it up automatically.
+
+<!-- BEGIN SCHEMA -->
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "required": [
+    "config_version",
+    "nim",
+    "wiki"
+  ],
+  "properties": {
+    "config_version": {
+      "description": "Schema version of this config",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "nim": {
+      "description": "NIM API client configuration",
+      "allOf": [
+        {
+          "$ref": "#/definitions/NimConfig"
+        }
+      ]
+    },
+    "wiki": {
+      "description": "Wiki page chunking and lint settings",
+      "allOf": [
+        {
+          "$ref": "#/definitions/WikiConfig"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "NimConfig": {
+      "type": "object",
+      "required": [
+        "api_key_env",
+        "base_url",
+        "batch_size",
+        "embed_model",
+        "request_timeout_secs",
+        "rerank_model",
+        "retry"
+      ],
+      "properties": {
+        "api_key_env": {
+          "description": "Env var name holding the NIM API key",
+          "type": "string"
+        },
+        "base_url": {
+          "description": "NIM API base URL (no /v1 suffix)",
+          "type": "string"
+        },
+        "batch_size": {
+          "description": "Embedding request batch size (1+)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "embed_dim_override": {
+          "description": "Override embedding dimension (empty = use model default)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "embed_model": {
+          "description": "Embedding model identifier (must be in the whitelisted NVIDIA NIM set)",
+          "type": "string"
+        },
+        "request_timeout_secs": {
+          "description": "NIM request timeout in seconds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "rerank_model": {
+          "description": "Re-ranking model identifier (empty = disabled)",
+          "type": "string"
+        },
+        "retry": {
+          "description": "Retry policy for failed NIM calls",
+          "allOf": [
+            {
+              "$ref": "#/definitions/RetryConfig"
+            }
+          ]
+        }
+      }
+    },
+    "RetryConfig": {
+      "type": "object",
+      "required": [
+        "backoff_ms",
+        "max_attempts"
+      ],
+      "properties": {
+        "backoff_ms": {
+          "description": "Backoff between retries in milliseconds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "max_attempts": {
+          "description": "Maximum attempts per NIM call",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      }
+    },
+    "WikiConfig": {
+      "type": "object",
+      "required": [
+        "chunk_overlap_tokens",
+        "default_chunk_tokens",
+        "min_chunk_tokens",
+        "require_frontmatter",
+        "require_wikilinks_min"
+      ],
+      "properties": {
+        "chunk_overlap_tokens": {
+          "description": "Chunk overlap in tokens (must be < default_chunk_tokens)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "default_chunk_tokens": {
+          "description": "Default chunk size in tokens",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "min_chunk_tokens": {
+          "description": "Minimum chunk size in tokens (must be <= default_chunk_tokens)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "require_frontmatter": {
+          "description": "Require YAML frontmatter on every page",
+          "type": "boolean"
+        },
+        "require_wikilinks_min": {
+          "description": "Minimum wikilink count per page (0 = no minimum)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        }
+      }
+    }
+  }
+}
+```
+<!-- END SCHEMA -->

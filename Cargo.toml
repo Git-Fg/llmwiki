@@ -40,3 +40,7 @@ predicates = "3"
 tempfile = "3"
 insta = "1"
 wiremock = "0.6"
+
+[build-dependencies]
+schemars = "0.8"
+serde_json = "1"
