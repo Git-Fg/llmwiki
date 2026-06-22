@@ -89,7 +89,7 @@ llmwiki-cli install-skill --global
 
 ## JSON Schema (for editor autocomplete)
 
-The full JSON Schema for `wiki-root.toml` is regenerated at build time. Editors that read this file (Cursor's `.cursorrules` autoload, Continue's `config.yaml` rules block) pick it up automatically.
+The full JSON Schema for `wiki-root.toml` is regenerated at build time. Editors with YAML Schema support (VS Code's Red Hat YAML extension, IntelliJ, Neovim with `coc-yaml`, etc.) can point their schema association at this block. AI agents reading the skill will see the canonical schema as part of the documentation.
 
 <!-- BEGIN SCHEMA -->
 

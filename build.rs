@@ -63,6 +63,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/skills/WIKI.md");
     println!("cargo:rerun-if-changed=src/skills/SETUP/SKILL.md");
+    println!("cargo:rerun-if-changed=src/core/config.rs");
 
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let manifest_path = Path::new(&manifest_dir);
@@ -72,9 +73,19 @@ fn main() {
     if let Ok(content) = fs::read_to_string(&hub_src) {
         let out_path = manifest_path.join("agents/skills/wiki/SKILL.md");
         if let Some(parent) = out_path.parent() {
-            fs::create_dir_all(parent).ok();
+            if let Err(e) = fs::create_dir_all(parent) {
+                println!(
+                    "cargo:warning=failed to create skill dir {:?}: {}",
+                    parent, e
+                );
+            }
         }
-        fs::write(&out_path, content).ok();
+        if let Err(e) = fs::write(&out_path, content) {
+            println!(
+                "cargo:warning=failed to write hub SKILL.md {:?}: {}",
+                out_path, e
+            );
+        }
     }
 
     // Inject JSON Schema into SETUP/SKILL.md (between BEGIN SCHEMA / END SCHEMA markers).
@@ -96,7 +107,12 @@ fn main() {
                 new_content.push_str(&fenced);
                 new_content.push('\n');
                 new_content.push_str(&content[end..]);
-                fs::write(&setup_path, new_content).ok();
+                if let Err(e) = fs::write(&setup_path, new_content) {
+                    println!(
+                        "cargo:warning=failed to inject JSON schema into SETUP/SKILL.md: {}",
+                        e
+                    );
+                }
             }
         }
     }
