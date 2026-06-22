@@ -6,7 +6,7 @@ description: |
   changes", or wants to set up a new laptop.
 whenToUse: |
   Do NOT use for ingestion or search.
-allowed-tools: Bash(wiki:*), Bash(git:*)
+allowed-tools: Bash(llmwiki-cli:*), Bash(git:*)
 ---
 
 # Wiki — Sync (new device setup)
@@ -15,7 +15,7 @@ allowed-tools: Bash(wiki:*), Bash(git:*)
 
 1. **Install the CLI**:
    ```bash
-   cargo install --path /path/to/wiki   # or `cargo install wiki` once published
+   cargo install --path /path/to/wiki   # or `cargo install llmwiki-cli` once published
    ```
 
 2. **Clone the wiki** (assuming the user has it in a git remote):
@@ -47,8 +47,8 @@ allowed-tools: Bash(wiki:*), Bash(git:*)
 ## Switching wikis without `cd`
 
 ```bash
-wiki --wiki pharma ls
-wiki --wiki mevin search "..."
+llmwiki-cli --wiki pharma ls
+llmwiki-cli --wiki mevin search "..."
 ```
 
 The `--wiki <alias>` flag works on every command.

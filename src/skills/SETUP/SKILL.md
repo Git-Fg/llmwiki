@@ -7,7 +7,7 @@ description: |
   or installing the llmwiki-cli skill.
 whenToUse: |
   Do NOT use for searching or querying an already-working wiki.
-allowed-tools: Bash(wiki:*)
+allowed-tools: Bash(llmwiki-cli:*)
 ---
 
 # Wiki — Setup
@@ -63,7 +63,7 @@ cargo install --path /path/to/wiki
 ## Switching wikis
 
 - By CWD: `cd ~/my-wiki && llmwiki-cli ls` (auto-detected)
-- By flag: `wiki --wiki pharma ls`
+- By flag: `llmwiki-cli --wiki pharma ls`
 - By env: `WIKI_ACTIVE=pharma llmwiki-cli ls`
 
 ## Where the config lives

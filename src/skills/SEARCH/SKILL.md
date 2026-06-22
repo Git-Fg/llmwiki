@@ -6,7 +6,7 @@ description: |
   or wants vector similarity results.
 whenToUse: |
   Do NOT use for RAG-style question answering (use `query`).
-allowed-tools: Bash(wiki:*)
+allowed-tools: Bash(llmwiki-cli:*)
 ---
 
 # Wiki — Search
@@ -33,4 +33,4 @@ llmwiki-cli search "pharmacology of beta-blockers" --top-k 10 --threshold 0.3
 
 ## Multiple wikis
 
-`wiki --wiki pharma search "..."` searches the pharma wiki without `cd`-ing into it.
+`llmwiki-cli --wiki pharma search "..."` searches the pharma wiki without `cd`-ing into it.

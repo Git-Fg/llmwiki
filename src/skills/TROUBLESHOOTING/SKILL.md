@@ -6,7 +6,7 @@ description: |
   wikilinks. Use when the user reports any wiki error.
 whenToUse: |
   Do NOT use for routine search/query/ingest.
-allowed-tools: Bash(wiki:*), Read
+allowed-tools: Bash(llmwiki-cli:*), Read
 ---
 
 # Wiki — Troubleshooting
@@ -25,14 +25,14 @@ llmwiki-cli init <path> --alias <name>  # create a new wiki
 
 ```bash
 llmwiki-cli config list        # see all registered aliases
-wiki --wiki <alias> <cmd>  # use the right alias
+llmwiki-cli --wiki <alias> <cmd>  # use the right alias
 ```
 
 ## "workspace not found"
 
 ```bash
-wiki --workspace /path/to/wiki <cmd>   # explicit path
-WIKI_ACTIVE=<alias> wiki <cmd>         # env var
+llmwiki-cli --workspace /path/to/wiki <cmd>   # explicit path
+WIKI_ACTIVE=<alias> llmwiki-cli <cmd>         # env var
 cd /path/to/wiki                        # CWD inside the wiki
 ```
 
@@ -70,7 +70,7 @@ llmwiki-cli config validate   # catches bad embed_model / chunk token sizes befo
 
 ```bash
 llmwiki-cli config list        # see all wikis
-wiki --wiki <alias> <cmd>
+llmwiki-cli --wiki <alias> <cmd>
 ```
 
 ## "broken wikilink"

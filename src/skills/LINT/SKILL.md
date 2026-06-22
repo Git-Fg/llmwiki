@@ -6,7 +6,7 @@ description: |
   "find broken links", or "validate frontmatter".
 whenToUse: |
   Do NOT use for searching or ingesting.
-allowed-tools: Bash(wiki:*), Read
+allowed-tools: Bash(llmwiki-cli:*), Read
 ---
 
 # Wiki — Lint

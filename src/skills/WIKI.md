@@ -9,7 +9,7 @@ description: |
   subcommands only when semantic search or NIM-backed operations are
   explicitly needed.
 has-sub-skill: true
-allowed-tools: Bash(wiki:*)
+allowed-tools: Bash(llmwiki-cli:*)
 ---
 
 # wiki
@@ -59,10 +59,10 @@ Run `llmwiki-cli skill show <topic>` to load the full content for a sub-skill.
 ```bash
 llmwiki-cli config list                    # show registered wikis
 llmwiki-cli config validate                # check [defaults] + every alias parses + passes
-wiki --wiki pharma search "..."     # semantic search
-wiki --wiki pharma ingest foo.md    # add a source
-wiki --wiki pharma query "..."      # RAG question
-wiki --wiki pharma lint             # check hygiene
+llmwiki-cli --wiki pharma search "..."     # semantic search
+llmwiki-cli --wiki pharma ingest foo.md    # add a source
+llmwiki-cli --wiki pharma query "..."      # RAG question
+llmwiki-cli --wiki pharma lint             # check hygiene
 llmwiki-cli doctor                          # diagnose NIM + config
 ```
 

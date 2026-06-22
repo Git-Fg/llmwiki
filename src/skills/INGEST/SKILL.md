@@ -6,7 +6,7 @@ description: |
   "ingest a source", "compile a new page", or "add a note".
 whenToUse: |
   Do NOT use for searching or querying the wiki.
-allowed-tools: Bash(wiki:*), Read, Write
+allowed-tools: Bash(llmwiki-cli:*), Read, Write
 ---
 
 # Wiki — Ingest

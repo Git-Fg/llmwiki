@@ -6,7 +6,7 @@ description: |
   reranker", "what models are available", or "configure NIM".
 whenToUse: |
   Do NOT use for embedding existing pages (use `llmwiki-cli embed`).
-allowed-tools: Bash(wiki:*)
+allowed-tools: Bash(llmwiki-cli:*)
 ---
 
 # Wiki — Models

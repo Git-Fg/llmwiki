@@ -7,7 +7,7 @@ description: |
   wants a synthesized answer with sources.
 whenToUse: |
   Do NOT use for simple search (use `search`).
-allowed-tools: Bash(wiki:*)
+allowed-tools: Bash(llmwiki-cli:*)
 ---
 
 # Wiki — Query
