@@ -60,10 +60,15 @@ struct ConfigEntry {
 
 #[derive(serde::Serialize)]
 struct LsOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pages: Option<Vec<PageEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     raw: Option<Vec<RawEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     embed: Option<Vec<EmbedEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     links: Option<Vec<LinkEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     config: Option<Vec<ConfigEntry>>,
 }
 

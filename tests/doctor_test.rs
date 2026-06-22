@@ -48,6 +48,43 @@ async fn doctor_uses_correct_models_endpoint() {
 }
 
 #[tokio::test]
+async fn doctor_json_output() {
+    let tmp = tempfile::tempdir().unwrap();
+    let wiki = tmp.path();
+    std::fs::create_dir(wiki.join(".wiki")).unwrap();
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(bearer_token("test-key"))
+        .and(path("/v1/models"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "object": "list", "data": []
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let output = Command::cargo_bin("wiki")
+        .unwrap()
+        .arg("--workspace")
+        .arg(wiki)
+        .env("WIKI_NIM_BASE_URL", mock_server.uri())
+        .env("NVIDIA_API_KEY", "test-key")
+        .env_remove("NVIDIA_NIM_API_KEY")
+        .arg("doctor")
+        .arg("--json")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(v["config_loaded"], true);
+    assert_eq!(v["nim_reachable"], true);
+    assert_eq!(v["api_key_length"], 8);
+    assert!(v.get("workspace").is_some());
+}
+
+#[tokio::test]
 async fn doctor_reports_missing_api_key() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
