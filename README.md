@@ -6,20 +6,18 @@ A markdown-based personal knowledge base, built on Andrej Karpathy's LLM Wiki pa
 
 ```bash
 # 1. Install the CLI
-git clone https://github.com/you/wiki.git ~/code/wiki
-cd ~/code/wiki
-cargo install --path .
+curl -LsSf https://github.com/<owner>/llmwiki/raw/main/install.sh | bash
 
 # 2. Install the agent skill
-wiki install-skill --global
+llmwiki-cli install-skill --global
 ```
 
-This installs `wiki` to `~/.cargo/bin/wiki` and the skill to `~/.agents/skills/wiki/`. Add `~/.cargo/bin` to your shell PATH if not already there.
+This installs `llmwiki-cli` to `~/.cargo/bin/llmwiki-cli` and the skill to `~/.agents/skills/wiki/`. Add `~/.cargo/bin` to your shell PATH if not already there.
 
 ### Alternative: Workspace-local skill
 
 ```bash
-wiki install-skill  # installs to .agents/skills/wiki/ in current workspace
+llmwiki-cli install-skill  # installs to .agents/skills/wiki/ in current workspace
 ```
 
 Use `--global` for system-wide access, omit for workspace-local.
@@ -28,17 +26,17 @@ Use `--global` for system-wide access, omit for workspace-local.
 
 ```bash
 export NVIDIA_NIM_API_KEY="nvapi-..."        # Get one at https://build.nvidia.com/
-wiki init ~/my-wiki                         # create your wiki
+llmwiki-cli init ~/my-wiki                         # create your wiki
 cd ~/my-wiki
-wiki doctor                                 # verify config + NIM reachability
+llmwiki-cli doctor                                 # verify config + NIM reachability
 ```
 
 ## Quick Help
 
 ```bash
-wiki help              # full command reference
-wiki skill show        # complete agent skill guide
-wiki skill list        # list all skill topics
+llmwiki-cli help              # full command reference
+llmwiki-cli skill show        # complete agent skill guide
+llmwiki-cli skill list        # list all skill topics
 ```
 
 ## Daily use
@@ -46,40 +44,40 @@ wiki skill list        # list all skill topics
 ```bash
 cd ~/my-wiki
 git pull                                    # get latest markdown from other devices
-wiki ingest ~/Downloads/article.pdf         # add a source (auto-compiles to wiki pages)
-wiki search "what did I write about X?"     # semantic search
-wiki query "summarize the latest AI notes"  # RAG with citations
-wiki lint                                   # hygiene check
+llmwiki-cli ingest ~/Downloads/article.pdf         # add a source (auto-compiles to wiki pages)
+llmwiki-cli search "what did I write about X?"     # semantic search
+llmwiki-cli query "summarize the latest AI notes"  # RAG with citations
+llmwiki-cli lint                                   # hygiene check
 git add . && git commit -m "ingest: X" && git push
 ```
 
 ## Architecture
 
 - **Wiki content**: Markdown files in `wiki/`, sources in `raw/`, catalog in `index.md`, log in `log.md`. All committed to git.
-- **Embeddings**: `embeddings.jsonl` (gitignored, regenerated per device via `wiki embed`).
+- **Embeddings**: `embeddings.jsonl` (gitignored, regenerated per device via `llmwiki-cli embed`).
 - **CLI**: Single Rust binary. No database.
-- **Skill**: stub at `~/.agents/skills/wiki/SKILL.md` (symlinked via `wiki install-skill`). Full content served by `wiki skill show [topic]`.
+- **Skill**: stub at `~/.agents/skills/wiki/SKILL.md` (symlinked via `llmwiki-cli install-skill`). Full content served by `llmwiki-cli skill show [topic]`.
 - **Sync**: Git between devices. Embeddings regenerated locally.
 - **No viewer**: The wiki is consumed directly via the CLI; no static site is generated.
 
 ## Commands
 
 ```
-wiki init [path]                scaffold a new wiki
-wiki ingest <source>           add raw source + log entry
-wiki build                     list pending raw sources
-wiki embed                     compute embeddings (or --skip-existing)
-wiki search <query>            semantic search
-wiki query <question>          RAG-style query with citations
-wiki lint                      hygiene checks
-wiki models                    list supported NIM models
-wiki doctor                    diagnose config + NIM
-wiki status                    show wiki stats
-wiki install-skill             install the bundled skill
-wiki skill show [topic]        print skill content
+llmwiki-cli init [path]                scaffold a new wiki
+llmwiki-cli ingest <source>           add raw source + log entry
+llmwiki-cli build                     list pending raw sources
+llmwiki-cli embed                     compute embeddings (or --skip-existing)
+llmwiki-cli search <query>            semantic search
+llmwiki-cli query <question>          RAG-style query with citations
+llmwiki-cli lint                      hygiene checks
+llmwiki-cli models                    list supported NIM models
+llmwiki-cli doctor                    diagnose config + NIM
+llmwiki-cli status                    show wiki stats
+llmwiki-cli install-skill             install the bundled skill
+llmwiki-cli skill show [topic]        print skill content
 ```
 
-Run `wiki --help` for the full list.
+Run `llmwiki-cli --help` for the full list.
 
 ## Embedding models
 
@@ -91,7 +89,7 @@ Default: `nvidia/nv-embed-v1` (4096 dims, non-commercial). Other supported model
 - `nvidia/llama-nemotron-embed-vl-1b-v2` (multimodal)
 - Plus 3 reranker models
 
-Run `wiki models` for full specs. Change via `nim.embed_model` in `.wiki/config.yaml`.
+Run `llmwiki-cli models` for full specs. Change via `nim.embed_model` in `.wiki/config.yaml`.
 
 ## Documentation
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0] - 2026-06-XX — BREAKING: rename to llmwiki-cli
+
+**BREAKING CHANGES:**
+- Crate name: `wiki` → `llmwiki-cli`
+- Binary name: `wiki` → `llmwiki-cli`
+- Reinstall: `cargo uninstall wiki && cargo install llmwiki-cli`
+
+**Migration:**
+- All existing scripts that invoke `wiki <subcommand>` must be updated to `llmwiki-cli <subcommand>`
+- Existing wiki data, `wiki-root.toml`, and `~/.agents/skills/wiki/` are unchanged
+
+**Added:**
+- `llmwiki-cli lsp` — LSP server for `wiki-root.toml` (Phase 4) (planned)
+- `llmwiki-cli mcp` — MCP server (Phase 5) (planned)
+- `llmwiki-cli config show-schema` — JSON Schema dump for editors (planned)
+- `llmwiki-cli config validate` — field-level checks for `[defaults]` and every `[alias]` (planned)
+- `validate_or_error()` called before NIM calls in `embed`/`search`/`query` (planned)
+
 ## 2026-06-22 — NIM URL convention and API key env
 
 The CLI's NIM integration has been corrected so the default `base_url` is the

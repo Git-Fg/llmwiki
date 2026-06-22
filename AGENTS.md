@@ -17,7 +17,7 @@ cargo build                          # debug build (also runs build.rs to genera
 cargo build --release                # release build
 cargo test                           # all tests
 cargo test --test <name>             # specific test file
-cargo install --path .               # install to ~/.cargo/bin/wiki
+cargo install --path .               # install to ~/.cargo/bin/llmwiki-cli
 cargo clippy --all-targets           # lint (CI uses -D warnings)
 cargo fmt --check                    # formatting check
 ```
@@ -61,7 +61,7 @@ The CLI talks to an OpenAI-compatible endpoint hosted on NVIDIA NIM. Two invaria
 
 1. **`base_url` is the host only, with no path or version segment.** The default in `src/core/config.rs` is `https://integrate.api.nvidia.com` (no trailing `/v1`). Every NIM call site builds the full URL as `format!("{}/v1/<endpoint>", base_url.trim_end_matches('/'))`. If you see `/v1/v1/<endpoint>` in a request, `base_url` was set to a value that already includes `/v1` — strip it.
 
-2. **The API key is resolved in this order:** the env var named by `nim.api_key_env` (default `NVIDIA_NIM_API_KEY`) first; then, if that is unset or empty, `NVIDIA_API_KEY` as a fallback. Use `resolve_api_key(&cfg.nim)` from `src/core/config.rs` — never call `std::env::var(&cfg.nim.api_key_env)` directly. `wiki doctor` also honors the `WIKI_NIM_BASE_URL` env override; the other commands read it via the same config path.
+2. **The API key is resolved in this order:** the env var named by `nim.api_key_env` (default `NVIDIA_NIM_API_KEY`) first; then, if that is unset or empty, `NVIDIA_API_KEY` as a fallback. Use `resolve_api_key(&cfg.nim)` from `src/core/config.rs` — never call `std::env::var(&cfg.nim.api_key_env)` directly. `llmwiki-cli doctor` also honors the `WIKI_NIM_BASE_URL` env override; the other commands read it via the same config path.
 
 The `tests/doctor_test.rs::doctor_uses_correct_models_endpoint` and the `tests/e2e_test.rs` wiremock tests lock both invariants — any new NIM call site that bypasses them will pass locally but break in production.
 
@@ -79,25 +79,25 @@ The `tests/doctor_test.rs::doctor_uses_correct_models_endpoint` and the `tests/e
 The `wiki` layout is `wiki/<page>.md` + `raw/<category>/<source>.<ext>` + `embeddings.jsonl` + `.wiki/config.yaml`. If the source wiki uses a different layout (e.g. `concepts/`, `entities/`), the manual recipe is:
 
 ```bash
-wiki init /path/to/new-wiki
+llmwiki-cli init /path/to/new-wiki
 # Delete the init-template pages you don't want
 rm /path/to/new-wiki/wiki/log.md /path/to/new-wiki/wiki/overview.md
 cp -r /path/to/old-wiki/concepts/* /path/to/new-wiki/wiki/
-wiki lint --scope wiki --fix
+llmwiki-cli lint --scope wiki --fix
 ```
 
-`wiki import` is intentionally not provided — automatic frontmatter inference and wikilink rewriting are speculative heuristics and a wrong inference corrupts the wiki. See `CHANGELOG.md` for the full decision.
+`llmwiki-cli import` is intentionally not provided — automatic frontmatter inference and wikilink rewriting are speculative heuristics and a wrong inference corrupts the wiki. See `CHANGELOG.md` for the full decision.
 
 ## Removed
 
-- The `web/` Svelte viewer and `wiki build-viewer` / `wiki serve` commands were removed from the project. The wiki content is consumed directly by the CLI and skill; no static site is generated.
+- The `web/` Svelte viewer and `llmwiki-cli build-viewer` / `llmwiki-cli serve` commands were removed from the project. The wiki content is consumed directly by the CLI and skill; no static site is generated.
 
 ## CLI Commands Reference
 
-### `wiki ls` — Granular workspace listing
+### `llmwiki-cli ls` — Granular workspace listing
 
 ```
-wiki ls [--pages] [--raw] [--embed] [--links] [--config] [--json]
+llmwiki-cli ls [--pages] [--raw] [--embed] [--links] [--config] [--json]
 ```
 
 - **No flags** → shows all sections (pages, raw, embed, links, config).
@@ -109,10 +109,10 @@ wiki ls [--pages] [--raw] [--embed] [--links] [--config] [--json]
 - `--config` — resolved config key/value pairs.
 - `--json` — machine-readable output (null fields omitted via `skip_serializing_if`).
 
-### `wiki tree` — Flat, grep-friendly page listing
+### `llmwiki-cli tree` — Flat, grep-friendly page listing
 
 ```
-wiki tree [--json]
+llmwiki-cli tree [--json]
 ```
 
 Outputs one line per page: `slug  title [tags] ✓(if embedded)`. Designed for piping to `grep`, `fzf`, etc.
