@@ -47,16 +47,28 @@ async fn doctor_uses_correct_models_endpoint() {
     );
 }
 
-#[test]
-fn doctor_reports_missing_api_key() {
+#[tokio::test]
+async fn doctor_reports_missing_api_key() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
     std::fs::create_dir(wiki.join(".wiki")).unwrap();
+
+    let mock_server = MockServer::start().await;
+
+    // wiremock rejects unauthenticated requests with 401
+    Mock::given(method("GET"))
+        .and(path("/v1/models"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
+            "error": "unauthorized"
+        })))
+        .mount(&mock_server)
+        .await;
 
     Command::cargo_bin("wiki")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
+        .env("WIKI_NIM_BASE_URL", mock_server.uri())
         .env_remove("NVIDIA_NIM_API_KEY")
         .env_remove("NVIDIA_API_KEY")
         .arg("doctor")

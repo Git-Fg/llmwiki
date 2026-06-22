@@ -5,6 +5,7 @@ pub mod ingest;
 pub mod init;
 pub mod install_skill;
 pub mod lint;
+pub mod ls;
 pub mod models;
 pub mod query;
 pub mod search;
@@ -90,12 +91,28 @@ pub enum Command {
         #[arg(long)]
         strict: bool,
         #[arg(long)]
-        fix: bool,
+        json: bool,
+    },
+    /// List wiki pages, raw sources, embeddings, links, or config
+    Ls {
+        #[arg(long)]
+        pages: bool,
+        #[arg(long)]
+        raw: bool,
+        #[arg(long)]
+        embed: bool,
+        #[arg(long)]
+        links: bool,
+        #[arg(long)]
+        config: bool,
         #[arg(long)]
         json: bool,
     },
     /// Diagnose workspace, config, and NIM connectivity
-    Doctor {},
+    Doctor {
+        #[arg(long)]
+        json: bool,
+    },
     /// Report pages, embeddings, and raw-source coverage
     Status {
         #[arg(long)]
@@ -189,10 +206,10 @@ pub async fn run(cli: Cli) {
             })
             .await
         }
-        Some(Command::Doctor {}) => {
+        Some(Command::Doctor { json }) => {
             crate::cli::doctor::run(crate::cli::doctor::DoctorArgs {
                 workspace: cli.workspace,
-                json: false,
+                json,
             })
             .await
         }
@@ -221,18 +238,32 @@ pub async fn run(cli: Cli) {
         Some(Command::Lint {
             scope,
             strict,
-            fix,
             json,
         }) => {
             crate::cli::lint::run(crate::cli::lint::LintArgs {
                 workspace: cli.workspace,
                 scope,
                 strict,
-                fix,
                 json,
             })
             .await
         }
+        Some(Command::Ls {
+            pages,
+            raw,
+            embed,
+            links,
+            config,
+            json,
+        }) => crate::cli::ls::run(crate::cli::ls::LsArgs {
+            workspace: cli.workspace,
+            pages,
+            raw,
+            embed,
+            links,
+            config,
+            json,
+        }),
         Some(Command::Version) | None => {
             println!("wiki {}", env!("CARGO_PKG_VERSION"));
             Ok(())

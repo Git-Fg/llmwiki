@@ -13,7 +13,6 @@ pub struct LintArgs {
     pub workspace: Option<PathBuf>,
     pub scope: String,
     pub strict: bool,
-    pub fix: bool,
     pub json: bool,
 }
 
