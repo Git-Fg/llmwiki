@@ -1,0 +1,58 @@
+# Changelog
+
+## 2026-06-22 — NIM URL convention and API key env
+
+The CLI's NIM integration has been corrected so the default `base_url` is the
+host only (e.g. `https://integrate.api.nvidia.com`) and every command appends
+`/v1/<endpoint>` consistently. This matches the OpenAI-style convention and
+keeps `WIKI_NIM_BASE_URL` overrides simple to point at a local mock or a
+different host.
+
+The previous default was `https://integrate.api.nvidia.com/v1`, which made
+`wiki embed` and `wiki query` call `/v1/v1/embeddings` and `/v1/v1/chat/completions`
+and return 404 against the real NIM API. The `wiki doctor` endpoint check
+(`/v1/models`) had the same shape but was working only by coincidence of the
+trailing path. The end-to-end wiremock test passed because `MockServer.uri()`
+has no `/v1` suffix, masking the bug.
+
+The API key resolver also now accepts `NVIDIA_API_KEY` as a fallback so users
+with the upstream NVIDIA shell env don't need to re-export under a different
+name. `NVIDIA_NIM_API_KEY` is still the primary lookup.
+
+`wiki build` now detects raw sources with any extension (not just `.md`),
+matching what `wiki ingest` actually writes — previously `.txt` (or any other)
+sources were silently skipped.
+
+## 2026-06-21 — Viewer removed
+
+The SvelteKit viewer (`web/`), `wiki build-viewer`, and `wiki serve` commands
+have been removed from the project. The wiki is consumed directly via the
+CLI and the embedded agent skill — no static site is generated. This keeps
+the tool focused on markdown + embeddings + agent-driven workflows.
+
+## 2026-06-21 — Initial Rust port
+
+Single-crate Rust CLI replacing the previous Python codebase. Markdown wiki
+files + JSONL embeddings (gitignored, regenerated per device), NVIDIA NIM
+embeddings + chat, embedded agent skill via `include_str!`.
+
+## Importing an existing wiki
+
+There is no `wiki import` command. External wiki layouts (e.g. an existing
+`MyWiki` with `concepts/`, `entities/`, `raw/` directories) can be brought in
+manually:
+
+```bash
+wiki init ~/my-wiki                    # scaffold the CLI workspace
+cp -r ~/MyWiki/concepts ~/my-wiki/wiki/
+cp -r ~/MyWiki/entities ~/my-wiki/wiki/
+# edit each file to add the required frontmatter (title, created, updated,
+# type, tags, sources, schema_version) and [[wikilinks]] the CLI expects
+wiki embed                             # build the embedding index
+```
+
+A dedicated adapter was considered and rejected: automatic frontmatter
+inference from parent directory names and wikilink rewriting are speculative
+heuristics, not mechanical transformations, and the cost of a wrong inference
+(mis-typed pages, broken links) outweighs the few manual copy/edit steps.
+
