@@ -55,6 +55,16 @@ build.rs                   # generates agents/skills/wiki/SKILL.md stub
 - Skill smoke test: `tests/skill_smoke.sh`.
 - Mock NIM with `wiremock` for any test that hits the network.
 
+## NIM API Conventions (do not change without updating the wiremock tests)
+
+The CLI talks to an OpenAI-compatible endpoint hosted on NVIDIA NIM. Two invariants the code relies on — breaking either of these silently breaks every NIM call:
+
+1. **`base_url` is the host only, with no path or version segment.** The default in `src/core/config.rs` is `https://integrate.api.nvidia.com` (no trailing `/v1`). Every NIM call site builds the full URL as `format!("{}/v1/<endpoint>", base_url.trim_end_matches('/'))`. If you see `/v1/v1/<endpoint>` in a request, `base_url` was set to a value that already includes `/v1` — strip it.
+
+2. **The API key is resolved in this order:** the env var named by `nim.api_key_env` (default `NVIDIA_NIM_API_KEY`) first; then, if that is unset or empty, `NVIDIA_API_KEY` as a fallback. Use `resolve_api_key(&cfg.nim)` from `src/core/config.rs` — never call `std::env::var(&cfg.nim.api_key_env)` directly. `wiki doctor` also honors the `WIKI_NIM_BASE_URL` env override; the other commands read it via the same config path.
+
+The `tests/doctor_test.rs::doctor_uses_correct_models_endpoint` and the `tests/e2e_test.rs` wiremock tests lock both invariants — any new NIM call site that bypasses them will pass locally but break in production.
+
 ## Adding a New CLI Command
 
 1. Create `src/cli/<name>.rs` with a public `Args` struct and `run(args) -> Result<(), WikiError>`.
@@ -63,6 +73,20 @@ build.rs                   # generates agents/skills/wiki/SKILL.md stub
 4. Add integration tests in `tests/<name>_test.rs`.
 5. Add help text through Clap doc comments and fields.
 6. Update skill content if the command is user-facing.
+
+## Importing an Existing Wiki
+
+The `wiki` layout is `wiki/<page>.md` + `raw/<category>/<source>.<ext>` + `embeddings.jsonl` + `.wiki/config.yaml`. If the source wiki uses a different layout (e.g. `concepts/`, `entities/`), the manual recipe is:
+
+```bash
+wiki init /path/to/new-wiki
+# Delete the init-template pages you don't want
+rm /path/to/new-wiki/wiki/log.md /path/to/new-wiki/wiki/overview.md
+cp -r /path/to/old-wiki/concepts/* /path/to/new-wiki/wiki/
+wiki lint --scope wiki --fix
+```
+
+`wiki import` is intentionally not provided — automatic frontmatter inference and wikilink rewriting are speculative heuristics and a wrong inference corrupts the wiki. See `CHANGELOG.md` for the full decision.
 
 ## Removed
 
