@@ -7,7 +7,8 @@ repository = "https://github.com/fg/llmwiki"
 homepage = "https://github.com/fg/llmwiki"
 readme = "README.md"
 keywords = ["llmwiki", "karpathy-wiki", "wiki", "knowledge-base", "rag"]
-categories = ["knowledge-base", "command-line-utilities", "development-tools"]
+categories = ["command-line-utilities", "development-tools"]
+# TODO(pre-publish): confirm `fg/llmwiki` (or replace with the real repo URL) before tagging v0.3.0
 edition = "2021"
 rust-version = "1.85"
 
@@ -56,4 +57,5 @@ strip = "symbols"
 
 [package.metadata.binstall]
 bin = "llmwiki-cli"
-pkg-url = "https://github.com/fg/llmwiki/releases/download/v{version}/llmwiki-cli-{target}.tar.gz"
+pkg-url = "https://github.com/fg/llmwiki/releases/download/v{ version }/llmwiki-cli-{ target }.tar.gz"
+pkg-fmt = "tgz"
