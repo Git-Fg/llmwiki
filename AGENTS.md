@@ -90,7 +90,7 @@ llmwiki-cli lint --scope wiki --fix
 
 ## Removed
 
-- The `web/` Svelte viewer and `llmwiki-cli build-viewer` / `llmwiki-cli serve` commands were removed from the project. The wiki content is consumed directly by the CLI and skill; no static site is generated.
+- The `web/` Svelte viewer and `wiki build-viewer` / `wiki serve` commands were removed from the project. The wiki content is consumed directly by the CLI and skill; no static site is generated.
 
 ## CLI Commands Reference
 
