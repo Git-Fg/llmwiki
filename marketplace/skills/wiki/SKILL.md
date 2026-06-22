@@ -37,7 +37,7 @@ The user has markdown notes. Use the `wiki` CLI when:
 - **Manage config** — switch embedding model, manage multiple wikis
 - **Setup on a new device** — install CLI, register wikis, install skill
 
-Otherwise: use `Read` / `Grep` / `Glob` directly on the wiki's `wiki/`, `raw/`, and `index.md` files.
+Otherwise: read, search, and match files directly in the wiki's `wiki/`, `raw/`, and `index.md` files.
 
 ## Sub-skills
 
