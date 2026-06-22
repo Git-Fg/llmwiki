@@ -1,0 +1,11 @@
+{
+  "name": "wiki-marketplace",
+  "owner": { "name": "<owner>" },
+  "plugins": [
+    {
+      "name": "wiki",
+      "source": "./",
+      "description": "Karpathy-style LLM Wiki — manage multiple wikis, embed, search, lint"
+    }
+  ]
+}
