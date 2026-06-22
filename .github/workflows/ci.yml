@@ -29,3 +29,13 @@ jobs:
   #         python-version: "3.12"
   #     - name: Validate skill format
   #       run: python marketplace/scripts/validate.py --strict
+
+  skill-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release
+      - name: Run skill smoke test
+        run: bash tests/skill_smoke.sh
