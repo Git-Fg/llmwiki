@@ -1349,6 +1349,24 @@ pub const TROUBLESHOOTING: &str = include_str!("../../marketplace/skills/wiki/TR
 
 (Add `LSP` and `MCP` constants in Phase 4 and 5 respectively.)
 
+- [ ] **Step 4b: Update `build.rs` to point at the new paths**
+
+`build.rs` has 4 references to the old `src/skills/` paths that need updating:
+
+| Line | Old | New |
+|------|-----|-----|
+| 64 | `cargo:rerun-if-changed=src/skills/WIKI.md` | `cargo:rerun-if-changed=marketplace/skills/wiki/SKILL.md` |
+| 65 | `cargo:rerun-if-changed=src/skills/SETUP/SKILL.md` | `cargo:rerun-if-changed=marketplace/skills/wiki/SETUP/SKILL.md` |
+| 72 | `manifest_path.join("src/skills/WIKI.md")` | `manifest_path.join("marketplace/skills/wiki/SKILL.md")` |
+| 93 | `manifest_path.join("src/skills/SETUP/SKILL.md")` | `manifest_path.join("marketplace/skills/wiki/SETUP/SKILL.md")` |
+
+The schema-embed logic at lines 71–110 also needs re-validation after the move
+(its `BEGIN SCHEMA`/`END SCHEMA` markers operate on the file content, not the
+path, so the only required change is the path strings themselves — but the
+implementer should run `cargo build --release` and `bash tests/skill_smoke.sh`
+to confirm the regenerated `agents/skills/wiki/SKILL.md` still contains the
+schema block).
+
 - [ ] **Step 5: Verify the build still works**
 
 Run: `cargo build 2>&1 | tail -5`
