@@ -1,0 +1,46 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: build-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-musl
+          - x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - run: cargo build --release --locked --target ${{ matrix.target }} --bin llmwiki-cli
+      - name: Package
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../llmwiki-cli-${{ matrix.target }}.tar.gz llmwiki-cli
+          sha256sum llmwiki-cli-${{ matrix.target }}.tar.gz > llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            llmwiki-cli-${{ matrix.target }}.tar.gz
+            llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
+            install.sh
+            # NOTE: `marketplace/install.sh` is added in Phase 2 Task 2.4
+            # (mirror of repo-root). Uncomment the line below once that
+            # task lands — until then this workflow uploads only the
+            # repo-root install.sh.
+            # marketplace/install.sh
