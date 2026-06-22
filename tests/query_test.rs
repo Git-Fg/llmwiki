@@ -38,7 +38,7 @@ async fn query_returns_synthesized_answer() {
         .await;
 
     let tmp = setup_wiki();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -72,7 +72,7 @@ async fn query_json_output_includes_citations() {
         .await;
 
     let tmp = setup_wiki();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())

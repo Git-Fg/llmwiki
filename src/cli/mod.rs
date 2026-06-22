@@ -370,7 +370,7 @@ pub async fn run(cli: Cli) {
         }),
         Some(Command::Config { cmd }) => crate::cli::config::run(cmd).await,
         Some(Command::Version) | None => {
-            println!("wiki {}", env!("CARGO_PKG_VERSION"));
+            println!("llmwiki-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
     };

@@ -10,7 +10,7 @@ fn lint_detects_missing_frontmatter() {
     std::fs::write(wiki.join("index.md"), "# Index\n").unwrap();
     std::fs::write(wiki.join("log.md"), "# Log\n").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
@@ -35,7 +35,7 @@ fn lint_detects_orphan_page() {
     std::fs::write(wiki.join("index.md"), "# Index\n").unwrap();
     std::fs::write(wiki.join("log.md"), "# Log\n").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
@@ -71,7 +71,7 @@ fn lint_passes_on_wellformed_wiki() {
     .unwrap();
     std::fs::write(wiki.join("raw/articles/src.md"), "source content").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)

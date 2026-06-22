@@ -1,4 +1,4 @@
-use wiki::error::WikiError;
+use llmwiki_cli::error::WikiError;
 
 #[test]
 fn error_display_does_not_leak_secrets() {

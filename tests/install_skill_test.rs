@@ -10,7 +10,7 @@ fn install_skill_global_creates_symlink() {
     std::fs::create_dir_all(source_dir.path().join("wiki")).unwrap();
     std::fs::write(source_dir.path().join("wiki/SKILL.md"), "# stub\n").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .env("HOME", home.path())
         .arg("install-skill")
@@ -32,7 +32,7 @@ fn install_skill_workspace_creates_local_symlink() {
     std::fs::create_dir_all(source_dir.join("wiki")).unwrap();
     std::fs::write(source_dir.join("wiki/SKILL.md"), "# stub\n").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("install-skill")
         .arg("--workspace")

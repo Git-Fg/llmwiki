@@ -1,4 +1,4 @@
-use wiki::lint::frontmatter::check_frontmatter;
+use llmwiki_cli::lint::frontmatter::check_frontmatter;
 
 #[test]
 fn missing_frontmatter_is_error() {

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use wiki::core::embeddings::{ChunkEmbed, EmbeddingsFile, PageEmbedding};
+use llmwiki_cli::core::embeddings::{ChunkEmbed, EmbeddingsFile, PageEmbedding};
 
 #[test]
 fn round_trip_preserves_data() {
@@ -46,7 +46,7 @@ fn missing_file_returns_empty() {
     assert!(result.unwrap().pages.is_empty());
 }
 
-use wiki::core::embeddings::cosine_similarity;
+use llmwiki_cli::core::embeddings::cosine_similarity;
 
 #[test]
 fn cosine_identical_vectors_returns_one() {

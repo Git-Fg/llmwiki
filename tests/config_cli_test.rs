@@ -11,7 +11,7 @@ fn write_tmp_toml(content: &str) -> (std::path::PathBuf, tempfile::TempDir) {
 #[test]
 fn config_path_prints_resolved_path() {
     let (path, _dir) = write_tmp_toml("[test]\npath = \"/tmp\"\n");
-    let reg = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let reg = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     assert_eq!(reg.root_path, path);
 }
 
@@ -28,7 +28,7 @@ path = "/tmp/wiki2"
 tags = ["b"]
 "#,
     );
-    let reg = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let reg = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     assert_eq!(reg.entries.len(), 2);
 }
 
@@ -43,12 +43,12 @@ embed_model = "original"
 path = "/tmp/test"
 "#,
     );
-    let mut reg = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let mut reg = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     reg.set_value("nim.embed_model", "new-model", Some("testwiki"))
         .unwrap();
     reg.save().unwrap();
 
-    let reg2 = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let reg2 = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     let cfg = reg2.resolve_config("testwiki").unwrap();
     assert_eq!(cfg.nim.embed_model, "new-model");
 }
@@ -56,7 +56,7 @@ path = "/tmp/test"
 #[test]
 fn config_add_then_remove() {
     let (path, _dir) = write_tmp_toml("[existing]\npath = \"/tmp\"\n");
-    let mut reg = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let mut reg = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     assert_eq!(reg.entries.len(), 1);
 
     reg.add_entry(
@@ -86,14 +86,14 @@ path = "/tmp/test"
 embed_model = "override-model"
 "#,
     );
-    let mut reg = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let mut reg = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     let cfg = reg.resolve_config("testwiki").unwrap();
     assert_eq!(cfg.nim.embed_model, "override-model");
 
     reg.unset_value("nim.embed_model", "testwiki").unwrap();
     reg.save().unwrap();
 
-    let reg2 = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let reg2 = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     let cfg2 = reg2.resolve_config("testwiki").unwrap();
     assert_eq!(cfg2.nim.embed_model, "default-model");
 }
@@ -111,13 +111,13 @@ path = "/tmp/modify"
 description = "modify me"
 "#,
     );
-    let mut reg = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let mut reg = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     reg.set_value("embed_model", "newmodel", Some("modify"))
         .unwrap();
     reg.save().unwrap();
 
     // Reload and verify both entries still present
-    let reg2 = wiki::core::registry::Registry::load_from(&path).unwrap();
+    let reg2 = llmwiki_cli::core::registry::Registry::load_from(&path).unwrap();
     assert_eq!(reg2.entries.len(), 2);
     let keep = reg2.entries.iter().find(|e| e.alias == "keep").unwrap();
     assert_eq!(keep.description, "untouched");
@@ -135,7 +135,7 @@ use assert_cmd::Command;
 use predicates::str;
 
 fn isolated_cmd(reg_path: &std::path::Path) -> Command {
-    let mut cmd = Command::cargo_bin("wiki").unwrap();
+    let mut cmd = Command::cargo_bin("llmwiki-cli").unwrap();
     cmd.env("WIKI_ROOT_CONFIG", reg_path).env_remove("HOME");
     cmd
 }

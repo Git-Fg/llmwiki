@@ -13,7 +13,7 @@ fn ingest_adds_file_to_raw() {
     let source = tmp.path().join("source.md");
     std::fs::write(&source, "Source content.\n").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
@@ -44,7 +44,7 @@ fn ingest_updates_log() {
     let source = tmp.path().join("source.md");
     std::fs::write(&source, "Content.\n").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)

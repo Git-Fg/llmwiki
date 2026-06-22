@@ -7,7 +7,7 @@ fn build_no_pending_returns_message() {
     let wiki = tmp.path();
     std::fs::create_dir_all(wiki.join("raw/articles")).unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
@@ -28,7 +28,7 @@ fn build_dry_run_lists_pending() {
     )
     .unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)

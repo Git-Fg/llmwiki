@@ -37,7 +37,7 @@ async fn search_returns_top_match() {
         .await;
 
     let (tmp, _s) = setup_wiki_with_embeddings().await;
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -62,7 +62,7 @@ async fn search_json_output() {
         .await;
 
     let (tmp, _s) = setup_wiki_with_embeddings().await;
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -83,7 +83,7 @@ async fn search_returns_error_when_no_embeddings() {
     std::fs::create_dir_all(wiki.join("wiki")).unwrap();
     std::fs::write(wiki.join("wiki/a.md"), "Body").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
