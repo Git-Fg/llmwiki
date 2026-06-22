@@ -1,11 +1,15 @@
 [package]
 name = "llmwiki-cli"
 version = "0.3.0"
+description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
+license = "Apache-2.0"
+repository = "https://github.com/fg/llmwiki"
+homepage = "https://github.com/fg/llmwiki"
+readme = "README.md"
+keywords = ["llmwiki", "karpathy-wiki", "wiki", "knowledge-base", "rag"]
+categories = ["knowledge-base", "command-line-utilities", "development-tools"]
 edition = "2021"
 rust-version = "1.85"
-description = "Karpathy-style LLM Wiki, markdown-only, with NVIDIA NIM embeddings"
-license = "Apache-2.0"
-repository = "https://github.com/fg/wiki"
 
 [[bin]]
 name = "llmwiki-cli"
@@ -44,3 +48,12 @@ wiremock = "0.6"
 [build-dependencies]
 schemars = "0.8"
 serde_json = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[package.metadata.binstall]
+bin = "llmwiki-cli"
+pkg-url = "https://github.com/fg/llmwiki/releases/download/v{version}/llmwiki-cli-{target}.tar.gz"
