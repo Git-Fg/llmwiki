@@ -7,11 +7,7 @@ fn setup_wiki_with_page() -> tempfile::TempDir {
     let wiki = tmp.path();
     std::fs::create_dir_all(wiki.join("wiki")).unwrap();
     std::fs::create_dir_all(wiki.join(".wiki")).unwrap();
-    std::fs::write(
-        wiki.join("wiki/a.md"),
-        "---\ntitle: A\n---\n\nBody of A.\n",
-    )
-    .unwrap();
+    std::fs::write(wiki.join("wiki/a.md"), "---\ntitle: A\n---\n\nBody of A.\n").unwrap();
     std::fs::write(wiki.join(".wiki/config.yaml"), "config_version: 1\n").unwrap();
     tmp
 }
@@ -19,7 +15,8 @@ fn setup_wiki_with_page() -> tempfile::TempDir {
 #[tokio::test]
 async fn embed_writes_jsonl() {
     let server = MockServer::start().await;
-    Mock::given(method("POST")).and(path("/v1/embeddings"))
+    Mock::given(method("POST"))
+        .and(path("/v1/embeddings"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": [{"embedding": [0.1, 0.2]}, {"embedding": [0.3, 0.4]}]
         })))
@@ -48,7 +45,8 @@ async fn embed_writes_jsonl() {
 #[tokio::test]
 async fn embed_skip_existing_skips_unchanged() {
     let server = MockServer::start().await;
-    Mock::given(method("POST")).and(path("/v1/embeddings"))
+    Mock::given(method("POST"))
+        .and(path("/v1/embeddings"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": [{"embedding": [0.1, 0.2]}]
         })))
