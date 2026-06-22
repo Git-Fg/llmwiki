@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use crate::error::WikiError;
+use std::path::{Path, PathBuf};
 
 /// Discover the wiki workspace root by priority order:
 /// 1. `--workspace <path>` flag

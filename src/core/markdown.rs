@@ -1,7 +1,7 @@
-use serde_yaml::Value;
 use crate::error::WikiError;
-use std::sync::LazyLock;
 use regex::Regex;
+use serde_yaml::Value;
+use std::sync::LazyLock;
 
 #[derive(Debug, Clone)]
 pub struct ParsedPage {
@@ -12,17 +12,23 @@ pub struct ParsedPage {
 pub fn parse_frontmatter(content: &str) -> Result<ParsedPage, WikiError> {
     let trimmed = content.trim_start_matches('\u{feff}'); // strip BOM
     if !trimmed.starts_with("---") {
-        return Ok(ParsedPage { frontmatter: Value::Null, body: content.to_string() });
+        return Ok(ParsedPage {
+            frontmatter: Value::Null,
+            body: content.to_string(),
+        });
     }
     // Find closing ---
     let after_first = &trimmed[3..];
     let after_first = after_first.strip_prefix('\n').unwrap_or(after_first);
-    let end = after_first.find("\n---").ok_or_else(|| {
-        WikiError::Other(anyhow::anyhow!("unclosed frontmatter"))
-    })?;
+    let end = after_first
+        .find("\n---")
+        .ok_or_else(|| WikiError::Other(anyhow::anyhow!("unclosed frontmatter")))?;
     let yaml_text = &after_first[..end];
     let body_start = end + 4; // skip \n---
-    let body = after_first[body_start..].strip_prefix('\n').unwrap_or(&after_first[body_start..]).to_string();
+    let body = after_first[body_start..]
+        .strip_prefix('\n')
+        .unwrap_or(&after_first[body_start..])
+        .to_string();
 
     let frontmatter: Value = if yaml_text.trim().is_empty() {
         Value::Null
@@ -32,12 +38,12 @@ pub fn parse_frontmatter(content: &str) -> Result<ParsedPage, WikiError> {
     Ok(ParsedPage { frontmatter, body })
 }
 
-static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[\[([^\[\]|]+)(?:\|[^\[\]]+)?\]\]").unwrap()
-});
+static WIKILINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[\[([^\[\]|]+)(?:\|[^\[\]]+)?\]\]").unwrap());
 
 pub fn extract_wikilinks(body: &str) -> Vec<String> {
-    WIKILINK_RE.captures_iter(body)
+    WIKILINK_RE
+        .captures_iter(body)
         .map(|c| c.get(1).unwrap().as_str().trim().to_string())
         .collect()
 }
@@ -48,16 +54,14 @@ pub struct FootnoteDef {
     pub body: String,
 }
 
-static FOOTNOTE_DEF_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?m)^\[\^([^\]]+)\]:\s+(.+)$").unwrap()
-});
+static FOOTNOTE_DEF_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\[\^([^\]]+)\]:\s+(.+)$").unwrap());
 
-static FOOTNOTE_REF_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[\^([^\]]+)\]").unwrap()
-});
+static FOOTNOTE_REF_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\^([^\]]+)\]").unwrap());
 
 pub fn extract_footnotes(body: &str) -> Vec<FootnoteDef> {
-    FOOTNOTE_DEF_RE.captures_iter(body)
+    FOOTNOTE_DEF_RE
+        .captures_iter(body)
         .map(|c| FootnoteDef {
             id: c.get(1).unwrap().as_str().to_string(),
             body: c.get(2).unwrap().as_str().trim().to_string(),

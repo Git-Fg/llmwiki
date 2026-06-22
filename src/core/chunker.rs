@@ -9,12 +9,21 @@ pub struct Chunk {
     pub header_breadcrumb: String,
 }
 
-pub fn chunk_text(content: &str, chunk_size: usize, overlap: usize, min_tokens: usize) -> Vec<Chunk> {
+pub fn chunk_text(
+    content: &str,
+    chunk_size: usize,
+    overlap: usize,
+    min_tokens: usize,
+) -> Vec<Chunk> {
     if content.trim().is_empty() {
         return vec![];
     }
 
-    let paragraphs: Vec<&str> = content.split("\n\n").map(|p| p.trim()).filter(|p| !p.is_empty()).collect();
+    let paragraphs: Vec<&str> = content
+        .split("\n\n")
+        .map(|p| p.trim())
+        .filter(|p| !p.is_empty())
+        .collect();
     let mut chunks: Vec<Chunk> = vec![];
     let mut current_blocks: Vec<&str> = vec![];
     let mut current_tokens = 0usize;
@@ -40,7 +49,11 @@ pub fn chunk_text(content: &str, chunk_size: usize, overlap: usize, min_tokens: 
                     content: text,
                     start_char: current_start,
                     token_count: token_ct,
-                    header_breadcrumb: header_stack.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join(" > "),
+                    header_breadcrumb: header_stack
+                        .iter()
+                        .map(|(_, t)| t.as_str())
+                        .collect::<Vec<_>>()
+                        .join(" > "),
                 });
             }
             let (overlap_blocks, overlap_tokens) = get_overlap(&current_blocks, overlap);
@@ -63,7 +76,11 @@ pub fn chunk_text(content: &str, chunk_size: usize, overlap: usize, min_tokens: 
                 content: text,
                 start_char: current_start,
                 token_count: token_ct,
-                header_breadcrumb: header_stack.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join(" > "),
+                header_breadcrumb: header_stack
+                    .iter()
+                    .map(|(_, t)| t.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" > "),
             });
         }
     }
@@ -80,7 +97,9 @@ fn get_overlap<'a>(blocks: &[&'a str], target_tokens: usize) -> (Vec<&'a str>, u
     let mut tokens = 0;
     for block in blocks.iter().rev() {
         let bt = estimate_tokens(block);
-        if tokens + bt > target_tokens { break; }
+        if tokens + bt > target_tokens {
+            break;
+        }
         result.insert(0, *block);
         tokens += bt;
     }
