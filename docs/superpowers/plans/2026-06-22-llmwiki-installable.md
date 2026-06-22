@@ -1176,30 +1176,30 @@ echo "0.3.0" > marketplace/VERSION
   "version": "0.3.0",
   "description": "Karpathy-style LLM Wiki — manage multiple wikis, embed, search, lint",
   "author": { "name": "<owner>" },
-  "license": "MIT",
-  "skills": "./skills/",
-  "lspServers": "./.lsp.json"
+  "license": "Apache-2.0",
+  "skills": "./skills/"
 }
 ```
 
-- [ ] **Step 3: Write `marketplace/.claude-plugin/.lsp.json`**
+> **Note:** the `lspServers` key is added in Phase 4 (Tasks 4.1–4.5) once `llmwiki-cli lsp` ships. Adding the key now would point at a non-existent subcommand and break Claude Code's plugin loader.
 
-```json
-{
-  "wiki-lsp": {
-    "command": "llmwiki-cli",
-    "args": ["lsp"],
-    "extensionToLanguage": { ".toml": "toml" },
-    "transport": "stdio"
-  }
-}
-```
+> **Why license is Apache-2.0 not MIT:** the project's `LICENSE` file is Apache-2.0, and `Cargo.toml:6` already declares `license = "Apache-2.0"` (Task 1.1). The plan's original `"MIT"` was a copy-paste error.
+
+> **Why `<owner>` stays a placeholder:** matches the Cargo.toml and install.sh convention. The marketplace manifest ships as-is and the marketplace catalog (Task 2.3) keeps `<owner>` until the real GitHub org is decided.
+
+- [ ] **Step 3: ~~Write `marketplace/.claude-plugin/.lsp.json`~~ DEFERRED to Phase 4**
+
+The `.lsp.json` file would reference `llmwiki-cli lsp`, but that subcommand
+doesn't exist until Phase 4 Task 4.5. Add the file as part of Phase 4 along
+with the actual LSP server implementation. For Task 2.1, the manifest above
+ships without `lspServers` — the `lsp` capability will be auto-detected in
+Phase 4 when the manifest gains the field.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add marketplace/VERSION marketplace/.claude-plugin/
-git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
+git add marketplace/VERSION marketplace/.claude-plugin/plugin.json
+git commit -m "feat(marketplace): Claude Code plugin manifest (no LSP yet)"
 ```
 
 ## Task 2.2: Create Kimi Code, Cursor, Codex manifests
@@ -1212,7 +1212,7 @@ git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
 - Create: `marketplace/.codex-plugin/plugin.json`
 - Create: `marketplace/.codex-plugin/.lsp.json`
 
-- [ ] **Step 1: Write Kimi Code manifests**
+- [ ] **Step 1: Write Kimi Code manifest**
 
 `marketplace/.kimi-plugin/plugin.json`:
 
@@ -1221,25 +1221,13 @@ git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
   "name": "wiki",
   "version": "0.3.0",
   "skills": "./skills/",
-  "lspServers": "./.lsp.json",
   "skillInstructions": "Tool mapping: 'spawn a subagent' → Agent; 'run a shell command' → Bash; 'read a file' → Read; 'edit a file' → Edit. Prefer LSP-driven diagnostics over re-reading files when available."
 }
 ```
 
-`marketplace/.kimi-plugin/.lsp.json`: (same as Claude Code's)
+> **No `lspServers` key, no `.lsp.json` file** — Phase 4 (Tasks 4.1–4.5) adds the LSP server. Mirrors Task 2.1 amendment.
 
-```json
-{
-  "wiki-lsp": {
-    "command": "llmwiki-cli",
-    "args": ["lsp"],
-    "extensionToLanguage": { ".toml": "toml" },
-    "transport": "stdio"
-  }
-}
-```
-
-- [ ] **Step 2: Write Cursor manifests**
+- [ ] **Step 2: Write Cursor manifest**
 
 `marketplace/.cursor-plugin/plugin.json`:
 
@@ -1247,23 +1235,28 @@ git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
 {
   "name": "wiki",
   "version": "0.3.0",
-  "skills": "./skills/",
-  "lspServers": "./.lsp.json"
+  "skills": "./skills/"
 }
 ```
 
-`marketplace/.cursor-plugin/.lsp.json`: (same shape)
+- [ ] **Step 3: Write Codex manifest**
 
-- [ ] **Step 3: Write Codex manifests**
+`marketplace/.codex-plugin/plugin.json`:
 
-`marketplace/.codex-plugin/plugin.json` and `.lsp.json`: (same as Cursor's)
+```json
+{
+  "name": "wiki",
+  "version": "0.3.0",
+  "skills": "./skills/"
+}
+```
 
 - [ ] **Step 4: Verify all 4 manifests are valid JSON**
 
 Run:
 
 ```bash
-for f in marketplace/.claude-plugin/plugin.json marketplace/.kimi-plugin/plugin.json marketplace/.cursor-plugin/plugin.json marketplace/.codex-plugin/plugin.json marketplace/.claude-plugin/.lsp.json marketplace/.kimi-plugin/.lsp.json marketplace/.cursor-plugin/.lsp.json marketplace/.codex-plugin/.lsp.json; do
+for f in marketplace/.claude-plugin/plugin.json marketplace/.kimi-plugin/plugin.json marketplace/.cursor-plugin/plugin.json marketplace/.codex-plugin/plugin.json; do
   python3 -c "import json; json.load(open('$f'))" && echo "OK: $f"
 done
 ```
