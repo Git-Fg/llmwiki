@@ -7,7 +7,8 @@ pub const QUERY: &str = include_str!("../../marketplace/skills/wiki/QUERY/SKILL.
 pub const LINT: &str = include_str!("../../marketplace/skills/wiki/LINT/SKILL.md");
 pub const MODELS: &str = include_str!("../../marketplace/skills/wiki/MODELS/SKILL.md");
 pub const SYNC: &str = include_str!("../../marketplace/skills/wiki/SYNC/SKILL.md");
-pub const TROUBLESHOOTING: &str = include_str!("../../marketplace/skills/wiki/TROUBLESHOOTING/SKILL.md");
+pub const TROUBLESHOOTING: &str =
+    include_str!("../../marketplace/skills/wiki/TROUBLESHOOTING/SKILL.md");
 
 pub const TOPICS: &[(&str, &str)] = &[
     ("setup", SETUP),

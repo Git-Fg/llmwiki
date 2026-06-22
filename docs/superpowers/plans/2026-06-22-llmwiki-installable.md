@@ -1572,20 +1572,48 @@ git commit -m "feat(marketplace): skill format validator (Python stdlib)"
 ## Task 2.7: Uncomment the `marketplace-validate` job in `ci.yml`
 
 **Files:**
+- Modify: `marketplace/skills/wiki/SKILL.md` (pre-fix one hardcoded-tool line)
 - Modify: `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Uncomment**
+> **Pre-fix: hub `SKILL.md` line 40 has hardcoded tool names.** The current line 40 reads:
+>
+> ```
+> Otherwise: use `Read` / `Grep` / `Glob` directly on the wiki's `wiki/`, `raw/`, and `index.md` files.
+> ```
+>
+> This triggers 3 WARNs from `validate.py` (one per tool name in the same line). The fix is to use portable prose so the skill works across agent runtimes with different tool names:
+>
+> ```
+> Otherwise: read, search, and match files directly in the wiki's `wiki/`, `raw/`, and `index.md` files.
+> ```
+>
+> The semantic is unchanged (the user falls back to direct file operations). Apply this as part of Task 2.7 so the `marketplace-validate` CI job is green from the start. Phase 3 Task 3.1 will rewrite the entire SETUP/SKILL.md anyway, so this is a stopgap that buys us green CI between now and Phase 3.
 
-Edit `.github/workflows/ci.yml` — remove the `#` from the marketplace-validate job (Tasks 1.3 / 2.6).
+- [ ] **Step 0: Fix hub `SKILL.md` line 40**
+
+```bash
+# Before:
+# Otherwise: use `Read` / `Grep` / `Glob` directly on the wiki's `wiki/`, `raw/`, and `index.md` files.
+# After:
+# Otherwise: read, search, and match files directly in the wiki's `wiki/`, `raw/`, and `index.md` files.
+```
+
+Verify with `python3 marketplace/scripts/validate.py --strict` — should print 0 WARNs and exit 0.
+
+- [ ] **Step 1: Uncomment the `marketplace-validate` job in `.github/workflows/ci.yml`**
+
+Remove the `#` from the `marketplace-validate` job (added in Task 1.3, kept commented until Task 2.6 landed). Also uncomment the line `python marketplace/scripts/validate.py --strict` (it stays at `--strict` because the pre-fix above clears the warnings).
 
 - [ ] **Step 2: Verify the YAML**
 
 Run: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`
 Expected: no error.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Commit (split into 2 commits for clarity)**
 
 ```bash
+git add marketplace/skills/wiki/SKILL.md
+git commit -m "fix(skills): replace hardcoded tool names in hub with portable prose"
 git add .github/workflows/ci.yml
 git commit -m "ci: enable marketplace validator"
 ```
