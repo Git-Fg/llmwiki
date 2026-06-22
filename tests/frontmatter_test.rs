@@ -1,5 +1,5 @@
 use wiki::core::markdown::{
-    parse_frontmatter, extract_wikilinks, extract_footnotes, extract_footnote_refs
+    extract_footnote_refs, extract_footnotes, extract_wikilinks, parse_frontmatter,
 };
 
 #[test]
@@ -27,9 +27,14 @@ fn parse_unclosed_frontmatter_returns_error() {
 fn parse_yaml_list_value() {
     let content = "---\ntags: [rust, cli]\nsources: [raw/a.md, raw/b.md]\n---\n\nBody.\n";
     let parsed = parse_frontmatter(content).unwrap();
-    let tags: Vec<String> = parsed.frontmatter.get("tags").unwrap()
-        .as_sequence().unwrap()
-        .iter().map(|v| v.as_str().unwrap().to_string())
+    let tags: Vec<String> = parsed
+        .frontmatter
+        .get("tags")
+        .unwrap()
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
         .collect();
     assert_eq!(tags, vec!["rust", "cli"]);
 }

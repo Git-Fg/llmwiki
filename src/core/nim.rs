@@ -54,6 +54,10 @@ impl NimClient {
         self
     }
 
+    pub fn http(&self) -> &reqwest::Client {
+        &self.http
+    }
+
     pub async fn embed(
         &self,
         texts: &[&str],

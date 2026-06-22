@@ -1,8 +1,5 @@
 target/
 Cargo.lock
-web/build/
-web/.svelte-kit/
-web/node_modules/
 *.log
 .DS_Store
 embeddings.jsonl

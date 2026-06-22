@@ -15,7 +15,9 @@ pub enum WikiError {
     #[error("NIM unreachable: {0}")]
     NimUnreachable(String),
 
-    #[error("workspace not found. Use --workspace <path>, set WIKI_WORKSPACE, or cd into a wiki folder")]
+    #[error(
+        "workspace not found. Use --workspace <path>, set WIKI_WORKSPACE, or cd into a wiki folder"
+    )]
     WorkspaceNotFound,
 
     #[error("no embeddings yet. Run `wiki embed` first.")]
@@ -32,6 +34,9 @@ pub enum WikiError {
 
     #[error(transparent)]
     Yaml(#[from] serde_yaml::Error),
+
+    #[error(transparent)]
+    Http(#[from] reqwest::Error),
 
     #[error(transparent)]
     Other(#[from] anyhow::Error),
