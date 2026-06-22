@@ -1479,13 +1479,21 @@ def validate_skill(path: Path) -> int:
     if len(body_lines) > 500:
         rc |= warn(f"body has {len(body_lines)} lines (soft cap 500)", path)
 
-    expected_name = path.parent.name
+    expected_name = path.parent.name.lower()
     if meta.get("name") and meta["name"] != expected_name:
         rc |= fail(f"frontmatter name '{meta['name']}' != dir name '{expected_name}'", path)
 
+    # Warn on hardcoded tool names *only in body prose* — skip the
+    # `allowed-tools:` and `skillInstructions:` lines where tool names
+    # are legitimate (e.g. `Bash(llmwiki-cli:*)`, `Agent`, `Read`).
+    prose = "\n".join(
+        line for line in body.splitlines()
+        if not line.startswith(("allowed-tools:", "skillInstructions:"))
+        and "Bash(" not in line
+    )
     for bad_name in HARDCODED_TOOL_NAMES:
-        if re.search(rf"\b{bad_name}\b", body):
-            rc |= warn(f"hardcoded tool name '{bad_name}' found", path)
+        if re.search(rf"\b{bad_name}\b", prose):
+            rc |= warn(f"hardcoded tool name '{bad_name}' found in body prose", path)
 
     # References integrity
     for match in re.finditer(r"references/([\w\-/]+\.md)", body):
@@ -1543,7 +1551,16 @@ if __name__ == "__main__":
 - [ ] **Step 2: Make executable + run**
 
 Run: `chmod +x marketplace/scripts/validate.py && python3 marketplace/scripts/validate.py --strict 2>&1 | tail -20`
-Expected: PASS (no failures). May have warnings about hardcoded tool names — fix them by replacing "Bash" with "run a shell command", "Read" with "read a file", etc.
+Expected: PASS (no failures). May have warnings about hardcoded tool names in body prose (not in `allowed-tools:` or `skillInstructions:`) — these are real issues, not noise; replace "Bash" with "run a shell command", "Read" with "read a file", etc. where the tool reference is part of the user-facing instructions.
+
+> **Note on the lowercase name check:** the spec lowercase-compares the
+> frontmatter `name:` with `path.parent.name` because this project uses
+> **UPPERCASE sub-skill directories** (`SETUP/`, `INGEST/`, …) and
+> **lowercase frontmatter `name:` fields** (`name: setup`, `name: ingest`).
+> The `.lower()` on both sides is deliberate. If a future contributor
+> renames the dirs to lowercase, the check still passes; if they rename
+> the frontmatter to uppercase, the check still passes. Mixed case in
+> either side without a matching `.lower()` would false-fail.
 
 - [ ] **Step 3: Commit**
 
