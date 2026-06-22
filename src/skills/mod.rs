@@ -1,13 +1,13 @@
-pub const SKILL_MD: &str = include_str!("WIKI.md");
+pub const SKILL_MD: &str = include_str!("../../marketplace/skills/wiki/SKILL.md");
 
-pub const SETUP: &str = include_str!("SETUP/SKILL.md");
-pub const INGEST: &str = include_str!("INGEST/SKILL.md");
-pub const SEARCH: &str = include_str!("SEARCH/SKILL.md");
-pub const QUERY: &str = include_str!("QUERY/SKILL.md");
-pub const LINT: &str = include_str!("LINT/SKILL.md");
-pub const MODELS: &str = include_str!("MODELS/SKILL.md");
-pub const SYNC: &str = include_str!("SYNC/SKILL.md");
-pub const TROUBLESHOOTING: &str = include_str!("TROUBLESHOOTING/SKILL.md");
+pub const SETUP: &str = include_str!("../../marketplace/skills/wiki/SETUP/SKILL.md");
+pub const INGEST: &str = include_str!("../../marketplace/skills/wiki/INGEST/SKILL.md");
+pub const SEARCH: &str = include_str!("../../marketplace/skills/wiki/SEARCH/SKILL.md");
+pub const QUERY: &str = include_str!("../../marketplace/skills/wiki/QUERY/SKILL.md");
+pub const LINT: &str = include_str!("../../marketplace/skills/wiki/LINT/SKILL.md");
+pub const MODELS: &str = include_str!("../../marketplace/skills/wiki/MODELS/SKILL.md");
+pub const SYNC: &str = include_str!("../../marketplace/skills/wiki/SYNC/SKILL.md");
+pub const TROUBLESHOOTING: &str = include_str!("../../marketplace/skills/wiki/TROUBLESHOOTING/SKILL.md");
 
 pub const TOPICS: &[(&str, &str)] = &[
     ("setup", SETUP),

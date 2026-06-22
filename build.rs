@@ -61,15 +61,15 @@ struct WikiConfig {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src/skills/WIKI.md");
-    println!("cargo:rerun-if-changed=src/skills/SETUP/SKILL.md");
+    println!("cargo:rerun-if-changed=marketplace/skills/wiki/SKILL.md");
+    println!("cargo:rerun-if-changed=marketplace/skills/wiki/SETUP/SKILL.md");
     println!("cargo:rerun-if-changed=src/core/config.rs");
 
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let manifest_path = Path::new(&manifest_dir);
 
-    // Generate the hub SKILL.md stub from src/skills/WIKI.md
-    let hub_src = manifest_path.join("src/skills/WIKI.md");
+    // Generate the hub SKILL.md stub from marketplace/skills/wiki/SKILL.md
+    let hub_src = manifest_path.join("marketplace/skills/wiki/SKILL.md");
     if let Ok(content) = fs::read_to_string(&hub_src) {
         let out_path = manifest_path.join("agents/skills/wiki/SKILL.md");
         if let Some(parent) = out_path.parent() {
@@ -90,7 +90,7 @@ fn main() {
 
     // Inject JSON Schema into SETUP/SKILL.md (between BEGIN SCHEMA / END SCHEMA markers).
     // Always rewrites the block so the schema stays in sync on every build.
-    let setup_path = manifest_path.join("src/skills/SETUP/SKILL.md");
+    let setup_path = manifest_path.join("marketplace/skills/wiki/SETUP/SKILL.md");
     if let Ok(content) = fs::read_to_string(&setup_path) {
         let begin_marker = "<!-- BEGIN SCHEMA -->";
         let end_marker = "<!-- END SCHEMA -->";
