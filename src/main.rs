@@ -1,8 +1,8 @@
 use clap::Parser;
-use wiki::cli::Cli;
+use llmwiki_cli::cli::Cli;
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    wiki::cli::run(cli).await;
+    llmwiki_cli::cli::run(cli).await;
 }

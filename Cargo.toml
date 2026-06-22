@@ -1,6 +1,6 @@
 [package]
-name = "wiki"
-version = "0.1.0"
+name = "llmwiki-cli"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.85"
 description = "Karpathy-style LLM Wiki, markdown-only, with NVIDIA NIM embeddings"
@@ -8,7 +8,7 @@ license = "Apache-2.0"
 repository = "https://github.com/fg/wiki"
 
 [[bin]]
-name = "wiki"
+name = "llmwiki-cli"
 path = "src/main.rs"
 
 [dependencies]

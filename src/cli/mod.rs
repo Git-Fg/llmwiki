@@ -19,7 +19,7 @@ use clap::{Parser, Subcommand};
 use crate::cli::skill::SkillArgs;
 
 #[derive(Parser)]
-#[command(name = "wiki", version, about = "Karpathy-style LLM Wiki")]
+#[command(name = "llmwiki-cli", version, about = "Karpathy-style LLM Wiki")]
 pub struct Cli {
     #[arg(long, global = true)]
     pub workspace: Option<std::path::PathBuf>,
