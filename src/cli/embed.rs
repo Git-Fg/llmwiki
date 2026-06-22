@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use sha2::{Digest, Sha256};
 use chrono::Utc;
+use sha2::{Digest, Sha256};
+use std::path::PathBuf;
 
 use crate::core::chunker::chunk_text;
-use crate::core::config::resolve_config;
+use crate::core::config::{resolve_api_key, resolve_config};
 use crate::core::embeddings::{ChunkEmbed, EmbeddingsFile, PageEmbedding};
 use crate::core::models_registry::{load_registry, Role};
 use crate::core::nim::NimClient;
@@ -33,8 +33,10 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
     let model_info = load_registry()
         .into_iter()
         .find(|m| m.name == model_name && m.role == Role::Embed)
-        .ok_or_else(|| crate::error::WikiError::Other(anyhow::anyhow!("unknown embed model: {}", model_name)))?;
-    let api_key = std::env::var(&cfg.nim.api_key_env).unwrap_or_default();
+        .ok_or_else(|| {
+            crate::error::WikiError::Other(anyhow::anyhow!("unknown embed model: {}", model_name))
+        })?;
+    let api_key = resolve_api_key(&cfg.nim);
     let client = NimClient::new(cfg.nim.base_url.clone(), api_key)
         .with_max_attempts(cfg.nim.retry.max_attempts)
         .with_backoff_ms(cfg.nim.retry.backoff_ms);

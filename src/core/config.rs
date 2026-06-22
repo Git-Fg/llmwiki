@@ -1,6 +1,6 @@
+use crate::error::WikiError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use crate::error::WikiError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -8,8 +8,6 @@ pub struct Config {
     pub nim: NimConfig,
     #[serde(default = "default_wiki")]
     pub wiki: WikiConfig,
-    #[serde(default = "default_viewer")]
-    pub viewer: ViewerConfig,
     #[serde(default)]
     pub config_version: u32,
 }
@@ -56,12 +54,6 @@ pub struct WikiConfig {
     pub require_wikilinks_min: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ViewerConfig {
-    #[serde(default)]
-    pub build_dir: Option<PathBuf>,
-}
-
 fn default_nim() -> NimConfig {
     NimConfig {
         base_url: default_nim_base_url(),
@@ -85,12 +77,8 @@ fn default_wiki() -> WikiConfig {
     }
 }
 
-fn default_viewer() -> ViewerConfig {
-    ViewerConfig { build_dir: None }
-}
-
 fn default_nim_base_url() -> String {
-    "https://integrate.api.nvidia.com/v1".into()
+    "https://integrate.api.nvidia.com".into()
 }
 
 fn default_embed_model() -> String {
@@ -142,7 +130,6 @@ impl Default for Config {
         Config {
             nim: default_nim(),
             wiki: default_wiki(),
-            viewer: default_viewer(),
             config_version: 1,
         }
     }
@@ -155,11 +142,12 @@ pub fn load_config(paths: &[PathBuf]) -> Result<Config, WikiError> {
             continue;
         }
         let text = std::fs::read_to_string(path)?;
-        let partial: Config = serde_yaml::from_str(&text).map_err(|e| WikiError::ConfigInvalid {
-            path: path.display().to_string(),
-            line: e.location().map(|l| l.line()).unwrap_or(0),
-            message: e.to_string(),
-        })?;
+        let partial: Config =
+            serde_yaml::from_str(&text).map_err(|e| WikiError::ConfigInvalid {
+                path: path.display().to_string(),
+                line: e.location().map(|l| l.line()).unwrap_or(0),
+                message: e.to_string(),
+            })?;
         merged = merge(merged, partial);
     }
 
@@ -174,7 +162,8 @@ pub fn load_config(paths: &[PathBuf]) -> Result<Config, WikiError> {
         "nvidia/llama-nemotron-rerank-vl-1b-v2",
         "nvidia/nv-rerankqa-mistral-4b-v3",
     ];
-    if !merged.nim.embed_model.is_empty() && !whitelisted.contains(&merged.nim.embed_model.as_str()) {
+    if !merged.nim.embed_model.is_empty() && !whitelisted.contains(&merged.nim.embed_model.as_str())
+    {
         return Err(WikiError::ConfigInvalid {
             path: "validation".into(),
             line: 0,
@@ -208,4 +197,24 @@ pub fn resolve_config(workspace: &Path) -> Result<Config, WikiError> {
 
 fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
+}
+
+/// Resolve the NIM API key, trying (in order):
+/// 1. The configured env var (e.g. `NVIDIA_NIM_API_KEY`)
+/// 2. The common `NVIDIA_API_KEY` fallback so shells that already
+///    export the upstream NVIDIA name still work out-of-the-box.
+pub fn resolve_api_key(cfg: &NimConfig) -> String {
+    if let Ok(v) = std::env::var(&cfg.api_key_env) {
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    if cfg.api_key_env != "NVIDIA_API_KEY" {
+        if let Ok(v) = std::env::var("NVIDIA_API_KEY") {
+            if !v.is_empty() {
+                return v;
+            }
+        }
+    }
+    String::new()
 }
