@@ -8,6 +8,16 @@
 set -euo pipefail
 
 REPO="<owner>/llmwiki"
+
+# Guard against un-edited placeholder (would otherwise produce a confusing 404)
+case "$REPO" in
+  *"<"*">"*|*"<owner>"*)
+    echo "ERROR: install.sh has not been customized — REPO=\"$REPO\" still contains the <owner> placeholder." >&2
+    echo "       This script must be edited before distribution." >&2
+    exit 1
+    ;;
+esac
+
 BINARY="llmwiki-cli"
 INSTALL_DIR="${LLMWIKI_INSTALL_DIR:-$HOME/.local/bin}"
 
@@ -54,7 +64,11 @@ curl -fsSL -o "$TMP/$ASSET" "$URL"
 
 echo "Verifying SHA256..."
 EXPECTED="$(curl -fsSL "$SHA_URL" | awk '{print $1}')"
-ACTUAL="$(sha256sum "$TMP/$ASSET" | awk '{print $1}')"
+if command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL="$(sha256sum "$TMP/$ASSET" | awk '{print $1}')"
+else
+  ACTUAL="$(shasum -a 256 "$TMP/$ASSET" | awk '{print $1}')"
+fi
 if [ "$EXPECTED" != "$ACTUAL" ]; then
   echo "SHA256 mismatch: expected $EXPECTED, got $ACTUAL" >&2
   exit 1
