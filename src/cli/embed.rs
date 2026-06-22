@@ -28,10 +28,10 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
         std::env::current_dir()?,
     )?;
     let mut cfg = resolve_config(&ws)?;
+    validate_or_error(&cfg)?;
     if let Ok(base_url) = std::env::var("WIKI_NIM_BASE_URL") {
         cfg.nim.base_url = base_url;
     }
-    validate_or_error(&cfg)?;
 
     let model_name = args.model.unwrap_or(cfg.nim.embed_model.clone());
     let model_info = load_registry()
