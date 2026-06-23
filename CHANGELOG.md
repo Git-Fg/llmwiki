@@ -1,5 +1,77 @@
 # Changelog
 
+## [0.3.24] - 2026-06-23 — self-critic follow-ups: doc/code drift + Config drift test
+
+**Documentation / contracts (cross-release self-critic findings):**
+- `AGENTS.md`: rewritten the "JSON Schema generation" section
+  (M1 + M4 from v0.3.22+v0.3.23 self-critic). Two corrections:
+  (1) only `DoctorReport` carries `#[serde(deny_unknown_fields)]`;
+  `Config` intentionally does NOT — extra keys are tolerated in
+  the config layer because users add their own `[wiki]` / `[nim]`
+  sections that the typed `Config` doesn't surface, and the
+  deep-merge semantics in `src/core/registry.rs::deep_merge_into`
+  need to see those keys. (2) The "Cargo.lock and platform-
+  specific locks" section now reflects the v0.3.23 reality:
+  msrv-check runs with `--locked` (re-enabled), the platform-
+  specific concern was overcautious, and the lockfile-update
+  workflow's `cargo check --locked` step is the early-warning
+  for any future genuine platform-specific drift.
+- `.github/workflows/ci.yml`: removed the stale v0.3.21-era
+  comment block from `msrv-check` (M2 from self-critic) that
+  contradicted the v0.3.23 `--locked` step. The v0.3.16
+  rationale about rustc 1.88 / `darling@0.23.0` is preserved.
+- `.github/workflows/ci.yml`: bumped all 5 `actions/checkout@v4`
+  to `@v5` (M3 from self-critic) for consistency with
+  `lockfile-update.yml` and to silence the "Node.js 20
+  deprecated" warning that would otherwise appear in every
+  workflow run.
+
+**Tests:**
+- New `tests/doctor_test.rs::config_schema_has_canonical_keys`
+  (M5 from self-critic). Asserts the auto-generated
+  `marketplace/skills/wiki/SETUP/references/schema.json` has
+  the expected `properties` key set on the root `Config`,
+  `NimConfig`, `RetryConfig`, and `WikiConfig` schemas.
+  Closes the gap where a future contributor could add a field
+  to `src/core/config.rs::Config` and forget to add it to the
+  build.rs duplicate without any test failing.
+- Extended `tests/doctor_test.rs::doctor_json_output_validates_against_schema`
+  (M6 from self-critic) to also assert `nim_status` has
+  `minimum: 100, maximum: 599` in the schema. The keys-only
+  check alone cannot catch per-field annotation drift
+  (specifically: a future contributor silently widening the
+  range back to `0..=65535` would pass the keys check but
+  violate the documented HTTP-status semantics).
+- 254/254 pass (was 253 in v0.3.23; +1 from the new
+  `config_schema_has_canonical_keys` test); clippy `-D warnings`
+  clean (stable + MSRV 1.88 with `--locked`); fmt clean.
+
+**Schema polish:**
+- `build.rs`: added a `///` doc comment on the `Config` struct
+  duplicate (L3 from self-critic) so the generated
+  `schema.json` has a top-level `description` field, mirroring
+  the v0.3.20 hand-written schema. Same for the `DoctorReport`
+  duplicate — the description documents the v0.3.17 `active_alias`
+  breaking change, the v0.3.22 `config` / `config_sources`
+  field semantics, and the v0.3.23 `nim_status` HTTP range.
+- `build.rs`: fixed the `fixendoffile` Vim option typo (L2 from
+  self-critic) in the trailing-newline comment.
+- `CHANGELOG.md`: fixed the `agent_keyword:` → `cron:` typo
+  (L1 from self-critic) in the v0.3.23 deferred-items section.
+
+**Deferred to a future release:**
+- M7 from v0.3.22+v0.3.23 self-critic: the `Config` schema's
+  `required` array omits all 3 `Option` fields (`active_alias`,
+  `nim_status`, `nim_error`). The root cause is schemars 1.0
+  collapsing `Option<T> + required` into `type: T` (drops null
+  variant) — there is no built-in way to express
+  "required but null-allowed". The drift test catches any field
+  rename/drop; the missing-`required` semantic is a known
+  limitation, accepted.
+- Dependabot PR #5 (thiserror 1→2, toml 0.8→1.1, notify 6→8):
+  still deferred. All three are major bumps with high breaking-
+  change risk; need dedicated upgrade passes per dep.
+
 ## [0.3.23] - 2026-06-23 — re-enable `--locked` for msrv-check + schema polish
 
 **CI / msrv-check:**
@@ -151,7 +223,7 @@
 - L1 (mixed `///` vs `#[schemars(description = "...")]` style on
   build.rs duplicates): **no action**. Consistent with the rest
   of build.rs.
-- L2 (`agent_keyword: "0 6 * * 1"` lands on the top of the hour):
+- L2 (cron `0 6 * * 1` lands on the top of the hour):
   **resolved in v0.3.23**. Cron moved to `"17 6 * * 1"`.
 - L3 (schema file missing trailing newline): **resolved in v0.3.23**.
   build.rs post-processes both `schema.json` and `doctor.schema.json`

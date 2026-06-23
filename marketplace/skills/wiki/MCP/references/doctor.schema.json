@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "DoctorReport",
+  "description": "JSON Schema for the output of `wiki doctor --json`. Auto-generated\nfrom the `DoctorReport` struct below (kept in sync with\n`src/cli/doctor.rs::DoctorReport` via the\n`doctor_json_output_validates_against_schema` drift test in\n`tests/doctor_test.rs`).\n\n**Breaking v0.3.17**: `active_alias` is `string | null` (was `\"\"`\nsentinel pre-v0.3.17). v0.3.23: `nim_status` is bounded to HTTP\nrange [100, 599] (was the full uint16 range). v0.3.22: the\n`config` field is a reflective dotted-key → value map (same\nshape as `wiki config show-effective`); `config_sources` is the\nper-key source attribution (dotted-key → file-it-came-from).",
   "type": "object",
   "properties": {
     "active_alias": {
