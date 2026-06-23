@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.14] - 2026-06-23 — CI toolchain bump (rustc 1.85 → 1.88)
+
+**Fixed:**
+- CI: bumped `rust-toolchain.toml` channel from `1.85` to `1.88` to
+  satisfy transitive deps pulled in by a recent reqwest bump:
+  `darling@0.23.0` requires rustc 1.88; `icu_*@2.2.0` require rustc 1.86.
+  Without this bump every push to main (including v0.3.12, v0.3.13, and
+  Dependabot reqwest bumps) failed the `fmt-clippy-test` and `skill-smoke`
+  jobs with "rustc 1.85.1 is not supported".
+
+**No code changes.** Pure toolchain/MSRV bump. Verified locally on
+rustc 1.88: 251/251 tests pass, clippy clean, fmt clean.
+
 ## [0.3.13] - 2026-06-23 — `show-effective` filters + tighter path matching
 
 **Added:**
