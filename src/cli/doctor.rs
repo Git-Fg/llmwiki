@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::core::config::{resolve_api_key, resolve_config};
-use crate::core::registry::Registry;
+use crate::core::registry::{home_dir, Registry};
 use crate::core::workspace::discover_workspace;
 use crate::error::WikiError;
 
@@ -31,6 +31,14 @@ struct DoctorReport {
 }
 
 pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
+    // One-time migration notice for users on the v0.3.6 path. v0.3.7 moved
+    // per-computer config from `~/llmwiki-cli/config.toml` (non-hidden) to
+    // `~/.llmwiki-cli/config.toml` (hidden). If the legacy file still exists,
+    // tell the user to move it — the legacy file is NOT loaded anymore.
+    if let Some(msg) = legacy_config_notice() {
+        eprintln!("{}", msg);
+    }
+
     // Report wiki-root.toml info
     let registry_info = match Registry::discover() {
         Ok(reg) => Some((reg.root_path.display().to_string(), reg.entries.len())),
@@ -206,4 +214,100 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
     }
 
     Ok(())
+}
+
+/// Returns the user-visible migration notice to print when a legacy
+/// `~/llmwiki-cli/config.toml` (v0.3.6 path) still exists and the new
+/// `~/.llmwiki-cli/config.toml` (v0.3.7 path) does not. Returns `None` when
+/// no notice is needed (legacy absent OR new already in place).
+fn legacy_config_notice() -> Option<String> {
+    let home = home_dir()?;
+    let legacy = home.join("llmwiki-cli").join("config.toml");
+    let new = home.join(".llmwiki-cli").join("config.toml");
+    if legacy.is_file() && !new.is_file() {
+        Some(format!(
+            "Note: legacy config at {} is no longer loaded. Move it to {} \
+             (e.g. `mv {} {}`).",
+            legacy.display(),
+            new.display(),
+            legacy.display(),
+            new.display()
+        ))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Returns the home directory used by `legacy_config_notice` — captured
+    /// here so a test can swap $HOME without polluting other tests.
+    fn notice_for_home(home: &std::path::Path) -> Option<String> {
+        let prev = std::env::var_os("HOME");
+        std::env::set_var("HOME", home);
+        std::env::remove_var("USERPROFILE");
+        let result = legacy_config_notice();
+        match prev {
+            Some(p) => std::env::set_var("HOME", p),
+            None => std::env::remove_var("HOME"),
+        }
+        result
+    }
+
+    #[test]
+    fn notice_fires_when_legacy_exists_and_new_does_not() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("llmwiki-cli")).unwrap();
+        std::fs::write(
+            tmp.path().join("llmwiki-cli").join("config.toml"),
+            "[nim]\n",
+        )
+        .unwrap();
+
+        let msg = notice_for_home(tmp.path());
+        assert!(
+            msg.is_some(),
+            "expected migration notice when only legacy exists"
+        );
+        let msg = msg.unwrap();
+        assert!(msg.contains("legacy config"));
+        assert!(msg.contains(".llmwiki-cli/config.toml"));
+    }
+
+    #[test]
+    fn notice_suppressed_when_new_already_in_place() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("llmwiki-cli")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".llmwiki-cli")).unwrap();
+        std::fs::write(
+            tmp.path().join("llmwiki-cli").join("config.toml"),
+            "[nim]\n",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.path().join(".llmwiki-cli").join("config.toml"),
+            "[nim]\n",
+        )
+        .unwrap();
+
+        let msg = notice_for_home(tmp.path());
+        assert!(
+            msg.is_none(),
+            "expected NO notice when new path is already in place; got: {:?}",
+            msg
+        );
+    }
+
+    #[test]
+    fn notice_suppressed_when_neither_path_exists() {
+        let tmp = tempfile::tempdir().unwrap();
+        let msg = notice_for_home(tmp.path());
+        assert!(
+            msg.is_none(),
+            "expected NO notice when neither path exists; got: {:?}",
+            msg
+        );
+    }
 }

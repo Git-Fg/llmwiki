@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.8] - 2026-06-23 — Config debuggability
+
+**Added:**
+- `wiki doctor` now prints a one-time migration notice when the v0.3.6
+  user-global config (`~/llmwiki-cli/config.toml`) still exists and the
+  v0.3.7 path (`~/.llmwiki-cli/config.toml`) does not. The notice suggests
+  the exact `mv` command to migrate.
+- New `wiki config paths` command prints the resolved config search order
+  with each path's existence status (e.g. `[exists] per-workspace
+  /workspace/.llmwiki-cli/config.toml`). `--workspace <path>` overrides the
+  walk-up start; `--json` returns structured output. Lets users diagnose
+  "why isn't my config being loaded?" without reading source.
+- `walk_up_for_llmwiki_cli_config()` now always returns `Some` so the
+  per-workspace candidate path is included in `config_paths()` output even
+  when the file doesn't exist yet — `wiki config paths` can show the user
+  exactly where to create it. `load_config` still skips missing files.
+- 6 new regression tests: 3 unit tests in `src/cli/doctor.rs` (legacy
+  notice fires / suppressed / suppressed-when-new-exists), 3 integration
+  tests in `tests/config_cli_test.rs` for `wiki config paths`.
+
+**Tests:** 237/237 pass (231 v0.3.7 + 6 new).
+
 ## [0.3.7] - 2026-06-23 — `.llmwiki-cli/` config centralization
 
 **Changed (BREAKING):**

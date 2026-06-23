@@ -8,6 +8,123 @@ fn write_tmp_toml(content: &str) -> (std::path::PathBuf, tempfile::TempDir) {
     (path, dir)
 }
 
+/// Run `wiki config paths` with a temp HOME, temp WIKI_ROOT_CONFIG, and
+/// given `--workspace`. Returns (status, stdout).
+fn run_config_paths(workspace: &std::path::Path) -> (i32, String) {
+    use assert_cmd::Command;
+    let tmp = tempfile::tempdir().unwrap();
+    let registry = tmp.path().join("wiki-root.toml");
+    std::fs::write(&registry, "# test wiki-root.toml\n").unwrap();
+
+    let output = Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .env("WIKI_ROOT_CONFIG", &registry)
+        .env("HOME", tmp.path()) // per-computer config also empty
+        .env_remove("USERPROFILE")
+        .env_remove("LLMWIKI_CONFIG")
+        .arg("--workspace")
+        .arg(workspace)
+        .arg("config")
+        .arg("paths")
+        .output()
+        .unwrap();
+    (
+        output.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&output.stdout).to_string(),
+    )
+}
+
+/// Run `wiki config paths --json`. Returns parsed JSON.
+fn run_config_paths_json(workspace: &std::path::Path) -> serde_json::Value {
+    use assert_cmd::Command;
+    let tmp = tempfile::tempdir().unwrap();
+    let registry = tmp.path().join("wiki-root.toml");
+    std::fs::write(&registry, "# test wiki-root.toml\n").unwrap();
+
+    let output = Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .env("WIKI_ROOT_CONFIG", &registry)
+        .env("HOME", tmp.path())
+        .env_remove("USERPROFILE")
+        .env_remove("LLMWIKI_CONFIG")
+        .arg("--workspace")
+        .arg(workspace)
+        .arg("config")
+        .arg("paths")
+        .arg("--json")
+        .output()
+        .unwrap();
+    serde_json::from_slice(&output.stdout).expect("config paths --json must return valid JSON")
+}
+
+#[test]
+fn config_paths_prints_search_order_with_status() {
+    let tmp = tempfile::tempdir().unwrap();
+    let workspace = tmp.path();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\n",
+    )
+    .unwrap();
+
+    let (code, stdout) = run_config_paths(workspace);
+    assert_eq!(code, 0, "config paths failed: {stdout}");
+    assert!(
+        stdout.contains("Workspace:"),
+        "missing workspace line: {stdout}"
+    );
+    assert!(
+        stdout.contains("Config search order"),
+        "missing header: {stdout}"
+    );
+    assert!(
+        stdout.contains("per-workspace"),
+        "missing per-workspace label: {stdout}"
+    );
+    assert!(
+        stdout.contains("per-computer"),
+        "missing per-computer label: {stdout}"
+    );
+    assert!(
+        stdout.contains("[exists"),
+        "missing exists marker: {stdout}"
+    );
+}
+
+#[test]
+fn config_paths_json_returns_workspace_and_paths_array() {
+    let tmp = tempfile::tempdir().unwrap();
+    let workspace = tmp.path();
+    let v = run_config_paths_json(workspace);
+    assert!(v.get("workspace").is_some());
+    assert!(v.get("paths").is_some());
+    let paths = v["paths"].as_array().unwrap();
+    assert!(!paths.is_empty());
+    for entry in paths {
+        assert!(entry.get("source").is_some());
+        assert!(entry.get("path").is_some());
+        assert!(entry.get("exists").is_some());
+    }
+}
+
+#[test]
+fn config_paths_reports_missing_per_workspace() {
+    let tmp = tempfile::tempdir().unwrap();
+    let workspace = tmp.path();
+    // No .llmwiki-cli/config.toml in workspace.
+    let (code, stdout) = run_config_paths(workspace);
+    assert_eq!(code, 0);
+    // Per-workspace should be reported as missing.
+    let has_missing = stdout
+        .lines()
+        .any(|l| l.contains("[missing") && l.contains("per-workspace"));
+    assert!(
+        has_missing,
+        "expected per-workspace missing entry: {stdout}"
+    );
+}
+
 #[test]
 fn config_path_prints_resolved_path() {
     let (path, _dir) = write_tmp_toml("[test]\npath = \"/tmp\"\n");

@@ -176,13 +176,20 @@ pub fn config_paths(workspace: &Path) -> Vec<PathBuf> {
     paths
 }
 
-/// Walk up from `start` collecting the closest `.llmwiki-cli/config.toml`.
+/// Walk up from `start` to find the closest per-workspace config candidate.
 /// Skips the user's HOME directory so `~/.llmwiki-cli/` is treated as the
 /// per-computer config location, not as a workspace marker.
+///
+/// Always returns `Some` for a valid workspace: either the closest
+/// `.llmwiki-cli/config.toml` found in an ancestor (which may or may not
+/// exist on disk — `load_config` skips missing files) or `<workspace>/.llmwiki-cli/config.toml`
+/// as the default location if no ancestor carries one. Returning `Some`
+/// unconditionally lets `wiki config paths` print the candidate location so
+/// users see where to put a per-workspace config.
 fn walk_up_for_llmwiki_cli_config(start: &Path) -> Option<PathBuf> {
     let canonical = start.canonicalize().ok()?;
     let home_canon = home_dir().and_then(|h| h.canonicalize().ok());
-    let mut current: Option<PathBuf> = Some(canonical);
+    let mut current: Option<PathBuf> = Some(canonical.clone());
     while let Some(dir) = current {
         // Skip HOME — `~/.llmwiki-cli/` is the per-computer config and must
         // not be promoted to a workspace marker.
@@ -193,12 +200,23 @@ fn walk_up_for_llmwiki_cli_config(start: &Path) -> Option<PathBuf> {
             }
         }
         let candidate = dir.join(".llmwiki-cli").join("config.toml");
+        // Prefer an existing file (walk-up found a real config) — its parent
+        // ancestor already proved this is a workspace.
         if candidate.is_file() {
+            return Some(candidate);
+        }
+        // Prefer a `.llmwiki-cli/` directory (the workspace marker) over
+        // `<workspace>/.llmwiki-cli/config.toml` as the default — the marker
+        // implies this directory is intentionally a workspace.
+        if dir.join(".llmwiki-cli").is_dir() {
             return Some(candidate);
         }
         current = dir.parent().map(PathBuf::from);
     }
-    None
+    // No ancestor with `.llmwiki-cli/` and no `.llmwiki-cli/config.toml`:
+    // default to `<workspace>/.llmwiki-cli/config.toml` so the user has a
+    // discoverable target. `load_config` skips missing files.
+    Some(start.join(".llmwiki-cli").join("config.toml"))
 }
 
 /// Load and merge every config file in `paths` (later wins per scalar key).

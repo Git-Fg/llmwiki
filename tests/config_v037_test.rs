@@ -92,8 +92,10 @@ fn config_paths_includes_per_workspace_when_present() {
 }
 
 #[test]
-fn config_paths_skips_per_workspace_when_absent() {
-    // When no per-workspace config exists, only env var + per-computer.
+fn config_paths_includes_per_workspace_candidate_when_absent() {
+    // When no per-workspace config exists, config_paths still returns the
+    // candidate path `<workspace>/.llmwiki-cli/config.toml` so `wiki config paths`
+    // can show the user where to put it. `load_config` skips missing files.
     with_lock(|| {
         without_wiki_root_config(|| {
             without_llmwiki_config(|| {
@@ -110,18 +112,26 @@ fn config_paths_skips_per_workspace_when_absent() {
                 .unwrap();
                 with_home_and_cwd(&home, &workspace, || {
                     let paths = config_paths(&workspace);
-                    // No per-workspace config in the list.
+                    // Per-workspace candidate IS in the list (marked missing
+                    // by `is_file()` check) so users can see where to put it.
+                    let candidate = workspace.join(".llmwiki-cli").join("config.toml");
                     assert!(
-                        !paths.iter().any(|p| p.starts_with(&workspace)
-                            && p.to_string_lossy().contains(".llmwiki-cli")),
-                        "should not include per-workspace config when none exists, got: {:?}",
+                        paths.iter().any(|p| p == &candidate),
+                        "expected per-workspace candidate in path list, got: {:?}",
                         paths
                     );
-                    // Per-computer path is the only candidate.
-                    assert_eq!(
-                        paths.last().unwrap(),
-                        &home.join(".llmwiki-cli").join("config.toml")
+                    // Per-computer path is also still present.
+                    assert!(
+                        paths
+                            .iter()
+                            .any(|p| p == &home.join(".llmwiki-cli").join("config.toml")),
+                        "expected per-computer config in path list, got: {:?}",
+                        paths
                     );
+                    // load_config skips the missing candidate and still reads
+                    // the per-computer config.
+                    let cfg = load_config(&paths).unwrap();
+                    assert_eq!(cfg.nim.embed_model, "nvidia/nv-embedqa-e5-v5");
                 });
             });
         });

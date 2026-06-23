@@ -245,6 +245,18 @@ pub enum ConfigCmd {
     Validate,
     /// Print the JSON Schema for the resolved Config type (for editor / LSP use)
     ShowSchema,
+    /// Print the resolved config search order with each path's existence status.
+    /// Useful for debugging why a particular config.toml is or isn't being loaded.
+    /// Pass --workspace <path> to override the walk-up start; otherwise the
+    /// resolved workspace is used (registry → env → walk-up → single-wiki).
+    Paths {
+        /// Override the workspace used as the walk-up start
+        #[arg(long)]
+        workspace: Option<std::path::PathBuf>,
+        /// JSON output
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 pub async fn run(cli: Cli) {

@@ -29,7 +29,7 @@ Environment overrides:
   LLMWIKI_INSTALL_DIR  Legacy alias for --bin-dir
 
 Examples:
-  bash install.sh --version v0.3.7
+  bash install.sh --version v0.3.8
   bash install.sh --bin-dir /usr/local/bin --force
   curl -LsSf .../install.sh | bash -s -- --verbose
 EOF

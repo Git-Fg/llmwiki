@@ -1,9 +1,11 @@
 use crate::cli::ConfigCmd;
 use crate::error::WikiError;
+use std::path::PathBuf;
 
 pub async fn run(cmd: ConfigCmd) -> Result<(), WikiError> {
     match cmd {
         ConfigCmd::Path => cmd_path().await,
+        ConfigCmd::Paths { workspace, json } => cmd_paths(workspace, json).await,
         ConfigCmd::List { wiki, json } => cmd_list(wiki.as_deref(), json).await,
         ConfigCmd::Get { key, wiki } => cmd_get(&key, wiki.as_deref()).await,
         ConfigCmd::Set { key, value, wiki } => cmd_set(&key, &value, wiki.as_deref()).await,
@@ -25,6 +27,90 @@ async fn cmd_path() -> Result<(), WikiError> {
     let reg = crate::core::registry::Registry::discover()?;
     println!("{}", reg.root_path.display());
     Ok(())
+}
+
+/// Print the resolved config search order with each path's existence status.
+/// Uses `--workspace` if given; otherwise runs full workspace discovery so
+/// the output matches what every other CLI command would see.
+async fn cmd_paths(workspace: Option<PathBuf>, json: bool) -> Result<(), WikiError> {
+    use crate::core::config::config_paths;
+    use crate::core::workspace::discover_workspace;
+
+    let ws = match workspace {
+        Some(p) => p,
+        None => discover_workspace(
+            None,
+            None,
+            std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+            std::env::var("WIKI_ACTIVE").ok().as_deref(),
+            std::env::current_dir()?,
+        )?,
+    };
+
+    let paths = config_paths(&ws);
+    let entries: Vec<(String, String, bool)> = paths
+        .iter()
+        .map(|p| {
+            let label = label_for(p);
+            let exists = p.is_file();
+            (label, p.display().to_string(), exists)
+        })
+        .collect();
+
+    if json {
+        let json_entries: Vec<_> = entries
+            .iter()
+            .map(|(label, path, exists)| {
+                serde_json::json!({
+                    "source": label,
+                    "path": path,
+                    "exists": exists,
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "workspace": ws.display().to_string(),
+                "paths": json_entries,
+            }))?
+        );
+    } else {
+        println!("Workspace: {}", ws.display());
+        println!("Config search order (highest priority first):");
+        for (label, path, exists) in &entries {
+            let status = if *exists { "exists  " } else { "missing " };
+            println!("  [{}] {:<14} {}", status, label, path);
+        }
+        if !entries.iter().any(|(_, _, e)| *e) {
+            println!(
+                "(no config file found — falling back to built-in defaults; \
+                 set LLMWIKI_CONFIG or write ~/.llmwiki-cli/config.toml to override)"
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Tag a config path with the source it came from, for `wiki config paths`
+/// output. Helps users tell which priority slot a path occupies without
+/// having to compare canonical paths.
+fn label_for(p: &std::path::Path) -> String {
+    let s = p.to_string_lossy();
+    if std::env::var("LLMWIKI_CONFIG").ok().as_deref() == Some(&s) {
+        "LLMWIKI_CONFIG".into()
+    } else if s.contains("/.llmwiki-cli/config.toml") || s.ends_with(".llmwiki-cli/config.toml") {
+        // Per-workspace if `workspace` was the walk-up start (path is inside
+        // the workspace); per-computer if it lives under HOME.
+        if let Some(home) = crate::core::registry::home_dir() {
+            if p.starts_with(home.join(".llmwiki-cli")) {
+                return "per-computer".into();
+            }
+        }
+        "per-workspace".into()
+    } else {
+        "unknown".into()
+    }
 }
 
 async fn cmd_list(wiki: Option<&str>, json: bool) -> Result<(), WikiError> {
