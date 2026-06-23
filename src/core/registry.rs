@@ -552,6 +552,7 @@ impl Registry {
     }
 
     /// Remove a dotted key from a wiki alias section.
+    /// Cleans up empty intermediate tables after removal.
     pub fn unset_value(&mut self, key: &str, wiki_alias: &str) -> Result<(), WikiError> {
         let parts: Vec<&str> = key.split('.').collect();
 
@@ -565,9 +566,17 @@ impl Registry {
             .unwrap_or(false);
         if !alias_in_active_scope {
             return Err(WikiError::Other(anyhow::anyhow!(
-                "[{}] is loaded from a lower-priority wiki-root.toml and cannot be modified from the active write target ({}). Set WIKI_ROOT_CONFIG to the file that owns this alias, or edit it directly.",
+                "[{}] is loaded from a lower-priority wiki-root.toml and cannot be modified from the active write target ({}). \
+                 Set WIKI_ROOT_CONFIG to one of the candidate files that own this alias: {}, \
+                 or edit it directly.",
                 wiki_alias,
-                self.root_path.display()
+                self.root_path.display(),
+                Self::candidate_paths()
+                    .iter()
+                    .filter(|p| **p != self.root_path)
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )));
         }
 
@@ -583,23 +592,71 @@ impl Registry {
                                 wiki_alias
                             )));
                         }
+                        // Clean up empty intermediate tables by re-navigating
+                        // from root for each level (safe, no raw pointers).
+                        for depth in (0..parts.len() - 1).rev() {
+                            Self::remove_empty_intermediate(root, wiki_alias, &parts[..=depth]);
+                        }
                         return Ok(());
                     } else {
-                        match current.get_mut(*part) {
-                            Some(toml::Value::Table(t)) => current = t,
-                            _ => {
-                                return Err(WikiError::Other(anyhow::anyhow!(
-                                    "key '{}' not found in [{}]",
-                                    key,
-                                    wiki_alias
-                                )))
-                            }
+                        let next = current
+                            .entry(part.to_string())
+                            .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
+                        if let toml::Value::Table(t) = next {
+                            current = t;
+                        } else {
+                            return Err(WikiError::Other(anyhow::anyhow!(
+                                "key '{}' not found in [{}]",
+                                key,
+                                wiki_alias
+                            )));
                         }
                     }
                 }
             }
         }
         Ok(())
+    }
+
+    /// If the table at `[alias].path[..=depth]` inside `root` is empty, remove it.
+    fn remove_empty_intermediate(root: &mut toml::value::Table, alias: &str, path: &[&str]) {
+        if path.is_empty() {
+            return;
+        }
+        // Navigate into the alias section first, then follow the intermediate path.
+        let alias_table = match root.get_mut(alias).and_then(|v| v.as_table_mut()) {
+            Some(t) => t,
+            None => return,
+        };
+        if path.len() == 1 {
+            if let Some(toml::Value::Table(t)) = alias_table.get(path[0]) {
+                if !t.is_empty() {
+                    return;
+                }
+            } else {
+                return;
+            }
+            alias_table.remove(path[0]);
+        } else {
+            let mut parent = alias_table;
+            for part in &path[..path.len() - 2] {
+                parent = match parent.get_mut(*part).and_then(|v| v.as_table_mut()) {
+                    Some(t) => t,
+                    _ => return,
+                };
+            }
+            let parent_key = path[path.len() - 2];
+            let child_key = path[path.len() - 1];
+            let is_empty_child = match parent.get(parent_key).and_then(|v| v.as_table()) {
+                Some(t) => t.is_empty(),
+                None => return,
+            };
+            if is_empty_child {
+                if let Some(toml::Value::Table(p)) = parent.get_mut(parent_key) {
+                    p.remove(child_key);
+                }
+            }
+        }
     }
 
     /// Add a new wiki entry.
@@ -682,9 +739,17 @@ impl Registry {
             .unwrap_or(false);
         if !in_active_scope {
             return Err(WikiError::Other(anyhow::anyhow!(
-                "alias '{}' is loaded from a lower-priority wiki-root.toml and cannot be removed from the active write target ({}). Set WIKI_ROOT_CONFIG to the file that owns this alias, or edit it directly.",
+                "alias '{}' is loaded from a lower-priority wiki-root.toml and cannot be removed from the active write target ({}). \
+                 Set WIKI_ROOT_CONFIG to one of the candidate files that own this alias: {}, \
+                 or edit it directly.",
                 alias,
-                self.root_path.display()
+                self.root_path.display(),
+                Self::candidate_paths()
+                    .iter()
+                    .filter(|p| **p != self.root_path)
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )));
         }
         if let toml::Value::Table(root) = &mut self.raw_doc {

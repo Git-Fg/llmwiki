@@ -633,6 +633,127 @@ path = "/home/wiki"
     });
 }
 
+// ─── v0.3.4 H1: remove_entry save + discover roundtrip ───
+
+#[test]
+fn remove_entry_save_then_discover_alias_is_gone() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+"#,
+            );
+
+            with_home_and_cwd(&home, &home, || {
+                let mut reg = Registry::discover().expect("registry");
+                reg.remove_entry("shared")
+                    .expect("remove from active scope");
+                reg.save().expect("save after remove");
+                // Re-discover from disk
+                let reg2 = Registry::discover().expect("reload");
+                assert!(reg2.entries.iter().all(|e| e.alias != "shared"));
+                assert!(reg2
+                    .raw_doc
+                    .as_table()
+                    .map(|t| !t.contains_key("shared"))
+                    .unwrap_or(true));
+            });
+        });
+    });
+}
+
+#[test]
+fn remove_entry_errors_on_lower_priority_save_then_discover_alias_persists() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            let cwd = tmp.path().join("proj");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            fs::create_dir_all(&cwd).unwrap();
+
+            // Lower file defines [shared]; higher defines [other]
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+"#,
+            );
+            write_registry(
+                &cwd.join(".agents").join("wiki-root.toml"),
+                r#"
+[other]
+path = "/proj/wiki"
+"#,
+            );
+
+            with_home_and_cwd(&home, &cwd, || {
+                let mut reg = Registry::discover().expect("merged registry");
+                assert!(reg.entries.iter().any(|e| e.alias == "shared"));
+                assert!(reg.entries.iter().any(|e| e.alias == "other"));
+
+                // Removing [shared] from lower-priority MUST error
+                let err = reg.remove_entry("shared").unwrap_err();
+                let msg = err.to_string();
+                assert!(
+                    msg.contains("lower-priority wiki-root.toml"),
+                    "expected lower-priority message, got: {}",
+                    msg
+                );
+
+                // save() was NOT called (error returned early), so re-discover
+                // should still have the alias
+                let reg2 = Registry::discover().expect("reload");
+                assert!(reg2.entries.iter().any(|e| e.alias == "shared"));
+            });
+        });
+    });
+}
+
+// ─── v0.3.4 H2: unset_value creates intermediate tables like set_value ───
+
+#[test]
+fn unset_value_creates_intermediate_tables_like_set_value() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+"#,
+            );
+
+            with_home_and_cwd(&home, &home, || {
+                let mut reg = Registry::discover().expect("registry");
+                // set_value creates [shared.nim] intermediate table via dotted key
+                reg.set_value("nim.embed_model", "nvidia/model", Some("shared"))
+                    .expect("set_value creates intermediate tables");
+                // unset_value should traverse the created tables and succeed
+                reg.unset_value("nim.embed_model", "shared")
+                    .expect("unset_value traverses created tables");
+                // Verify it's gone
+                let raw = reg.raw_doc.as_table().unwrap();
+                let shared = raw.get("shared").and_then(|v| v.as_table()).unwrap();
+                assert!(
+                    shared.get("nim").and_then(|v| v.as_table()).is_none(),
+                    "nim table should be removed when empty"
+                );
+            });
+        });
+    });
+}
+
 // ─── v0.3.3 M3: tags merge is array union-dedupe, not scalar override ───
 
 #[test]

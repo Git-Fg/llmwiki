@@ -68,7 +68,12 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         // `~/wiki-root.toml` would create shadowing confusion later.
         let default_path = crate::core::registry::home_dir()
             .map(|h| h.join(".agents").join("wiki-root.toml"))
-            .ok_or_else(|| WikiError::Other(anyhow::anyhow!("no home dir")))?;
+            .ok_or_else(|| {
+                WikiError::Other(anyhow::anyhow!(
+                    "cannot determine home directory: both $HOME and $USERPROFILE are unset. \
+                     Set one of them, or set WIKI_ROOT_CONFIG to the wiki-root.toml you want to use."
+                ))
+            })?;
         if let Some(parent) = default_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }

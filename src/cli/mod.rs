@@ -209,11 +209,13 @@ pub enum ConfigCmd {
         #[arg(long)]
         wiki: Option<String>,
     },
-    /// Remove a config override (revert to default)
+    /// Remove a config override (revert to default). Errors if the wiki alias
+    /// is from a lower-priority wiki-root.toml (use WIKI_ROOT_CONFIG to target
+    /// the file that owns the alias, or edit it directly).
     Unset {
         /// e.g. nim.embed_model
         key: String,
-        /// Wiki alias
+        /// Wiki alias (required for unset)
         #[arg(long)]
         wiki: Option<String>,
     },
@@ -230,7 +232,9 @@ pub enum ConfigCmd {
         #[arg(long)]
         description: Option<String>,
     },
-    /// Remove a wiki from the registry
+    /// Remove a wiki from the registry. Errors if the alias is from a
+    /// lower-priority wiki-root.toml (use WIKI_ROOT_CONFIG to target the file
+    /// that owns the alias, or edit it directly).
     Rm {
         /// Wiki alias to remove
         alias: String,

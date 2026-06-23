@@ -62,6 +62,12 @@ pub fn discover_workspace(
         if candidate.join(".wiki").exists() {
             return Ok(candidate.canonicalize().unwrap_or(candidate));
         }
+        // Mirror the legacy config path searched in `config.rs::resolve_config`
+        // so a workspace at `~/.config/wiki/` is discoverable symmetrically.
+        let alt = home.join(".config").join("wiki");
+        if alt.join(".wiki").exists() {
+            return Ok(alt.canonicalize().unwrap_or(alt));
+        }
     }
     Err(WikiError::WorkspaceNotFound)
 }
