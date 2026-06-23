@@ -52,14 +52,26 @@ pub struct RetryConfig {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct WikiConfig {
     /// Directory (relative to workspace root) containing wiki pages.
-    /// Default `"wiki"` keeps backward compatibility with `wiki init`-created
-    /// wikis (which create a `wiki/` subdirectory). Set to `""` (empty
-    /// string) for **flat-layout** Karpathy-style wikis where pages live at
-    /// the workspace root (e.g. `comparisons/foo.md`, `queries/bar.md`,
-    /// `index.md`). v0.3.25+ — surfaced by the pre-release real-wiki smoke
-    /// test (see `AGENTS.md` "Pre-release real-wiki smoke test").
+    /// Default `""` (empty string) selects **flat-layout** Karpathy-style
+    /// wikis where pages live at the workspace root (e.g. `comparisons/foo.md`,
+    /// `queries/bar.md`, `index.md`). v0.3.26+: flipped from `"wiki"` so
+    /// new users hit a working layout out-of-the-box. Set to `"wiki"` for the
+    /// legacy subdirectory layout. `wiki init --flat` selects flat; plain
+    /// `wiki init` selects the value of `wiki.pages_dir` (default: flat).
     #[serde(default = "default_pages_dir")]
     pub pages_dir: String,
+
+    /// Directory basenames to skip when walking the wiki for pages. Matched
+    /// against the **basename** of each entry at any depth (NOT relative paths
+    /// — this is intentionally simple so users can drop in `node_modules`,
+    /// `.git`, `.opencode`, etc. without writing globs). Case-sensitive.
+    /// Default includes common dev-project noise + wiki-specific noise from
+    /// `~/.agents/wiki-root.toml` real wikis — see `default_exclude_dirs()`
+    /// for the full list. v0.3.26+: surfaced by the pre-release real-wiki
+    /// smoke test (see `AGENTS.md` "Pre-release real-wiki smoke test").
+    #[serde(default = "default_exclude_dirs")]
+    pub exclude_dirs: Vec<String>,
+
     #[serde(default = "default_chunk_tokens")]
     pub default_chunk_tokens: usize,
     #[serde(default = "default_chunk_overlap")]
@@ -99,6 +111,7 @@ fn default_nim() -> NimConfig {
 fn default_wiki() -> WikiConfig {
     WikiConfig {
         pages_dir: default_pages_dir(),
+        exclude_dirs: default_exclude_dirs(),
         default_chunk_tokens: default_chunk_tokens(),
         chunk_overlap_tokens: default_chunk_overlap(),
         min_chunk_tokens: default_min_chunk(),
@@ -157,4 +170,52 @@ fn default_true() -> bool {
 
 fn default_pages_dir() -> String {
     "wiki".into()
+}
+
+/// Default list of directory basenames to skip when walking the wiki.
+/// Matches the `walkdir::DirEntry::file_name()` of each entry — NOT the
+/// full relative path. Bare names like `node_modules` skip ALL directories
+/// named `node_modules` at any depth.
+///
+/// Sourced from the union of:
+/// - qmd + Foam noise (dev-project): https://github.com/driazko/foam-template,
+///   https://github.com/awwaiid/foam-template, cargo's `package.exclude`
+/// - Real-wiki noise observed on this machine
+///   (`~/.agents/wiki-root.toml` wikis):
+///   - `.opencode/` (Claude/OpenCode session cache)
+///   - `.harness/`, `.serena/`, `.principled/` (agent workspace caches)
+///   - `.swe-bench/` (eval harness scratch)
+///   - `.claude/`, `.mavis/` (Claude Code / mavis state)
+///
+/// Skipping is per-directory: when a match is found, walkdir does not
+/// descend into it (matches `walkdir::FilterEntry::filter_entry` semantics
+/// where `false` skips both the entry AND its children). Files directly
+/// under the wiki root whose basename matches (e.g. an oddly-named file
+/// `node_modules` at the root) are also skipped.
+fn default_exclude_dirs() -> Vec<String> {
+    vec![
+        // Dev-project noise (qmd + Foam union; cargo-style excludes)
+        "node_modules".into(),
+        ".git".into(),
+        "target".into(),
+        "dist".into(),
+        "build".into(),
+        ".next".into(),
+        ".cache".into(),
+        ".turbo".into(),
+        ".venv".into(),
+        "venv".into(),
+        "env".into(),
+        "__pycache__".into(),
+        ".idea".into(),
+        ".vscode".into(),
+        // Wiki-specific noise (real-wiki smoke test, 2026-06-24)
+        ".opencode".into(),
+        ".claude".into(),
+        ".mavis".into(),
+        ".harness".into(),
+        ".serena".into(),
+        ".principled".into(),
+        ".swe-bench".into(),
+    ]
 }
