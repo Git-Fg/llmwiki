@@ -1,4 +1,4 @@
-use wiki::core::workspace::discover_workspace;
+use llmwiki_cli::core::workspace::discover_workspace;
 
 #[test]
 fn discover_from_flag_overrides_all() {

@@ -1,4 +1,4 @@
-use wiki::core::nim::NimClient;
+use llmwiki_cli::core::nim::NimClient;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

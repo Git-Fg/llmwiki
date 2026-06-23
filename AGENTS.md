@@ -1,14 +1,15 @@
-# AGENTS.md — wiki (the tool)
+# AGENTS.md — llmwiki-cli (the tool)
 
-> Behavioral layer for AI agents working on the `wiki` Rust CLI codebase at `/Users/felix/Documents/llmwiki/`.
-> Structural truth lives in source files; design rationale lives in `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`.
+> Behavioral layer for AI agents working on the `llmwiki-cli` Rust CLI codebase at `/Users/felix/Documents/llmwiki/`.
+> Structural truth lives in source files; design rationale lives in `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md` (original concept) and `docs/superpowers/specs/2026-06-22-llmwiki-installable-design.md` (v0.3.0 installable + LSP/MCP).
 
 ## Project Overview
 
-`wiki` is a single Rust binary CLI for managing a Karpathy-style LLM Wiki (markdown files + JSONL embeddings, no database). It ships with a bundled skill.
+`llmwiki-cli` is a single Rust binary CLI for managing a Karpathy-style LLM Wiki (markdown files + JSONL embeddings, no database). It ships with a bundled marketplace skill that auto-installs into the host agent's skill directory.
 
-- Spec: `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`
-- Plan: `docs/superpowers/plans/2026-06-21-karpathy-wiki.md`
+- Spec (concept): `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`
+- Spec (v0.3.0 installable): `docs/superpowers/specs/2026-06-22-llmwiki-installable-design.md`
+- Plan: `docs/superpowers/plans/2026-06-22-llmwiki-installable.md`
 
 ## Build Commands
 
@@ -17,7 +18,7 @@ cargo build                          # debug build (also runs build.rs to genera
 cargo build --release                # release build
 cargo test                           # all tests
 cargo test --test <name>             # specific test file
-cargo install --path .               # install to ~/.cargo/bin/wiki
+cargo install --path .               # install to ~/.cargo/bin/llmwiki-cli
 cargo clippy --all-targets           # lint (CI uses -D warnings)
 cargo fmt --check                    # formatting check
 ```
@@ -34,7 +35,8 @@ src/
   error.rs                 # WikiError thiserror enum
   lib.rs                   # module exports
 
-build.rs                   # generates agents/skills/wiki/SKILL.md stub
+build.rs                   # generates marketplace/skills/wiki/SKILL.md hub stub
+                          # and marketplace/skills/wiki/SETUP/references/schema.json
 ```
 
 ## Coding Conventions
@@ -61,7 +63,7 @@ The CLI talks to an OpenAI-compatible endpoint hosted on NVIDIA NIM. Two invaria
 
 1. **`base_url` is the host only, with no path or version segment.** The default in `src/core/config.rs` is `https://integrate.api.nvidia.com` (no trailing `/v1`). Every NIM call site builds the full URL as `format!("{}/v1/<endpoint>", base_url.trim_end_matches('/'))`. If you see `/v1/v1/<endpoint>` in a request, `base_url` was set to a value that already includes `/v1` — strip it.
 
-2. **The API key is resolved in this order:** the env var named by `nim.api_key_env` (default `NVIDIA_NIM_API_KEY`) first; then, if that is unset or empty, `NVIDIA_API_KEY` as a fallback. Use `resolve_api_key(&cfg.nim)` from `src/core/config.rs` — never call `std::env::var(&cfg.nim.api_key_env)` directly. `wiki doctor` also honors the `WIKI_NIM_BASE_URL` env override; the other commands read it via the same config path.
+2. **The API key is resolved in this order:** the env var named by `nim.api_key_env` (default `NVIDIA_NIM_API_KEY`) first; then, if that is unset or empty, `NVIDIA_API_KEY` as a fallback. Use `resolve_api_key(&cfg.nim)` from `src/core/config.rs` — never call `std::env::var(&cfg.nim.api_key_env)` directly. `llmwiki-cli doctor` also honors the `WIKI_NIM_BASE_URL` env override; the other commands read it via the same config path.
 
 The `tests/doctor_test.rs::doctor_uses_correct_models_endpoint` and the `tests/e2e_test.rs` wiremock tests lock both invariants — any new NIM call site that bypasses them will pass locally but break in production.
 
@@ -76,17 +78,17 @@ The `tests/doctor_test.rs::doctor_uses_correct_models_endpoint` and the `tests/e
 
 ## Importing an Existing Wiki
 
-The `wiki` layout is `wiki/<page>.md` + `raw/<category>/<source>.<ext>` + `embeddings.jsonl` + `.wiki/config.yaml`. If the source wiki uses a different layout (e.g. `concepts/`, `entities/`), the manual recipe is:
+The canonical workspace layout uses a `wiki/` subdirectory containing markdown pages (`wiki/<page>.md`), a `raw/` directory for ingested sources (`raw/<category>/<source>.<ext>`), a `embeddings.jsonl` index, and a `.wiki/config.yaml`. If the source wiki uses a different layout (e.g. `concepts/`, `entities/`), the manual recipe is:
 
 ```bash
-wiki init /path/to/new-wiki
+llmwiki-cli init /path/to/new-wiki
 # Delete the init-template pages you don't want
 rm /path/to/new-wiki/wiki/log.md /path/to/new-wiki/wiki/overview.md
 cp -r /path/to/old-wiki/concepts/* /path/to/new-wiki/wiki/
-wiki lint --scope wiki --fix
+llmwiki-cli lint --scope wiki --fix
 ```
 
-`wiki import` is intentionally not provided — automatic frontmatter inference and wikilink rewriting are speculative heuristics and a wrong inference corrupts the wiki. See `CHANGELOG.md` for the full decision.
+`llmwiki-cli import` is intentionally not provided — automatic frontmatter inference and wikilink rewriting are speculative heuristics and a wrong inference corrupts the wiki. See `CHANGELOG.md` for the full decision.
 
 ## Removed
 
@@ -94,10 +96,10 @@ wiki lint --scope wiki --fix
 
 ## CLI Commands Reference
 
-### `wiki ls` — Granular workspace listing
+### `llmwiki-cli ls` — Granular workspace listing
 
 ```
-wiki ls [--pages] [--raw] [--embed] [--links] [--config] [--json]
+llmwiki-cli ls [--pages] [--raw] [--embed] [--links] [--config] [--json]
 ```
 
 - **No flags** → shows all sections (pages, raw, embed, links, config).
@@ -109,10 +111,10 @@ wiki ls [--pages] [--raw] [--embed] [--links] [--config] [--json]
 - `--config` — resolved config key/value pairs.
 - `--json` — machine-readable output (null fields omitted via `skip_serializing_if`).
 
-### `wiki tree` — Flat, grep-friendly page listing
+### `llmwiki-cli tree` — Flat, grep-friendly page listing
 
 ```
-wiki tree [--json]
+llmwiki-cli tree [--json]
 ```
 
 Outputs one line per page: `slug  title [tags] ✓(if embedded)`. Designed for piping to `grep`, `fzf`, etc.

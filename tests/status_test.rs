@@ -9,7 +9,7 @@ fn status_reports_page_count() {
     std::fs::write(wiki.join("wiki/a-page.md"), "body").unwrap();
     std::fs::write(wiki.join("wiki/b-page.md"), "body").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
@@ -27,7 +27,7 @@ fn status_reports_embedding_coverage() {
     std::fs::write(wiki.join("wiki/a-page.md"), "body").unwrap();
     std::fs::write(wiki.join("embeddings.jsonl"), "").unwrap();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)

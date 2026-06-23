@@ -27,7 +27,7 @@ async fn embed_writes_jsonl() {
     let wiki_url = server.uri();
     let api_key = "test-key";
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -56,7 +56,7 @@ async fn embed_skip_existing_skips_unchanged() {
     let tmp = setup_wiki_with_page();
     let wiki_url = server.uri();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -66,7 +66,7 @@ async fn embed_skip_existing_skips_unchanged() {
         .assert()
         .success();
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())

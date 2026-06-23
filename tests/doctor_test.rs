@@ -23,7 +23,7 @@ async fn doctor_uses_correct_models_endpoint() {
         .mount(&mock_server)
         .await;
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -64,7 +64,7 @@ async fn doctor_json_output() {
         .mount(&mock_server)
         .await;
 
-    let output = Command::cargo_bin("wiki")
+    let output = Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)
@@ -101,7 +101,7 @@ async fn doctor_reports_missing_api_key() {
         .mount(&mock_server)
         .await;
 
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(wiki)

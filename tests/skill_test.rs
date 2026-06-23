@@ -3,7 +3,7 @@ use predicates::str;
 
 #[test]
 fn skill_show_prints_full_content() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("skill")
         .arg("show")
@@ -14,7 +14,7 @@ fn skill_show_prints_full_content() {
 
 #[test]
 fn skill_show_topic_filters() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("skill")
         .arg("show")
@@ -26,7 +26,7 @@ fn skill_show_topic_filters() {
 
 #[test]
 fn skill_list_shows_all_topics() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("skill")
         .arg("list")
@@ -39,7 +39,7 @@ fn skill_list_shows_all_topics() {
 
 #[test]
 fn skill_show_unknown_topic_errors() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("skill")
         .arg("show")

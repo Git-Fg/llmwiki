@@ -1,4 +1,4 @@
-use wiki::lint::wikilinks::check_wikilinks;
+use llmwiki_cli::lint::wikilinks::check_wikilinks;
 
 #[test]
 fn dangling_link_is_error() {

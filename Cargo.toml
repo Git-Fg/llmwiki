@@ -1,14 +1,18 @@
 [package]
-name = "wiki"
-version = "0.1.0"
+name = "llmwiki-cli"
+version = "0.3.0"
+description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
+license = "Apache-2.0"
+repository = "https://github.com/fg/llmwiki"
+homepage = "https://github.com/fg/llmwiki"
+readme = "README.md"
+keywords = ["llmwiki", "karpathy-wiki", "wiki", "knowledge-base", "rag"]
+categories = ["command-line-utilities", "development-tools"]
 edition = "2021"
 rust-version = "1.85"
-description = "Karpathy-style LLM Wiki, markdown-only, with NVIDIA NIM embeddings"
-license = "Apache-2.0"
-repository = "https://github.com/fg/wiki"
 
 [[bin]]
-name = "wiki"
+name = "llmwiki-cli"
 path = "src/main.rs"
 
 [dependencies]
@@ -26,13 +30,15 @@ thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 indicatif = "0.17"
-schemars = "0.8"
+schemars = "1.0"
 regex = "1.12.4"
 toml = "0.8"
 serde-toml-merge = "0.2"
 sha2 = "0.11.0"
 chrono = "0.4.45"
 hex = "0.4"
+tower-lsp-server = "0.23"
+rmcp = { version = "1.7", features = ["server", "macros", "schemars", "transport-io"] }
 
 [dev-dependencies]
 assert_cmd = "2"
@@ -40,3 +46,17 @@ predicates = "3"
 tempfile = "3"
 insta = "1"
 wiremock = "0.6"
+
+[build-dependencies]
+schemars = "1.0"
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[package.metadata.binstall]
+bin = "llmwiki-cli"
+pkg-url = "https://github.com/fg/llmwiki/releases/download/v{ version }/llmwiki-cli-{ target }.tar.gz"
+pkg-fmt = "tgz"

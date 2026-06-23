@@ -1,0 +1,39 @@
+name: install-test
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build local binary
+        run: cargo build --release
+      - name: Test install.sh (POSIX)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash install.sh --bin-dir "$HOME/.local/bin" --force
+      - name: Test install.ps1 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh -File install.ps1 -BinDir "$env:USERPROFILE\.local\bin" -Force
+      - name: Verify llmwiki-cli runs
+        shell: bash
+        run: |
+          if command -v llmwiki-cli >/dev/null 2>&1; then
+            llmwiki-cli --version
+            llmwiki-cli doctor || true
+          elif command -v llmwiki-cli.exe >/dev/null 2>&1; then
+            llmwiki-cli.exe --version
+            llmwiki-cli.exe doctor || true
+          else
+            echo "FAIL: llmwiki-cli not found on PATH"
+            exit 1
+          fi

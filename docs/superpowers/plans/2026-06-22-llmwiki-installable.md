@@ -60,7 +60,6 @@ tests/lsp_cli_test.rs                         # Phase 4
 tests/lsp_protocol_test.rs                    # Phase 4
 tests/mcp_cli_test.rs                         # Phase 5
 tests/mcp_protocol_test.rs                    # Phase 5
-tests/install_script_test.sh                  # Phase 1
 ```
 
 ### Modified
@@ -94,11 +93,17 @@ docs/superpowers/plans/2026-06-22-*.md       # historical, do not touch
 
 **Effort:** 0.5 day. **Branch:** `feat/v0.3.0-rename`.
 
-## Task 0.1: Rename binary in `Cargo.toml` and `src/cli/mod.rs`
+## Task 0.1: Rename binary in `Cargo.toml`, `src/main.rs`, and `src/cli/mod.rs`
 
 **Files:**
-- Modify: `Cargo.toml:1-3`
-- Modify: `src/cli/mod.rs:22`
+- Modify: `Cargo.toml:2` (package name), `Cargo.toml:11` (`[[bin]]` name), `Cargo.toml:3` (version)
+- Modify: `src/main.rs` (2 lines: `use` and call)
+- Modify: `src/cli/mod.rs:22` (clap command name)
+
+> **Why this expands the original task:** The `[package] name` rename alone leaves three cascades that break the build:
+> 1. `Cargo.toml:11` has an explicit `[[bin]] name = "wiki"` which overrides the implicit one — without editing it, the binary stays `target/debug/wiki` and emits a `name "wiki" doesn't match package` warning.
+> 2. `src/main.rs` does `use wiki::cli::Cli;` — after the package rename, the crate is `llmwiki_cli` and `wiki` no longer resolves.
+> 3. `tests/*.rs` import `use wiki::core::*` etc. — same issue. Handled in Task 0.2.
 
 - [ ] **Step 1: Update `Cargo.toml` package name**
 
@@ -108,7 +113,17 @@ Edit `Cargo.toml` line 2:
 name = "llmwiki-cli"
 ```
 
-- [ ] **Step 2: Update clap command name in `src/cli/mod.rs`**
+- [ ] **Step 2: Update `Cargo.toml` `[[bin]]` name**
+
+Edit `Cargo.toml` line 11 (the line `name = "wiki"` inside the `[[bin]]` block):
+
+```toml
+name = "llmwiki-cli"
+```
+
+Without this, cargo emits `warning: name "wiki" doesn't match package name "llmwiki-cli"` and produces `target/debug/wiki` instead of `target/debug/llmwiki-cli`.
+
+- [ ] **Step 3: Update clap command name in `src/cli/mod.rs`**
 
 Edit `src/cli/mod.rs` line 22:
 
@@ -116,7 +131,7 @@ Edit `src/cli/mod.rs` line 22:
 #[command(name = "llmwiki-cli", version, about = "Karpathy-style LLM Wiki")]
 ```
 
-- [ ] **Step 3: Update version to 0.3.0**
+- [ ] **Step 4: Update version to 0.3.0**
 
 Edit `Cargo.toml` line 3:
 
@@ -124,39 +139,62 @@ Edit `Cargo.toml` line 3:
 version = "0.3.0"
 ```
 
-- [ ] **Step 4: Build and verify the binary name**
+- [ ] **Step 5: Update `src/main.rs` to import the renamed crate**
 
-Run: `cargo build`
-Expected: produces `target/debug/llmwiki-cli` (not `target/debug/wiki`).
+Replace the file with:
 
-- [ ] **Step 5: Run the new binary**
+```rust
+use clap::Parser;
+use llmwiki_cli::cli::Cli;
+
+#[tokio::main]
+async fn main() {
+    let cli = Cli::parse();
+    llmwiki_cli::cli::run(cli).await;
+}
+```
+
+Both the `use` (line 2) and the call (line 7) must change from `wiki` to `llmwiki_cli`.
+
+- [ ] **Step 6: Build and verify the binary name**
+
+Run: `cargo build 2>&1 | tail -20`
+Expected: build succeeds; the only warning may be the previously-mentioned name mismatch if Step 2 was missed (verify Step 2 ran).
+
+Run: `ls target/debug/llmwiki-cli`
+Expected: file exists.
+
+- [ ] **Step 7: Run the new binary**
 
 Run: `./target/debug/llmwiki-cli --version`
 Expected: prints `llmwiki-cli 0.3.0`.
 
-- [ ] **Step 6: Run existing tests — expect failures**
+- [ ] **Step 8: Run `cargo test --no-run` — expect failures**
 
-Run: `cargo test 2>&1 | tail -20`
-Expected: many tests fail because `Command::cargo_bin("wiki")` no longer finds the renamed binary.
+Run: `cargo test --no-run 2>&1 | tail -30`
+Expected: compile errors because `tests/*.rs` still reference `use wiki::*`. These are fixed in Task 0.2.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add Cargo.toml src/cli/mod.rs
+git add Cargo.toml src/cli/mod.rs src/main.rs
 git commit -m "feat(rename): binary + crate wiki → llmwiki-cli (v0.3.0 prep)"
 ```
 
-## Task 0.2: Update all `Command::cargo_bin("wiki")` calls in tests
+## Task 0.2: Update test imports and binary references for the rename
 
 **Files:**
-- Modify: 24 `tests/*_test.rs` files
+- Modify: 11 `tests/*_test.rs` files for `use wiki::*` → `use llmwiki_cli::*`
+- Modify: 24 `tests/*_test.rs` files for `cargo_bin("wiki")` → `cargo_bin("llmwiki-cli")`
+
+> **Why this expands the original task:** The original only renamed `cargo_bin("wiki")`. But after the `[package]` rename, the crate is `llmwiki_cli`, so every `use wiki::core::*` (etc.) also fails. Two separate seds are needed.
 
 - [ ] **Step 1: Find every `cargo_bin("wiki")` call**
 
 Run: `grep -rn 'cargo_bin("wiki")' tests/ | wc -l`
-Expected: a number between 20 and 30.
+Expected: ~51 matches.
 
-- [ ] **Step 2: Replace all of them in one shot**
+- [ ] **Step 2: Replace `cargo_bin("wiki")` in one shot**
 
 Run:
 
@@ -164,24 +202,59 @@ Run:
 find tests -name '*.rs' -exec sed -i '' 's/cargo_bin("wiki")/cargo_bin("llmwiki-cli")/g' {} +
 ```
 
-- [ ] **Step 3: Verify replacement**
+- [ ] **Step 3: Verify `cargo_bin` replacement**
 
 Run: `grep -rn 'cargo_bin("wiki")' tests/ | wc -l`
 Expected: `0`.
 
 Run: `grep -rn 'cargo_bin("llmwiki-cli")' tests/ | wc -l`
-Expected: matches the number from Step 1.
+Expected: same count as Step 1.
 
-- [ ] **Step 4: Re-run tests — should pass**
+- [ ] **Step 4: Replace `use wiki::` → `use llmwiki_cli::` in tests**
 
-Run: `cargo test 2>&1 | tail -10`
-Expected: `passed: 156 failed: 0` (or whatever the current count is — just no new failures from the rename).
-
-- [ ] **Step 5: Commit**
+The crate name `wiki` becomes the Rust identifier `llmwiki_cli` (hyphens → underscores). Replace:
 
 ```bash
-git add tests/
-git commit -m "test(rename): update cargo_bin references wiki → llmwiki-cli"
+find tests -name '*.rs' -exec sed -i '' 's/use wiki::/use llmwiki_cli::/g' {} +
+```
+
+This catches `use wiki::core::*`, `use wiki::error::WikiError`, `use wiki::lint::frontmatter::check_frontmatter`, etc.
+
+- [ ] **Step 5: Fix `wiki` literal in `src/cli/mod.rs:373`**
+
+The `version` subcommand prints `println!("wiki {}", env!("CARGO_PKG_VERSION"));`. After the rename it should print `llmwiki-cli {version}` to match `--version`.
+
+Edit `src/cli/mod.rs:373`:
+
+```rust
+println!("llmwiki-cli {}", env!("CARGO_PKG_VERSION"));
+```
+
+This was flagged by the Task 0.1 implementer and spec reviewer as a follow-up; folding it in here keeps the rename consistent across both `--version` and the `version` subcommand.
+
+- [ ] **Step 6: Verify import replacement**
+
+Run: `grep -rln 'use wiki::' tests/ | wc -l`
+Expected: `0`.
+
+Run: `grep -rln 'use llmwiki_cli::' tests/ | wc -l`
+Expected: `11` (or however many test files had `use wiki::` imports — see baseline before Step 4).
+
+- [ ] **Step 7: Re-run tests — should pass**
+
+Run: `cargo test 2>&1 | tail -10`
+Expected: 156 passed, 0 failed (matches the v0.2.0 baseline; no new failures from the rename).
+
+- [ ] **Step 8: Verify `version` subcommand output**
+
+Run: `./target/debug/llmwiki-cli version`
+Expected: prints `llmwiki-cli 0.3.0` (same as `--version`).
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add tests/ src/cli/mod.rs
+git commit -m "test(rename): update test imports + cargo_bin references wiki → llmwiki-cli; fix version subcommand"
 ```
 
 ## Task 0.3: Update skill command examples and install_skill references
@@ -221,7 +294,39 @@ grep -rn '\bwiki \(init\|search\|query\|embed\)' src/skills/
 
 Expected: `0` matches.
 
-- [ ] **Step 4: Spot-check that skill frontmatter is unchanged**
+- [ ] **Step 4: Catch missed binary-name patterns (second pass)**
+
+The first sed only matched `wiki <literal-subcommand>`. It misses cases where `wiki` (the binary) is followed by a global flag (`--wiki`, `--workspace`), a generic placeholder (`<cmd>`), or appears after an env-var assignment. Find and fix every missed occurrence:
+
+```bash
+grep -rn '\bwiki --' src/skills/
+grep -rn 'WIKI_ACTIVE=[^ ]* wiki ' src/skills/
+grep -rn ' wiki <cmd>\| wiki <alias>' src/skills/
+grep -rn 'cargo install wiki\b' src/skills/
+grep -rn 'Bash(wiki:' src/skills/
+```
+
+For each match, replace `wiki` (the binary) with `llmwiki-cli`. The `--wiki <alias>` flag and `WIKI_ACTIVE` env var are domain nouns and STAY.
+
+Specifically watch for:
+- `src/skills/WIKI.md:12` — `allowed-tools: Bash(wiki:*)` → `Bash(llmwiki-cli:*)` (FUNCTIONAL — without this, agents lose Bash permission for the renamed binary)
+- `src/skills/WIKI.md:62-65` — `wiki --wiki pharma <cmd>` → `llmwiki-cli --wiki pharma <cmd>`
+- `src/skills/SETUP/SKILL.md:66` — `wiki --wiki pharma ls`
+- `src/skills/SEARCH/SKILL.md:36` — `wiki --wiki pharma search "..."`
+- `src/skills/TROUBLESHOOTING/SKILL.md:28,34,35,73` — `wiki --wiki <alias> <cmd>`, `wiki --workspace ...`, `WIKI_ACTIVE=<alias> wiki <cmd>`
+- `src/skills/SYNC/SKILL.md:18,50,51` — `cargo install wiki`, `wiki --wiki pharma ls`, `wiki --wiki mevin search`
+
+- [ ] **Step 5: Final verification**
+
+Run:
+
+```bash
+grep -rn '\bwiki ' src/skills/ | grep -v 'wiki-root\|skills/wiki\|/wiki\b\| the wiki \| your wiki \| a wiki \| of wiki \| this wiki'
+```
+
+Expected: `0` matches (every remaining `wiki ` should be a noun use in prose or a path).
+
+- [ ] **Step 6: Spot-check that skill frontmatter is unchanged**
 
 Run:
 
@@ -231,17 +336,19 @@ grep -l '^name: wiki' src/skills/**/*.md
 
 Expected: at least one match (the skill name stays).
 
-- [ ] **Step 5: Run tests — should still pass**
+- [ ] **Step 7: Run tests — should still pass**
 
 Run: `cargo test 2>&1 | tail -5`
-Expected: same count as before.
+Expected: same count as before (156 passed).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/skills/ src/cli/install_skill.rs
 git commit -m "docs(skills): rename command examples wiki → llmwiki-cli"
 ```
+
+> If `src/cli/install_skill.rs` was not modified (most likely), commit only `src/skills/`. Use `git status` to verify.
 
 ## Task 0.4: Update README, CHANGELOG, AGENTS.md
 
@@ -510,22 +617,99 @@ The full JSON Schema for `wiki-root.toml` is regenerated at build time. Editors 
 
 - [ ] **Step 2: Update `build.rs` to inject the schema**
 
-Edit `build.rs` — append after the existing `fs::write(&out_path, content).ok();`:
+> **Why this approach:** The plan's original `cargo run` approach deadlocks: build.rs → `cargo run` → build.rs → `cargo run` → ... Cargo doesn't detect this as a cycle because subprocess invocations aren't part of its dependency graph.
+>
+> Cleanest fix: put `schemars` and `serde_json` in `[build-dependencies]`, define a mirror `Config` struct in build.rs (annotated with `#[derive(JsonSchema)]`), and call `schemars::schema_for!(ConfigMirror)` directly. The mirror duplicates the field declarations but avoids the recursion problem.
+
+Edit `build.rs` — replace the file body with:
 
 ```rust
-// Inject JSON Schema into SETUP/SKILL.md
-let setup_path = manifest_path.join("src/skills/SETUP/SKILL.md");
-if let Ok(content) = fs::read_to_string(&setup_path) {
-    let schema = schemars::schema_for!(wiki::core::config::Config);
-    let schema_json = serde_json::to_string_pretty(&schema).unwrap();
-    let mut new_content = content;
-    let placeholder = "<!-- placeholder; build.rs injects the real schema here -->";
-    new_content = new_content.replacen(placeholder, &schema_json, 1);
-    fs::write(&setup_path, new_content).ok();
+use std::fs;
+use std::path::Path;
+
+#[derive(schemars::JsonSchema)]
+struct ConfigMirror {
+    #[schemars(description = "NIM API client configuration")]
+    nim: NimMirror,
+    #[schemars(description = "Wiki page chunking and lint settings")]
+    wiki: WikiMirror,
+    #[schemars(description = "Schema version of this config")]
+    config_version: u32,
+}
+
+#[derive(schemars::JsonSchema)]
+struct NimMirror {
+    #[schemars(description = "NIM API base URL (no /v1 suffix)")]
+    base_url: String,
+    #[schemars(description = "Embedding model identifier (must be in the whitelisted NVIDIA NIM set)")]
+    embed_model: String,
+    #[schemars(description = "Re-ranking model identifier (empty = disabled)")]
+    rerank_model: String,
+    #[schemars(description = "Override embedding dimension (empty = use model default)")]
+    embed_dim_override: Option<usize>,
+    #[schemars(description = "Env var name holding the NIM API key")]
+    api_key_env: String,
+    #[schemars(description = "Embedding request batch size (1+)")]
+    batch_size: usize,
+    #[schemars(description = "NIM request timeout in seconds")]
+    request_timeout_secs: u64,
+    #[schemars(description = "Retry policy for failed NIM calls")]
+    retry: RetryMirror,
+}
+
+#[derive(schemars::JsonSchema)]
+struct RetryMirror {
+    #[schemars(description = "Maximum attempts per NIM call")]
+    max_attempts: u32,
+    #[schemars(description = "Backoff between retries in milliseconds")]
+    backoff_ms: u64,
+}
+
+#[derive(schemars::JsonSchema)]
+struct WikiMirror {
+    #[schemars(description = "Default chunk size in tokens")]
+    default_chunk_tokens: usize,
+    #[schemars(description = "Chunk overlap in tokens (must be < default_chunk_tokens)")]
+    chunk_overlap_tokens: usize,
+    #[schemars(description = "Minimum chunk size in tokens (must be <= default_chunk_tokens)")]
+    min_chunk_tokens: usize,
+    #[schemars(description = "Require YAML frontmatter on every page")]
+    require_frontmatter: bool,
+    #[schemars(description = "Minimum wikilink count per page (0 = no minimum)")]
+    require_wikilinks_min: usize,
+}
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/skills/WIKI.md");
+    println!("cargo:rerun-if-changed=src/skills/SETUP/SKILL.md");
+
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let manifest_path = Path::new(&manifest_dir);
+
+    // Generate the hub SKILL.md stub from src/skills/WIKI.md
+    let hub_src = manifest_path.join("src/skills/WIKI.md");
+    if let Ok(content) = fs::read_to_string(&hub_src) {
+        let out_path = manifest_path.join("agents/skills/wiki/SKILL.md");
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent).ok();
+        }
+        fs::write(&out_path, content).ok();
+    }
+
+    // Inject JSON Schema into SETUP/SKILL.md
+    let setup_path = manifest_path.join("src/skills/SETUP/SKILL.md");
+    if let Ok(content) = fs::read_to_string(&setup_path) {
+        let schema = schemars::schema_for!(ConfigMirror);
+        let schema_json = serde_json::to_string_pretty(&schema).expect("schema is always serializable");
+        let placeholder = "<!-- placeholder; build.rs injects the real schema here -->";
+        let new_content = content.replacen(placeholder, &schema_json, 1);
+        fs::write(&setup_path, new_content).ok();
+    }
 }
 ```
 
-- [ ] **Step 3: Add `schemars` to `[build-dependencies]` in `Cargo.toml`**
+- [ ] **Step 3: Add `[build-dependencies]` to `Cargo.toml`**
 
 Edit `Cargo.toml` — add at the end:
 
@@ -535,40 +719,21 @@ schemars = "0.8"
 serde_json = "1"
 ```
 
-But wait — `build.rs` doesn't currently have access to the `wiki` crate's types directly. Simpler approach: invoke the binary in `build.rs` via `std::process::Command`:
-
-Replace Step 2's code with:
-
-```rust
-// Inject JSON Schema into SETUP/SKILL.md by invoking the binary itself.
-let setup_path = manifest_path.join("src/skills/SETUP/SKILL.md");
-if let Ok(content) = fs::read_to_string(&setup_path) {
-    if let Ok(out) = std::process::Command::new("cargo")
-        .args(["run", "--quiet", "--", "config", "show-schema"])
-        .output()
-    {
-        if out.status.success() {
-            let schema = String::from_utf8_lossy(&out.stdout);
-            let placeholder = "<!-- placeholder; build.rs injects the real schema here -->";
-            let mut new_content = content;
-            new_content = new_content.replacen(placeholder, &schema, 1);
-            fs::write(&setup_path, new_content).ok();
-        }
-    }
-}
-```
-
-This avoids the `build-dependencies` change. The first `cargo build` will succeed because the binary builds, then subsequent rebuilds re-inject the schema.
-
 - [ ] **Step 4: Run a full build and verify the schema appears**
 
-Run: `cargo build 2>&1 | tail -3 && cat src/skills/SETUP/SKILL.md | head -100 | grep -A3 'BEGIN SCHEMA'`
-Expected: a non-empty JSON schema block between the BEGIN/END markers.
+Run: `cargo build 2>&1 | tail -3`
+Expected: build succeeds.
+
+Run: `grep -A1 'BEGIN SCHEMA' src/skills/SETUP/SKILL.md | head -5`
+Expected: a non-empty JSON schema block starting with `{`.
+
+Run: `grep -c '"properties"' src/skills/SETUP/SKILL.md`
+Expected: at least 1 (the schema has a `properties` field).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add build.rs src/skills/SETUP/SKILL.md
+git add build.rs src/skills/SETUP/SKILL.md Cargo.toml
 git commit -m "feat(skills): auto-inject JSON Schema into SETUP/SKILL.md at build time"
 ```
 
@@ -643,7 +808,8 @@ git commit -m "feat(install): cargo metadata for crates.io + binstall + release 
 
 **Files:**
 - Create: `install.sh`
-- Create: `marketplace/install.sh` (mirror, for stable URL reference)
+
+> **Why no `marketplace/install.sh` mirror in this task:** The `marketplace/` directory is created in Phase 2 (Task 2.4). Mirroring the install script will happen as part of that phase — not here. Keeping it out of Phase 1 means install.sh can be created without an empty marketplace directory structure that would otherwise need to exist for the cp command to work.
 
 - [ ] **Step 1: Write `install.sh` at repo root**
 
@@ -731,14 +897,15 @@ echo "     so it picks up the new binary path."
 
 Run: `chmod +x install.sh`
 
-- [ ] **Step 3: Mirror to `marketplace/install.sh`**
+- [ ] **Step 3: Smoke-test the script (syntax-only)**
 
-Run: `cp install.sh marketplace/install.sh && chmod +x marketplace/install.sh`
+Run: `bash -n install.sh && echo "syntax OK"`
+Expected: prints `syntax OK`. (Don't run the script itself — it would try to download from a non-existent release.)
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add install.sh marketplace/install.sh
+git add install.sh
 git commit -m "feat(install): add curl-based installer with SHA256 verification"
 ```
 
@@ -861,7 +1028,11 @@ jobs:
             llmwiki-cli-${{ matrix.target }}.tar.gz
             llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
             install.sh
-            marketplace/install.sh
+            # NOTE: `marketplace/install.sh` is added in Phase 2 Task 2.4
+            # (mirror of repo-root). Uncomment the line below once that
+            # task lands — until then this workflow uploads only the
+            # repo-root install.sh.
+            # marketplace/install.sh
 ```
 
 - [ ] **Step 2: Verify the YAML is valid**
@@ -891,6 +1062,13 @@ on:
   workflow_run:
     workflows: [release]
     types: [completed]
+
+# workflow_run-triggered workflows have NO secrets by default.
+# We need `actions: read` so the runner can fetch the workflow_run
+# context, and `contents: read` to clone the repo at the release SHA.
+permissions:
+  actions: read
+  contents: read
 
 jobs:
   publish:
@@ -936,10 +1114,13 @@ on:
 
 jobs:
   install:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]    # Smoke-test install.sh on Linux + macOS.
+                                              # The 2 runners each install from the
+                                              # matching checkout (tag) or from raw
+                                              # main (workflow_dispatch).
     steps:
       - uses: actions/checkout@v4
       - name: Run install.sh
@@ -965,7 +1146,7 @@ git add .github/workflows/install-test.yml
 git commit -m "ci: smoke-test install.sh on every release"
 ```
 
-**Phase 1 complete.** All 4 workflows in place; `install.sh` ready; release profile configured.
+**Phase 1 complete.** All 4 workflows in place; `install.sh` ready; release profile configured. Cross-platform smoke coverage is provided by `install-test.yml` (matrix `os: [ubuntu-latest, macos-latest]` runs `install.sh` on both runners per release tag). The originally-planned `tests/install_script_test.sh` unit test was removed because the CI workflow is the higher-fidelity test; a `bash -n` parse check on `install.sh` could be added later as a cheap pre-commit hook if useful.
 
 ---
 
@@ -995,30 +1176,30 @@ echo "0.3.0" > marketplace/VERSION
   "version": "0.3.0",
   "description": "Karpathy-style LLM Wiki — manage multiple wikis, embed, search, lint",
   "author": { "name": "<owner>" },
-  "license": "MIT",
-  "skills": "./skills/",
-  "lspServers": "./.lsp.json"
+  "license": "Apache-2.0",
+  "skills": "./skills/"
 }
 ```
 
-- [ ] **Step 3: Write `marketplace/.claude-plugin/.lsp.json`**
+> **Note:** the `lspServers` key is added in Phase 4 (Tasks 4.1–4.5) once `llmwiki-cli lsp` ships. Adding the key now would point at a non-existent subcommand and break Claude Code's plugin loader.
 
-```json
-{
-  "wiki-lsp": {
-    "command": "llmwiki-cli",
-    "args": ["lsp"],
-    "extensionToLanguage": { ".toml": "toml" },
-    "transport": "stdio"
-  }
-}
-```
+> **Why license is Apache-2.0 not MIT:** the project's `LICENSE` file is Apache-2.0, and `Cargo.toml:6` already declares `license = "Apache-2.0"` (Task 1.1). The plan's original `"MIT"` was a copy-paste error.
+
+> **Why `<owner>` stays a placeholder:** matches the Cargo.toml and install.sh convention. The marketplace manifest ships as-is and the marketplace catalog (Task 2.3) keeps `<owner>` until the real GitHub org is decided.
+
+- [ ] **Step 3: ~~Write `marketplace/.claude-plugin/.lsp.json`~~ DEFERRED to Phase 4**
+
+The `.lsp.json` file would reference `llmwiki-cli lsp`, but that subcommand
+doesn't exist until Phase 4 Task 4.5. Add the file as part of Phase 4 along
+with the actual LSP server implementation. For Task 2.1, the manifest above
+ships without `lspServers` — the `lsp` capability will be auto-detected in
+Phase 4 when the manifest gains the field.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add marketplace/VERSION marketplace/.claude-plugin/
-git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
+git add marketplace/VERSION marketplace/.claude-plugin/plugin.json
+git commit -m "feat(marketplace): Claude Code plugin manifest (no LSP yet)"
 ```
 
 ## Task 2.2: Create Kimi Code, Cursor, Codex manifests
@@ -1031,7 +1212,7 @@ git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
 - Create: `marketplace/.codex-plugin/plugin.json`
 - Create: `marketplace/.codex-plugin/.lsp.json`
 
-- [ ] **Step 1: Write Kimi Code manifests**
+- [ ] **Step 1: Write Kimi Code manifest**
 
 `marketplace/.kimi-plugin/plugin.json`:
 
@@ -1040,25 +1221,13 @@ git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
   "name": "wiki",
   "version": "0.3.0",
   "skills": "./skills/",
-  "lspServers": "./.lsp.json",
   "skillInstructions": "Tool mapping: 'spawn a subagent' → Agent; 'run a shell command' → Bash; 'read a file' → Read; 'edit a file' → Edit. Prefer LSP-driven diagnostics over re-reading files when available."
 }
 ```
 
-`marketplace/.kimi-plugin/.lsp.json`: (same as Claude Code's)
+> **No `lspServers` key, no `.lsp.json` file** — Phase 4 (Tasks 4.1–4.5) adds the LSP server. Mirrors Task 2.1 amendment.
 
-```json
-{
-  "wiki-lsp": {
-    "command": "llmwiki-cli",
-    "args": ["lsp"],
-    "extensionToLanguage": { ".toml": "toml" },
-    "transport": "stdio"
-  }
-}
-```
-
-- [ ] **Step 2: Write Cursor manifests**
+- [ ] **Step 2: Write Cursor manifest**
 
 `marketplace/.cursor-plugin/plugin.json`:
 
@@ -1066,23 +1235,28 @@ git commit -m "feat(marketplace): Claude Code plugin manifest with .lsp.json"
 {
   "name": "wiki",
   "version": "0.3.0",
-  "skills": "./skills/",
-  "lspServers": "./.lsp.json"
+  "skills": "./skills/"
 }
 ```
 
-`marketplace/.cursor-plugin/.lsp.json`: (same shape)
+- [ ] **Step 3: Write Codex manifest**
 
-- [ ] **Step 3: Write Codex manifests**
+`marketplace/.codex-plugin/plugin.json`:
 
-`marketplace/.codex-plugin/plugin.json` and `.lsp.json`: (same as Cursor's)
+```json
+{
+  "name": "wiki",
+  "version": "0.3.0",
+  "skills": "./skills/"
+}
+```
 
 - [ ] **Step 4: Verify all 4 manifests are valid JSON**
 
 Run:
 
 ```bash
-for f in marketplace/.claude-plugin/plugin.json marketplace/.kimi-plugin/plugin.json marketplace/.cursor-plugin/plugin.json marketplace/.codex-plugin/plugin.json marketplace/.claude-plugin/.lsp.json marketplace/.kimi-plugin/.lsp.json marketplace/.cursor-plugin/.lsp.json marketplace/.codex-plugin/.lsp.json; do
+for f in marketplace/.claude-plugin/plugin.json marketplace/.kimi-plugin/plugin.json marketplace/.cursor-plugin/plugin.json marketplace/.codex-plugin/plugin.json; do
   python3 -c "import json; json.load(open('$f'))" && echo "OK: $f"
 done
 ```
@@ -1174,6 +1348,24 @@ pub const TROUBLESHOOTING: &str = include_str!("../../marketplace/skills/wiki/TR
 ```
 
 (Add `LSP` and `MCP` constants in Phase 4 and 5 respectively.)
+
+- [ ] **Step 4b: Update `build.rs` to point at the new paths**
+
+`build.rs` has 4 references to the old `src/skills/` paths that need updating:
+
+| Line | Old | New |
+|------|-----|-----|
+| 64 | `cargo:rerun-if-changed=src/skills/WIKI.md` | `cargo:rerun-if-changed=marketplace/skills/wiki/SKILL.md` |
+| 65 | `cargo:rerun-if-changed=src/skills/SETUP/SKILL.md` | `cargo:rerun-if-changed=marketplace/skills/wiki/SETUP/SKILL.md` |
+| 72 | `manifest_path.join("src/skills/WIKI.md")` | `manifest_path.join("marketplace/skills/wiki/SKILL.md")` |
+| 93 | `manifest_path.join("src/skills/SETUP/SKILL.md")` | `manifest_path.join("marketplace/skills/wiki/SETUP/SKILL.md")` |
+
+The schema-embed logic at lines 71–110 also needs re-validation after the move
+(its `BEGIN SCHEMA`/`END SCHEMA` markers operate on the file content, not the
+path, so the only required change is the path strings themselves — but the
+implementer should run `cargo build --release` and `bash tests/skill_smoke.sh`
+to confirm the regenerated `agents/skills/wiki/SKILL.md` still contains the
+schema block).
 
 - [ ] **Step 5: Verify the build still works**
 
@@ -1287,13 +1479,21 @@ def validate_skill(path: Path) -> int:
     if len(body_lines) > 500:
         rc |= warn(f"body has {len(body_lines)} lines (soft cap 500)", path)
 
-    expected_name = path.parent.name
+    expected_name = path.parent.name.lower()
     if meta.get("name") and meta["name"] != expected_name:
         rc |= fail(f"frontmatter name '{meta['name']}' != dir name '{expected_name}'", path)
 
+    # Warn on hardcoded tool names *only in body prose* — skip the
+    # `allowed-tools:` and `skillInstructions:` lines where tool names
+    # are legitimate (e.g. `Bash(llmwiki-cli:*)`, `Agent`, `Read`).
+    prose = "\n".join(
+        line for line in body.splitlines()
+        if not line.startswith(("allowed-tools:", "skillInstructions:"))
+        and "Bash(" not in line
+    )
     for bad_name in HARDCODED_TOOL_NAMES:
-        if re.search(rf"\b{bad_name}\b", body):
-            rc |= warn(f"hardcoded tool name '{bad_name}' found", path)
+        if re.search(rf"\b{bad_name}\b", prose):
+            rc |= warn(f"hardcoded tool name '{bad_name}' found in body prose", path)
 
     # References integrity
     for match in re.finditer(r"references/([\w\-/]+\.md)", body):
@@ -1351,7 +1551,16 @@ if __name__ == "__main__":
 - [ ] **Step 2: Make executable + run**
 
 Run: `chmod +x marketplace/scripts/validate.py && python3 marketplace/scripts/validate.py --strict 2>&1 | tail -20`
-Expected: PASS (no failures). May have warnings about hardcoded tool names — fix them by replacing "Bash" with "run a shell command", "Read" with "read a file", etc.
+Expected: PASS (no failures). May have warnings about hardcoded tool names in body prose (not in `allowed-tools:` or `skillInstructions:`) — these are real issues, not noise; replace "Bash" with "run a shell command", "Read" with "read a file", etc. where the tool reference is part of the user-facing instructions.
+
+> **Note on the lowercase name check:** the spec lowercase-compares the
+> frontmatter `name:` with `path.parent.name` because this project uses
+> **UPPERCASE sub-skill directories** (`SETUP/`, `INGEST/`, …) and
+> **lowercase frontmatter `name:` fields** (`name: setup`, `name: ingest`).
+> The `.lower()` on both sides is deliberate. If a future contributor
+> renames the dirs to lowercase, the check still passes; if they rename
+> the frontmatter to uppercase, the check still passes. Mixed case in
+> either side without a matching `.lower()` would false-fail.
 
 - [ ] **Step 3: Commit**
 
@@ -1363,20 +1572,48 @@ git commit -m "feat(marketplace): skill format validator (Python stdlib)"
 ## Task 2.7: Uncomment the `marketplace-validate` job in `ci.yml`
 
 **Files:**
+- Modify: `marketplace/skills/wiki/SKILL.md` (pre-fix one hardcoded-tool line)
 - Modify: `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Uncomment**
+> **Pre-fix: hub `SKILL.md` line 40 has hardcoded tool names.** The current line 40 reads:
+>
+> ```
+> Otherwise: use `Read` / `Grep` / `Glob` directly on the wiki's `wiki/`, `raw/`, and `index.md` files.
+> ```
+>
+> This triggers 3 WARNs from `validate.py` (one per tool name in the same line). The fix is to use portable prose so the skill works across agent runtimes with different tool names:
+>
+> ```
+> Otherwise: read, search, and match files directly in the wiki's `wiki/`, `raw/`, and `index.md` files.
+> ```
+>
+> The semantic is unchanged (the user falls back to direct file operations). Apply this as part of Task 2.7 so the `marketplace-validate` CI job is green from the start. Phase 3 Task 3.1 will rewrite the entire SETUP/SKILL.md anyway, so this is a stopgap that buys us green CI between now and Phase 3.
 
-Edit `.github/workflows/ci.yml` — remove the `#` from the marketplace-validate job (Tasks 1.3 / 2.6).
+- [ ] **Step 0: Fix hub `SKILL.md` line 40**
+
+```bash
+# Before:
+# Otherwise: use `Read` / `Grep` / `Glob` directly on the wiki's `wiki/`, `raw/`, and `index.md` files.
+# After:
+# Otherwise: read, search, and match files directly in the wiki's `wiki/`, `raw/`, and `index.md` files.
+```
+
+Verify with `python3 marketplace/scripts/validate.py --strict` — should print 0 WARNs and exit 0.
+
+- [ ] **Step 1: Uncomment the `marketplace-validate` job in `.github/workflows/ci.yml`**
+
+Remove the `#` from the `marketplace-validate` job (added in Task 1.3, kept commented until Task 2.6 landed). Also uncomment the line `python marketplace/scripts/validate.py --strict` (it stays at `--strict` because the pre-fix above clears the warnings).
 
 - [ ] **Step 2: Verify the YAML**
 
 Run: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`
 Expected: no error.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Commit (split into 2 commits for clarity)**
 
 ```bash
+git add marketplace/skills/wiki/SKILL.md
+git commit -m "fix(skills): replace hardcoded tool names in hub with portable prose"
 git add .github/workflows/ci.yml
 git commit -m "ci: enable marketplace validator"
 ```
@@ -1411,7 +1648,7 @@ whenToUse: |
   - First action in any new session before running ingest/search/query
 argument-hint: "[--check]"
 allowed-tools: Bash(llmwiki-cli:*), Bash(command -v:*), Bash(curl:*), Bash(cargo install:*)
-license: MIT
+license: Apache-2.0
 ---
 
 # Wiki — Setup
@@ -1428,7 +1665,7 @@ license: MIT
 
 | Reference | Purpose |
 |---|---|
-| `references/install.md` | Detailed install options (cargo install, brew, source) |
+| `references/install.md` | Detailed install options (cargo install, brew, source). Added in Task 3.2. |
 | `references/schema.json` | Full JSON Schema for `wiki-root.toml` (auto-generated at build time) |
 
 MUST read `references/install.md` BEFORE recommending a non-curl install method.
@@ -1471,7 +1708,7 @@ anything.
 | `command -v llmwiki-cli` succeeds but `--version` fails | Corrupted install. Print reinstall steps. |
 | `llmwiki-cli doctor` reports missing API key | Print `export NVIDIA_NIM_API_KEY=...` and pause. |
 | `llmwiki-cli doctor` reports no NIM connectivity | Suggest `WIKI_NIM_BASE_URL=...` override. |
-| `curl \| bash` blocked (corporate proxy, restricted machine) | Fall back to `cargo install llmwiki-cli` — see `references/install.md`. |
+| `curl \| bash` blocked (corporate proxy, restricted machine) | Fall back to `cargo install llmwiki-cli` — see `references/install.md` (added in Task 3.2). Until then, recommend only the curl method. |
 | `command -v llmwiki-cli` succeeds, `--version` is correct, but doctor fails on NIM | Diagnose the NIM endpoint, not the install. Switch to TROUBLESHOOTING sub-skill. |
 
 ## Anti-patterns
@@ -1510,6 +1747,31 @@ git commit -m "feat(skills/setup): verify-and-install pattern for llmwiki-cli"
 
 - [ ] **Step 1: Write `references/install.md`**
 
+Write the file per the spec below, then also restore the 3 cross-references
+that were removed from `marketplace/skills/wiki/SETUP/SKILL.md` in Task 3.1
+(validator's references-integrity check requires the file to exist before any
+`references/<file>.md` mention in skill bodies). The 3 restoration points:
+
+1. **Reference Index row** — replace the "Detailed install options are added
+   in Task 3.2." prose note with the original table row:
+   ```markdown
+   | `references/install.md` | Detailed install options (cargo install, brew, source) |
+   ```
+
+2. **"MUST read" instruction** — re-add the line:
+   ```markdown
+   MUST read `references/install.md` BEFORE recommending a non-curl install method.
+   ```
+   in the Reference Index section (after the table).
+
+3. **curl-blocked edge case row** — restore the original:
+   ```markdown
+   | `curl \| bash` blocked (corporate proxy, restricted machine) | Fall back to `cargo install llmwiki-cli` — see `references/install.md`. |
+   ```
+
+These 3 restorations make the SETUP/SKILL.md ↔ references/install.md wiring
+complete. The validator should now pass strict mode with no WARN or FAIL.
+
 ```markdown
 # Detailed install options for llmwiki-cli
 
@@ -1528,7 +1790,7 @@ SHA256 against the published `.sha256` file. Adds to PATH if needed.
 cargo install llmwiki-cli --locked
 ```
 
-Requires Rust 1.74+ installed. Use this when:
+Requires Rust 1.85+ installed (per `Cargo.toml`'s `rust-version`). Use this when:
 - No pre-built binary matches your platform (e.g. unusual Linux distro).
 - You need the absolute latest commit (`cargo install --git https://github.com/<owner>/llmwiki`).
 
@@ -1579,8 +1841,8 @@ cargo uninstall llmwiki-cli
 - [ ] **Step 2: Commit**
 
 ```bash
-git add marketplace/skills/wiki/SETUP/references/install.md
-git commit -m "docs(skills/setup): detailed install options reference"
+git add marketplace/skills/wiki/SETUP/references/install.md marketplace/skills/wiki/SETUP/SKILL.md
+git commit -m "docs(skills/setup): detailed install options reference + restore cross-refs"
 ```
 
 ## Task 3.3: End-to-end smoke test the SETUP skill behavior
@@ -1606,17 +1868,23 @@ grep -q 'command -v llmwiki-cli' "$SKILL" || { echo "FAIL: missing detect step";
 grep -q 'curl -LsSf' "$SKILL" || { echo "FAIL: missing install step"; exit 1; }
 grep -q 'llmwiki-cli doctor' "$SKILL" || { echo "FAIL: missing verify step"; exit 1; }
 
-# Must NOT auto-run install.sh.
-if grep -q '| bash$' "$SKILL" | grep -v 'curl.*install'; then
-  # OK — the curl|bash pattern is recommended, not run by the skill itself
-  :
+# Any `| bash` pattern must be in a curl context (not "run install.sh for the user").
+# `| bash` outside a `curl ... | bash` line would mean the skill is asking the
+# agent to pipe some other command into bash — anti-pattern.
+if grep -E '\| bash' "$SKILL" | grep -v 'curl.*\| bash' | grep -q .; then
+  echo "FAIL: non-curl '| bash' pattern found (auto-run risk)"
+  exit 1
 fi
 
 # Must have --check mode documented.
 grep -q -- '--check' "$SKILL" || { echo "FAIL: --check mode not documented"; exit 1; }
 
-# Must have anti-patterns section.
+# Must have anti-patterns section forbidding auto-run.
 grep -q '## Anti-patterns' "$SKILL" || { echo "FAIL: missing anti-patterns section"; exit 1; }
+grep -q 'Do NOT run .install.sh.' "$SKILL" || { echo "FAIL: anti-pattern about not running install.sh missing"; exit 1; }
+
+# Must cross-reference references/install.md (added in Task 3.2).
+grep -q 'references/install.md' "$SKILL" || { echo "FAIL: missing cross-reference to references/install.md"; exit 1; }
 
 echo "✓ SETUP skill passes smoke test"
 ```
@@ -1646,15 +1914,22 @@ git commit -m "test(skills): smoke-test SETUP skill content"
 **Files:**
 - Modify: `Cargo.toml`
 
-- [ ] **Step 1: Add the three crates**
+> **Important breaking change in `tower-lsp-server` v0.23** (Dec 2025):
+> the LSP types library was switched from the unmaintained `gluon-lang/lsp-types`
+> to `tower-lsp-community/ls-types` (re-exported as `tower_lsp_server::ls_types`).
+> So we only need **two** crate deps, not three — `lsp-types` is no longer pulled
+> in separately. Always import LSP types via `use tower_lsp_server::ls_types::*;`.
+
+- [ ] **Step 1: Add the two crates**
 
 Edit `Cargo.toml` dependencies:
 
 ```toml
 tower-lsp-server = "0.23"
-lsp-types = "0.95"
 toml_edit = "0.22"
 ```
+
+(Do NOT add `lsp-types` — superseded by the re-exported `tower_lsp_server::ls_types`.)
 
 - [ ] **Step 2: Verify the build**
 
@@ -1665,7 +1940,7 @@ Expected: builds clean; `Cargo.lock` updated.
 
 ```bash
 git add Cargo.toml Cargo.lock
-git commit -m "feat(lsp): add tower-lsp-server, lsp-types, toml_edit deps"
+git commit -m "feat(lsp): add tower-lsp-server, toml_edit deps"
 ```
 
 ## Task 4.2: Write `src/core/lsp_domain.rs` — shared domain logic
@@ -1681,7 +1956,7 @@ Create `src/core/lsp_domain.rs` with the test module first:
 ```rust
 //! Shared LSP/MCP domain logic. Stateless per request.
 
-use crate::core::config::{Config, validate};
+use crate::core::config::Config;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -1850,14 +2125,19 @@ Append to `src/core/lsp_domain.rs` (above the test module):
 
 ```rust
 pub fn validate_config(cfg: &Config) -> Vec<DomainDiagnostic> {
-    validate(cfg).unwrap_or_default().into_iter().map(|msg| DomainDiagnostic {
-        line: 0,
-        character: 0,
-        end_line: 0,
-        end_character: 0,
-        severity: 1,
-        message: msg,
-    }).collect()
+    validate(cfg)
+        .err()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|msg| DomainDiagnostic {
+            line: 0,
+            character: 0,
+            end_line: 0,
+            end_character: 0,
+            severity: 1,
+            message: msg,
+        })
+        .collect()
 }
 ```
 
@@ -1963,11 +2243,10 @@ fn all_keys_in_table(parent: &[&str]) -> Vec<String> {
         "wiki.require_wikilinks_min",
     ]
     .into_iter()
-    .filter(|k| {
+    .filter_map(|k| {
         let rest = k.strip_prefix(&prefix).unwrap_or(k);
-        !rest.contains('.')
+        if rest.contains('.') { None } else { Some(rest.to_string()) }
     })
-    .map(String::from)
     .collect()
 }
 
@@ -2005,7 +2284,7 @@ pub fn completion_for(parent_path: &[&str], _cfg: &Config) -> Vec<DomainCompleti
     keys.into_iter().map(|k| {
         let detail = key_doc(&k).map(|d| d.lines().next().unwrap_or("").to_string());
         DomainCompletionItem {
-            label: k,
+            label: k.clone(),
             kind: 10, // CompletionItemKind::Property
             detail,
             documentation: key_doc(&k).map(String::from),
@@ -2070,18 +2349,26 @@ Some(Command::Lsp(args)) => crate::cli::lsp::run(args).await,
 
 - [ ] **Step 2: Write `src/cli/lsp.rs`**
 
+> **API corrections for `tower-lsp-server` v0.23** (verified via docs.rs):
+> 1. Types import is `tower_lsp_server::ls_types::*` (not `lsp_types` — renamed in v0.23).
+> 2. `Backend` MUST have a `client: Client` field (the `self.client()` call won't compile otherwise).
+> 3. NO `#[tower_lsp_server::async_trait]` attribute — the trait uses native `impl Trait` since v0.21 and the macro is no longer exported.
+> 4. `LspService::new(|client| Backend { client })` — the spec's `LspService::build(Backend).finish()` is the v0.20 builder API; v0.23 uses `new(closure)` directly.
+
 ```rust
 use crate::cli::LspArgs;
 use crate::core::lsp_domain::{
     self, DomainCompletionItem, DomainDiagnostic, DomainHover, DomainSymbol,
 };
 use crate::error::WikiError;
-use tower_lsp_server::{LspService, Server};
 use tower_lsp_server::jsonrpc::Result;
-use tower_lsp_server::lsp_types::*;
+use tower_lsp_server::ls_types::*;
+use tower_lsp_server::{Client, LanguageServer, LspService, Server};
 
-#[derive(Clone)]
-struct Backend;
+#[derive(Clone, Debug)]
+struct Backend {
+    client: Client,
+}
 
 const NIM_MODEL_ENUM: &[&str] = &[
     "nvidia/nv-embed-v1", "nvidia/nv-embedqa-e5-v5", "nvidia/nv-embedcode-7b-v1",
@@ -2125,10 +2412,12 @@ fn to_lsp_completion_item(i: DomainCompletionItem) -> CompletionItem {
             _ => CompletionItemKind::PROPERTY,
         }),
         detail: i.detail,
-        documentation: i.documentation.map(|d| Documentation::MarkupContent(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: d,
-        })),
+        documentation: i.documentation.map(|d| {
+            Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: d,
+            })
+        }),
         ..Default::default()
     }
 }
@@ -2150,8 +2439,7 @@ fn to_lsp_symbol(s: &DomainSymbol) -> DocumentSymbol {
     }
 }
 
-#[tower_lsp_server::async_trait]
-impl tower_lsp_server::LanguageServer for Backend {
+impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
@@ -2190,7 +2478,7 @@ impl tower_lsp_server::LanguageServer for Backend {
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        let _ = self.client().publish_diagnostics(params.text_document.uri, vec![], None).await;
+        let _ = self.client.publish_diagnostics(params.text_document.uri, vec![], None).await;
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
@@ -2224,7 +2512,7 @@ impl Backend {
             Err(parse_diags) => all_diags.extend(parse_diags),
         }
         let lsp_diags: Vec<_> = all_diags.iter().map(to_lsp_diag).collect();
-        let _ = self.client().publish_diagnostics(uri.clone(), lsp_diags, None).await;
+        let _ = self.client.publish_diagnostics(uri.clone(), lsp_diags, None).await;
     }
 }
 
@@ -2237,7 +2525,7 @@ async fn read_text(uri: &Url) -> Result<String> {
 }
 
 pub async fn run(_args: LspArgs) -> Result<(), WikiError> {
-    let (service, socket) = LspService::build(Backend).finish();
+    let (service, socket) = LspService::new(|client| Backend { client });
     Server::new(tokio::io::stdin(), tokio::io::stdout(), socket).serve(service).await;
     Ok(())
 }
@@ -2287,53 +2575,93 @@ fn parent_path_at_position_for_nested() {
 
 - [ ] **Step 2: Run — should FAIL**
 
-- [ ] **Step 3: Implement using `toml_edit`**
+- [ ] **Step 3: Implement using a simple line-by-line parser**
 
-Add to `src/core/lsp_domain.rs`:
+> **Implementation note**: the spec literal's `collect_key_path_at_line` is a stub that references undefined helper functions (`item_table_header_span`, `table_name`, etc.) that would need a full `toml_edit::DocumentMut` walker. For an LSP key-at-position helper, a simple line-by-line parser is sufficient and ships in <30 lines vs the ~80-line recursive walker. This matches the spec's "this is a simplified version... iterate until tests pass" guidance.
 
 ```rust
-pub fn key_at_position(text: &str, line: u32, character: u32) -> Option<String> {
-    let doc: toml_edit::DocumentMut = text.parse().ok()?;
+/// Returns the full dotted key path at the given cursor position.
+/// For cursor on a table header `[nim.retry]`, returns `Some("nim.retry")`.
+/// For cursor on a key `embed_model = "..."` inside `[nim]`, returns `Some("nim.embed_model")`.
+pub fn key_at_position(text: &str, line: u32, _character: u32) -> Option<String> {
+    let lines: Vec<&str> = text.lines().collect();
     let line_idx = line as usize;
-    let items = doc.items().collect::<Vec<_>>();
-    if line_idx >= items.len() { return None; }
-    let mut parts: Vec<String> = Vec::new();
-    let mut current = doc.as_item();
-    collect_key_path_at_line(&items, line_idx, character as usize, &mut parts);
-    if parts.is_empty() { None } else { Some(parts.join(".")) }
+    if line_idx >= lines.len() { return None; }
+    let target = lines[line_idx];
+
+    // Cursor on a table header: return the table name (possibly dotted).
+    if let Some(name) = parse_table_header(target) {
+        return Some(name);
+    }
+
+    // Cursor on a key=value line: walk backward to find the enclosing table.
+    if let Some(key) = parse_key(target) {
+        let mut path = vec![key];
+        for i in (0..line_idx).rev() {
+            let prev = lines[i];
+            if let Some(table) = parse_table_header(prev) {
+                path.insert(0, table);
+                // Continue walking: a table inside a table (rare but valid in TOML).
+            } else if prev.trim().is_empty() || prev.trim_start().starts_with('#') {
+                continue;
+            } else {
+                break;
+            }
+        }
+        return Some(path.join("."));
+    }
+    None
 }
 
-fn collect_key_path_at_line(items: &[toml_edit::Item], line_idx: usize, _char: usize, out: &mut Vec<String>) {
-    for item in items {
-        if let Some((header_range, _)) = item_table_header_span(item) {
-            if header_range.contains(&line_idx) {
-                if let Some(name) = table_name(item) {
-                    out.push(name.to_string());
-                    if let Some(table) = item.as_table_like() {
-                        let children: Vec<_> = table.iter().collect();
-                        collect_key_path_at_line(&children.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>(), line_idx, _char, out);
-                    }
-                }
-                return;
+/// Returns the path components of the scope at the cursor (everything
+/// except the leaf key). For cursor on `[nim.retry]` header, returns
+/// `vec!["nim", "retry"]`. For cursor on `embed_model = "x"` inside
+/// `[nim]`, returns `vec!["nim"]`.
+pub fn parent_path_at_position(text: &str, line: u32, character: u32) -> Vec<String> {
+    let lines: Vec<&str> = text.lines().collect();
+    let line_idx = line as usize;
+    if line_idx >= lines.len() { return vec![]; }
+    let target = lines[line_idx];
+
+    // Cursor on a table header: scope IS the table.
+    if let Some(name) = parse_table_header(target) {
+        return name.split('.').map(String::from).collect();
+    }
+
+    // Cursor on a key: scope is the enclosing table.
+    if parse_key(target).is_some() {
+        for i in (0..line_idx).rev() {
+            if let Some(table) = parse_table_header(lines[i]) {
+                return table.split('.').map(String::from).collect();
             }
         }
-        if let Some((key_range, _)) = item_key_span(item) {
-            if key_range.contains(&line_idx) {
-                if let Some(name) = item_key_name(item) {
-                    out.push(name.to_string());
-                }
-                return;
-            }
-        }
+    }
+    vec![]
+}
+
+fn parse_table_header(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.starts_with('[') && trimmed.ends_with(']') && !trimmed.starts_with("[[") {
+        Some(trimmed[1..trimmed.len() - 1].trim().to_string())
+    } else {
+        None
+    }
+}
+
+fn parse_key(line: &str) -> Option<String> {
+    let trimmed = line.trim_start();
+    if let Some(eq) = trimmed.find('=') {
+        let key = trimmed[..eq].trim();
+        if key.is_empty() || key.contains(' ') { None } else { Some(key.to_string()) }
+    } else {
+        None
     }
 }
 ```
 
-(Note: this is a simplified version. The actual implementation needs to walk the `toml_edit::DocumentMut` tree. Refer to `toml_edit` docs for the precise API.)
+- [ ] **Step 4: Run tests — should PASS**
 
-- [ ] **Step 4: Iterate until tests pass**
-
-(Adjust the implementation as needed based on `toml_edit` 0.22 API.)
+(Step numbering shifts by 1: was Step 4 "Iterate", now Step 4 "Verify".)
 
 - [ ] **Step 5: Commit**
 
@@ -2534,13 +2862,22 @@ git commit -m "feat(lsp): skill bundle for LSP sub-skill (LSP/SKILL.md + referen
 - [ ] **Step 1: Add the crate**
 
 ```toml
-rmcp = { version = "0.1", features = ["server", "macros", "transport-stdio"] }
+rmcp = { version = "0.2", features = ["server", "macros", "schemars", "transport-io"] }
 ```
+
+> **Feature flag correction:** the plan literal says `transport-stdio`; the
+> actual feature name in rmcp 0.2 is **`transport-io`** (verified via
+> docs.rs/rmcp feature table). Also bump from `0.1` to `0.2` — the 0.2 line is
+> the current stable; `0.1` is pre-1.0 and has breaking API differences.
+>
+> The `schemars` feature enables JSON Schema generation for tool input types,
+> which `llmwiki-cli` already pulls in for the config schema embed (Phase 0
+> Task 0.7). Re-using it avoids a second schemars version in Cargo.lock.
 
 - [ ] **Step 2: Verify build**
 
 Run: `cargo build 2>&1 | tail -10`
-Expected: builds. (rmcp 0.1 is pre-1.0; API may need adjustments.)
+Expected: builds. (rmcp 0.2 is pre-1.0; API may need adjustments.)
 
 - [ ] **Step 3: Commit**
 
@@ -2554,6 +2891,18 @@ git commit -m "feat(mcp): add rmcp dependency"
 **Files:**
 - Create: `src/cli/mcp.rs`
 - Modify: `src/cli/mod.rs` — add `Mcp` variant + dispatch
+
+> **rmcp 0.2 API correction:** the spec literal uses `#[rmcp::tool_handler]`
+> alone. In rmcp 0.2, the canonical pattern is:
+> 1. **`#[tool_router]` on the impl block** — generates a `_router` struct
+>    containing `list_tools` and `call_tool` dispatch.
+> 2. **`#[tool_handler(router = self.router)]`** — wires the router into the
+>    `ServerHandler` impl.
+> 3. Each tool method has its own `#[tool]` attribute.
+>
+> Without `#[tool_router]`, the tool methods are NOT registered with the
+> dispatcher and `list_tools` returns an empty list. This is the most common
+> mistake in rmcp 0.2 migrations.
 
 - [ ] **Step 1: Add `Mcp` variant to `Command`**
 
@@ -2576,6 +2925,14 @@ Some(Command::Mcp(args)) => crate::cli::mcp::run(args).await,
 ```
 
 - [ ] **Step 2: Write `src/cli/mcp.rs`**
+
+Apply the pattern below. The spec is structurally similar to the original
+plan literal but uses the correct rmcp 0.2 macros. The 5 tools are:
+1. `validate(config_text)` — parse + validate a wiki-root.toml string
+2. `hover(key)` — return hover docstring for a known config key
+3. `complete(parent_path)` — list completion items for a parent scope
+4. `symbols(config_text)` — return top-level table outline
+5. `list_topics()` — list sub-skills in the bundled wiki skill
 
 ```rust
 use crate::cli::McpArgs;

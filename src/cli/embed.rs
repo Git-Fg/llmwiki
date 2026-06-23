@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
 use crate::core::chunker::chunk_text;
-use crate::core::config::{resolve_api_key, resolve_config};
+use crate::core::config::{resolve_api_key, resolve_config, validate_or_error};
 use crate::core::embeddings::{ChunkEmbed, EmbeddingsFile, PageEmbedding};
 use crate::core::models_registry::{load_registry, Role};
 use crate::core::nim::NimClient;
@@ -28,6 +28,7 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
         std::env::current_dir()?,
     )?;
     let mut cfg = resolve_config(&ws)?;
+    validate_or_error(&cfg)?;
     if let Ok(base_url) = std::env::var("WIKI_NIM_BASE_URL") {
         cfg.nim.base_url = base_url;
     }

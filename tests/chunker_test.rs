@@ -1,4 +1,4 @@
-use wiki::core::chunker::chunk_text;
+use llmwiki_cli::core::chunker::chunk_text;
 
 #[test]
 fn chunk_short_text_returns_one_chunk() {

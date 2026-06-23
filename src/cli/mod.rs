@@ -7,6 +7,8 @@ pub mod init;
 pub mod install_skill;
 pub mod lint;
 pub mod ls;
+pub mod lsp;
+pub mod mcp;
 pub mod models;
 pub mod query;
 pub mod search;
@@ -19,7 +21,7 @@ use clap::{Parser, Subcommand};
 use crate::cli::skill::SkillArgs;
 
 #[derive(Parser)]
-#[command(name = "wiki", version, about = "Karpathy-style LLM Wiki")]
+#[command(name = "llmwiki-cli", version, about = "Karpathy-style LLM Wiki")]
 pub struct Cli {
     #[arg(long, global = true)]
     pub workspace: Option<std::path::PathBuf>,
@@ -151,7 +153,7 @@ pub enum Command {
         #[arg(long)]
         global: bool,
         #[arg(long)]
-        target: Option<std::path::PathBuf>,
+        workspace: Option<std::path::PathBuf>,
     },
     /// Print version
     Version,
@@ -160,7 +162,21 @@ pub enum Command {
         #[command(subcommand)]
         cmd: ConfigCmd,
     },
+    /// Run the LSP server (stdio)
+    Lsp(LspArgs),
+    /// Run the MCP server (stdio)
+    Mcp(McpArgs),
 }
+
+#[derive(clap::Args, Debug)]
+pub struct LspArgs {
+    /// Transport (currently only stdio)
+    #[arg(long, default_value = "stdio")]
+    pub transport: String,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct McpArgs {}
 
 #[derive(clap::Subcommand, Debug)]
 pub enum ConfigCmd {
@@ -314,11 +330,10 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Skill(args)) => crate::cli::skill::run(args),
-        Some(Command::InstallSkill { global, target }) => {
+        Some(Command::InstallSkill { global, workspace }) => {
             crate::cli::install_skill::run(crate::cli::install_skill::InstallSkillArgs {
                 global,
-                workspace: cli.workspace,
-                target,
+                workspace,
             })
         }
         Some(Command::Ingest {
@@ -369,8 +384,10 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Config { cmd }) => crate::cli::config::run(cmd).await,
+        Some(Command::Lsp(args)) => crate::cli::lsp::run(args).await,
+        Some(Command::Mcp(args)) => crate::cli::mcp::run(args).await,
         Some(Command::Version) | None => {
-            println!("wiki {}", env!("CARGO_PKG_VERSION"));
+            println!("llmwiki-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
     };

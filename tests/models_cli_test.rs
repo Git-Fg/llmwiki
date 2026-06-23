@@ -4,7 +4,7 @@ use predicates::str;
 
 #[test]
 fn wiki_models_lists_all() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("models")
         .assert()
@@ -15,7 +15,7 @@ fn wiki_models_lists_all() {
 
 #[test]
 fn wiki_models_embed_filters() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("models")
         .arg("--embed")
@@ -27,7 +27,7 @@ fn wiki_models_embed_filters() {
 
 #[test]
 fn wiki_models_commercial_filters() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("models")
         .arg("--commercial")
@@ -38,7 +38,7 @@ fn wiki_models_commercial_filters() {
 
 #[test]
 fn wiki_models_json_outputs_structured() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("models")
         .arg("--json")

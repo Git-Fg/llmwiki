@@ -1,4 +1,4 @@
-use wiki::core::markdown::{
+use llmwiki_cli::core::markdown::{
     extract_footnote_refs, extract_footnotes, extract_wikilinks, parse_frontmatter,
 };
 

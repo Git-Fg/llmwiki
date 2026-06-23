@@ -1,4 +1,4 @@
-use wiki::core::models_registry::{load_registry, ModelInfo, Role};
+use llmwiki_cli::core::models_registry::{load_registry, ModelInfo, Role};
 
 #[test]
 fn registry_loads_eight_models() {

@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.0] - 2026-06-23 — BREAKING: rename to llmwiki-cli
+
+**BREAKING CHANGES:**
+- Crate name: `wiki` → `llmwiki-cli`
+- Binary name: `wiki` → `llmwiki-cli`
+- Reinstall: `cargo uninstall wiki && cargo install llmwiki-cli`
+
+**Migration:**
+- All existing scripts that invoke `wiki <subcommand>` must be updated to `llmwiki-cli <subcommand>`
+- Existing wiki data, `wiki-root.toml`, and `~/.agents/skills/wiki/` are unchanged
+
+**Added:**
+- `llmwiki-cli lsp` — LSP server for `wiki-root.toml` (hover, completion, document symbols, diagnostics)
+- `llmwiki-cli mcp` — MCP server (validate, hover, completion, schema, doctor)
+- `llmwiki-cli config show-schema` — JSON Schema dump for editors
+- `llmwiki-cli config validate` — field-level checks for `[defaults]` and every `[alias]`
+- `validate_or_error()` called before NIM calls in `embed`/`search`/`query`
+- Marketplace install: `install.sh` (POSIX) and `install.ps1` (PowerShell 7+) install `llmwiki-cli` + bundle the wiki skill into `~/.agents/skills/wiki/`
+- Self-installing sub-skills: SETUP, LSP, MCP, INGEST, SEARCH, QUERY, LINT, MODELS, SYNC, TROUBLESHOOTING — all bundled in the binary and copy-installed via `llmwiki-cli install-skill`
+- GitHub Actions release workflow building 6 targets: linux-musl (aarch64, x86_64), windows-gnu (aarch64, x86_64), apple-darwin (aarch64, x86_64)
+- crates.io publish workflow
+
 ## 2026-06-22 — NIM URL convention and API key env
 
 The CLI's NIM integration has been corrected so the default `base_url` is the
@@ -43,12 +65,12 @@ There is no `wiki import` command. External wiki layouts (e.g. an existing
 manually:
 
 ```bash
-wiki init ~/my-wiki                    # scaffold the CLI workspace
+llmwiki-cli init ~/my-wiki                    # scaffold the CLI workspace
 cp -r ~/MyWiki/concepts ~/my-wiki/wiki/
 cp -r ~/MyWiki/entities ~/my-wiki/wiki/
 # edit each file to add the required frontmatter (title, created, updated,
 # type, tags, sources, schema_version) and [[wikilinks]] the CLI expects
-wiki embed                             # build the embedding index
+llmwiki-cli embed                             # build the embedding index
 ```
 
 A dedicated adapter was considered and rejected: automatic frontmatter

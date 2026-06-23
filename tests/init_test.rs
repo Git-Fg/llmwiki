@@ -8,7 +8,7 @@ fn make_cmd() -> (tempfile::TempDir, std::path::PathBuf, Command) {
     let tmp = tempfile::tempdir().unwrap();
     let registry = tmp.path().join("wiki-root.toml");
     std::fs::write(&registry, "# test wiki-root.toml\n").unwrap();
-    let mut cmd = Command::cargo_bin("wiki").unwrap();
+    let mut cmd = Command::cargo_bin("llmwiki-cli").unwrap();
     cmd.env("WIKI_ROOT_CONFIG", &registry);
     (tmp, registry, cmd)
 }

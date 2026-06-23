@@ -26,7 +26,7 @@ fn make_wiki() -> tempfile::TempDir {
 #[test]
 fn tree_default_shows_all_pages() {
     let tmp = make_wiki();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -44,7 +44,7 @@ fn tree_default_shows_all_pages() {
 #[test]
 fn tree_json_output_is_valid() {
     let tmp = make_wiki();
-    let output = Command::cargo_bin("wiki")
+    let output = Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -62,7 +62,7 @@ fn tree_json_output_is_valid() {
 #[test]
 fn tree_json_entries_have_expected_fields() {
     let tmp = make_wiki();
-    let output = Command::cargo_bin("wiki")
+    let output = Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -86,7 +86,7 @@ fn tree_empty_workspace() {
     let tmp = tempdir().unwrap();
     fs::create_dir_all(tmp.path().join(".wiki")).unwrap();
     fs::create_dir_all(tmp.path().join("wiki")).unwrap();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -101,7 +101,7 @@ fn tree_empty_workspace_json() {
     let tmp = tempdir().unwrap();
     fs::create_dir_all(tmp.path().join(".wiki")).unwrap();
     fs::create_dir_all(tmp.path().join("wiki")).unwrap();
-    let output = Command::cargo_bin("wiki")
+    let output = Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -117,7 +117,7 @@ fn tree_empty_workspace_json() {
 
 #[test]
 fn tree_nonexistent_workspace_uses_default() {
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg("/tmp/does-not-exist-llmwiki-tree-test")

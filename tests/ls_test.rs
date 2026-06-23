@@ -37,7 +37,7 @@ fn make_workspace() -> tempfile::TempDir {
 #[test]
 fn ls_default_shows_all_sections() {
     let tmp = make_workspace();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -53,7 +53,7 @@ fn ls_default_shows_all_sections() {
 #[test]
 fn ls_pages_flag() {
     let tmp = make_workspace();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -75,7 +75,7 @@ fn ls_pages_flag() {
 #[test]
 fn ls_embed_flag() {
     let tmp = make_workspace();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -93,7 +93,7 @@ fn ls_embed_flag() {
 #[test]
 fn ls_links_flag() {
     let tmp = make_workspace();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -109,7 +109,7 @@ fn ls_links_flag() {
 #[test]
 fn ls_config_flag() {
     let tmp = make_workspace();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -126,7 +126,7 @@ fn ls_config_flag_includes_nested_retry_keys() {
     // Reflection-based config listing must include nested keys like
     // `nim.retry.max_attempts` that the previous hardcoded version missed.
     let tmp = make_workspace();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -142,7 +142,7 @@ fn ls_config_flag_includes_nested_retry_keys() {
 #[test]
 fn ls_raw_flag() {
     let tmp = make_workspace();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -157,7 +157,7 @@ fn ls_raw_flag() {
 #[test]
 fn ls_json_output_is_valid() {
     let tmp = make_workspace();
-    let output = Command::cargo_bin("wiki")
+    let output = Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -176,7 +176,7 @@ fn ls_json_output_is_valid() {
 #[test]
 fn ls_json_pages_only() {
     let tmp = make_workspace();
-    let output = Command::cargo_bin("wiki")
+    let output = Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -196,7 +196,7 @@ fn ls_json_pages_only() {
 fn ls_empty_workspace() {
     let tmp = tempdir().unwrap();
     fs::create_dir_all(tmp.path().join(".wiki")).unwrap();
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg(tmp.path())
@@ -209,7 +209,7 @@ fn ls_empty_workspace() {
 #[test]
 fn ls_nonexistent_workspace_uses_default() {
     // discover_workspace walks up and falls back to defaults — ls succeeds with empty pages
-    Command::cargo_bin("wiki")
+    Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
         .arg("/tmp/does-not-exist-llmwiki-test")

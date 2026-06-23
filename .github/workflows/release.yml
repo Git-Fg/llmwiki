@@ -1,0 +1,123 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  linux-build:
+    name: linux-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-musl
+          - aarch64-pc-windows-gnu
+          - x86_64-pc-windows-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Install cross-toolchain
+        run: |
+          sudo apt-get update
+          case "${{ matrix.target }}" in
+            *-unknown-linux-musl)
+              sudo apt-get install -y musl-tools
+              ;;
+            *-pc-windows-gnu)
+              sudo apt-get install -y mingw-w64
+              ;;
+          esac
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} --bin llmwiki-cli
+      - name: Package
+        run: |
+          cd target/${{ matrix.target }}/release
+          case "${{ matrix.target }}" in
+            *-pc-windows-gnu)
+              sudo apt-get install -y zip
+              EXE="llmwiki-cli.exe"
+              ASSET_EXT="zip"
+              zip -q ../../../llmwiki-cli-${{ matrix.target }}.zip "$EXE"
+              ;;
+            *)
+              EXE="llmwiki-cli"
+              ASSET_EXT="tar.gz"
+              tar czf ../../../llmwiki-cli-${{ matrix.target }}.tar.gz "$EXE"
+              ;;
+          esac
+          sha256sum "llmwiki-cli-${{ matrix.target }}.${ASSET_EXT}" \
+            > "llmwiki-cli-${{ matrix.target }}.${ASSET_EXT}.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: assets
+          path: |
+            llmwiki-cli-${{ matrix.target }}.${{ matrix.target == 'aarch64-pc-windows-gnu' && 'zip' || matrix.target == 'x86_64-pc-windows-gnu' && 'zip' || 'tar.gz' }}
+            llmwiki-cli-${{ matrix.target }}.${{ matrix.target == 'aarch64-pc-windows-gnu' && 'zip' || matrix.target == 'x86_64-pc-windows-gnu' && 'zip' || 'tar.gz' }}.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  macos-build:
+    name: macos-${{ matrix.target }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - run: cargo build --release --locked --target ${{ matrix.target }} --bin llmwiki-cli
+      - name: Package
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../llmwiki-cli-${{ matrix.target }}.tar.gz llmwiki-cli
+          sha256sum llmwiki-cli-${{ matrix.target }}.tar.gz \
+            > llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: assets
+          path: |
+            llmwiki-cli-${{ matrix.target }}.tar.gz
+            llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: publish-release
+    needs: [linux-build, macos-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: assets
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.zip
+            dist/*.zip.sha256
+            install.sh
+            install.ps1

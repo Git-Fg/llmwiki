@@ -36,7 +36,7 @@ fn valid_page(title: &str, outbound: Vec<&str>, body: &str) -> String {
 }
 
 fn wiki() -> Command {
-    Command::cargo_bin("wiki").unwrap()
+    Command::cargo_bin("llmwiki-cli").unwrap()
 }
 
 #[tokio::test]
