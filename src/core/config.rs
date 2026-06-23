@@ -251,34 +251,38 @@ pub fn load_config(paths: &[PathBuf]) -> Result<Config, WikiError> {
 /// Used by `wiki config validate` and by tests that want to inspect a
 /// config regardless of whether it's valid.
 pub fn load_config_unvalidated(paths: &[PathBuf]) -> Result<Config, WikiError> {
-    let mut merged: Config = Config::default();
+    // Deep-merge TOML values across all sources in priority order (lowest
+    // priority first, highest priority last so it overrides). Then
+    // deserialize the merged table into `Config` once — `#[serde(default)]`
+    // on every field handles missing keys uniformly. This replaces the
+    // older per-field `Config::merge()` which silently dropped overrides
+    // for any field not explicitly listed (e.g. `wiki.*`).
+    let mut merged_value: toml::Value = toml::Value::Table(toml::value::Table::new());
     for path in paths {
         if !path.exists() {
             continue;
         }
         let text = std::fs::read_to_string(path)?;
-        let partial: Config = toml::from_str(&text).map_err(|e| WikiError::ConfigInvalid {
+        let partial: toml::Value = text.parse().map_err(|e| WikiError::ConfigInvalid {
             path: path.display().to_string(),
             line: 0,
-            message: e.to_string(),
+            message: format!("TOML parse error: {e}"),
         })?;
-        merged = merge(merged, partial);
+        crate::core::registry::deep_merge_into(&mut merged_value, partial);
     }
-    Ok(merged)
-}
-
-fn merge(mut base: Config, over: Config) -> Config {
-    if !over.nim.embed_model.is_empty() {
-        base.nim.embed_model = over.nim.embed_model;
-    }
-    if !over.nim.rerank_model.is_empty() {
-        base.nim.rerank_model = over.nim.rerank_model;
-    }
-    if over.nim.embed_dim_override.is_some() {
-        base.nim.embed_dim_override = over.nim.embed_dim_override;
-    }
-    base.config_version = over.config_version;
-    base
+    let cfg: Config =
+        merged_value
+            .try_into()
+            .map_err(|e: toml::de::Error| WikiError::ConfigInvalid {
+                path: paths
+                    .iter()
+                    .find(|p| p.exists())
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "<merged>".to_string()),
+                line: 0,
+                message: format!("Failed to deserialize merged config: {e}"),
+            })?;
+    Ok(cfg)
 }
 
 pub fn resolve_config(workspace: &Path) -> Result<Config, WikiError> {

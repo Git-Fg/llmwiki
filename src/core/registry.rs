@@ -493,7 +493,7 @@ impl Registry {
 
 /// Recursively merge `src` into `dst`.
 /// Tables recurse, scalars override, arrays concatenate.
-fn deep_merge_into(dst: &mut toml::Value, src: toml::Value) {
+pub(crate) fn deep_merge_into(dst: &mut toml::Value, src: toml::Value) {
     match (dst, src) {
         (toml::Value::Table(dst_table), toml::Value::Table(src_table)) => {
             for (key, value) in src_table {

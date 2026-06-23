@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.3.15] - 2026-06-23 — config: deep-merge all fields (not just 3 nim.*)
+
+**Fixed:**
+- `Config::merge()` only handled 3 `nim.*` fields (`embed_model`,
+  `rerank_model`, `embed_dim_override`) and the top-level
+  `config_version`. Any `wiki.*` override, every `nim.retry.*` field,
+  and most other `nim.*` fields (`base_url`, `api_key_env`,
+  `batch_size`, `request_timeout_secs`) set in a per-computer or
+  per-workspace config file were silently dropped: the merged config
+  fell back to `Config::default()` for those keys.
+- Surfaced as a confusing UX issue by the new `--overrides-only` filter
+  (v0.3.13): a user who set `wiki.default_chunk_tokens = 1024` in their
+  per-workspace `.llmwiki-cli/config.toml` saw nothing appear in the
+  overrides-only output, even though they had set a non-default value.
+- **Root-cause fix**: replaced the per-field `Config::merge()` with
+  TOML-level deep-merge (`crate::core::registry::deep_merge_into`,
+  now `pub(crate)`) across all sources in priority order, then
+  deserialize the merged TOML into `Config` once. Every field with
+  `#[serde(default)]` is now handled uniformly — no per-field
+  enumeration to forget.
+- `Registry::resolve_config` already used this TOML-level deep merge,
+  so this fix brings `load_config_unvalidated` into alignment with
+  the registry path. Both code paths now produce the same effective
+  config.
+
+**Tests:**
+- New: `show_effective_overrides_only_surfaces_wiki_and_retry_overrides`
+  in `tests/config_cli_test.rs`. Sets `wiki.default_chunk_tokens = 1024`
+  and `nim.retry.max_attempts = 7` in a per-workspace config, then
+  verifies both appear in `--overrides-only` output.
+- 252/252 pass (251 v0.3.14 + 1 new regression).
+
 ## [0.3.14] - 2026-06-23 — CI: clippy forward-compat (110 format args inlined)
 
 **Fixed:**

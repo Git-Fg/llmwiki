@@ -1199,3 +1199,44 @@ fn show_effective_overrides_only_hides_default_matching_keys() {
         "default-matching keys should be hidden: {stdout}"
     );
 }
+
+#[test]
+fn show_effective_overrides_only_surfaces_wiki_and_retry_overrides() {
+    // Regression for the pre-v0.3.15 Config::merge() bug: it only handled
+    // 3 nim.* fields and silently dropped all wiki.* and retry.* overrides
+    // when set in per-computer / per-workspace config files. After the
+    // switch to TOML-level deep merge, every field with `#[serde(default)]`
+    // is handled uniformly.
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    // Per-workspace sets fields that the old per-field merge would have
+    // silently dropped:
+    //   - wiki.default_chunk_tokens (wiki.* — old merge never touched this)
+    //   - nim.retry.max_attempts    (nested struct — old merge never recursed)
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[wiki]\ndefault_chunk_tokens = 1024\n\
+         [nim.retry]\nmax_attempts = 7\n",
+    )
+    .unwrap();
+
+    let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+        .args(["config", "show-effective", "--overrides-only"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("wiki.default_chunk_tokens"),
+        "wiki.default_chunk_tokens should appear (overridden): {stdout}"
+    );
+    assert!(
+        stdout.contains("nim.retry.max_attempts"),
+        "nim.retry.max_attempts should appear (overridden): {stdout}"
+    );
+}
