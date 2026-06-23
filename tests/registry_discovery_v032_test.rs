@@ -754,6 +754,43 @@ path = "/home/wiki"
     });
 }
 
+// ─── v0.3.5 H1: unset_value cleans up all empty intermediate tables (3-level) ───
+
+#[test]
+fn unset_value_three_levels_cleans_all_empty_intermediates() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+"#,
+            );
+
+            with_home_and_cwd(&home, &home, || {
+                let mut reg = Registry::discover().expect("registry");
+                // set_value creates [shared.nim.api] intermediate tables via 3-level dotted key
+                reg.set_value("nim.api.batch_size", "16", Some("shared"))
+                    .expect("set_value creates 3-level intermediates");
+                // unset_value should remove the leaf and clean up empty parents
+                reg.unset_value("nim.api.batch_size", "shared")
+                    .expect("unset_value traverses 3-level keys");
+                // Verify ALL intermediate tables are gone
+                let raw = reg.raw_doc.as_table().unwrap();
+                let shared = raw.get("shared").and_then(|v| v.as_table()).unwrap();
+                assert!(
+                    shared.get("nim").and_then(|v| v.as_table()).is_none(),
+                    "nim table should be removed when empty"
+                );
+            });
+        });
+    });
+}
+
 // ─── v0.3.3 M3: tags merge is array union-dedupe, not scalar override ───
 
 #[test]

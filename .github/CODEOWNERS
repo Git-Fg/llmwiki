@@ -1,0 +1,8 @@
+# Default owners for everything not matched below.
+* @Git-Fg
+
+# Registry and config files require explicit review from the owner.
+# /src/core/registry.rs    @Git-Fg
+# /src/core/config.rs      @Git-Fg
+# /src/core/workspace.rs   @Git-Fg
+# /wiki-root.toml          @Git-Fg

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # llmwiki-cli installer (bash).
 # Usage:
-#   curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | bash
-#   curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | bash -s -- --bin-dir /usr/local/bin
+#   curl -LsSf https://github.com/Git-Fg/llmwiki/releases/latest/download/install.sh | bash
+#   curl -LsSf https://github.com/Git-Fg/llmwiki/releases/latest/download/install.sh | bash -s -- --bin-dir /usr/local/bin
 
 set -euo pipefail
 

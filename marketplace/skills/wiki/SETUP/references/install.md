@@ -5,7 +5,7 @@
 Linux, macOS, and Windows-with-Git-for-Windows (Git Bash / MSYS2 / WSL):
 
 ```bash
-curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh
+curl -LsSf https://github.com/Git-Fg/llmwiki/releases/latest/download/install.sh | sh
 ```
 
 Installs the latest release binary to `~/.local/bin/llmwiki-cli`. Verifies
@@ -16,7 +16,7 @@ SHA256 against the published `.sha256` file. Adds to PATH if needed.
 Windows PowerShell 7+ (cross-platform `pwsh`, also runs on Linux/macOS):
 
 ```powershell
-irm https://github.com/fg/llmwiki/releases/latest/download/install.ps1 | iex
+irm https://github.com/Git-Fg/llmwiki/releases/latest/download/install.ps1 | iex
 ```
 
 Installs to `%LOCALAPPDATA%\llmwiki-cli\bin\llmwiki-cli.exe`. Verifies
@@ -35,7 +35,7 @@ cargo install llmwiki-cli --locked
 
 Requires Rust 1.85+ installed (per `Cargo.toml`'s `rust-version`). Use this when:
 - No pre-built binary matches your platform (e.g. unusual Linux distro).
-- You need the absolute latest commit (`cargo install --git https://github.com/fg/llmwiki`).
+- You need the absolute latest commit (`cargo install --git https://github.com/Git-Fg/llmwiki`).
 
 ## Alternative: `cargo binstall` (downloads pre-built binary, no compilation)
 
@@ -56,7 +56,7 @@ brew install llmwiki-cli
 ## Verifying the install
 
 ```bash
-llmwiki-cli --version          # Should print "llmwiki-cli 0.3.0"
+llmwiki-cli --version          # Should print "llmwiki-cli 0.3.4"
 llmwiki-cli doctor             # Should report "OK" or surface specific issues
 llmwiki-cli --help             # Should list all subcommands
 ```

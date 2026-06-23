@@ -1,8 +1,8 @@
 #!/usr/bin/env pwsh
 # llmwiki-cli installer for PowerShell 7+ (cross-platform).
 # Usage:
-#   irm https://github.com/fg/llmwiki/releases/latest/download/install.ps1 | iex
-#   iex ((irm https://github.com/fg/llmwiki/releases/latest/download/install.ps1) -BinDir C:\tools)
+#   irm https://github.com/Git-Fg/llmwiki/releases/latest/download/install.ps1 | iex
+#   iex ((irm https://github.com/Git-Fg/llmwiki/releases/latest/download/install.ps1) -BinDir C:\tools)
 
 [CmdletBinding()]
 param(

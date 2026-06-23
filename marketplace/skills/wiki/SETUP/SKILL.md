@@ -42,9 +42,9 @@ command -v llmwiki-cli && llmwiki-cli --version
 
 # 2. Install (if missing)
 # POSIX (Linux/macOS/Windows Git-for-Windows):
-curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh
+curl -LsSf https://github.com/Git-Fg/llmwiki/releases/latest/download/install.sh | sh
 # Windows PowerShell 7+:
-#   irm https://github.com/fg/llmwiki/releases/latest/download/install.ps1 | iex
+#   irm https://github.com/Git-Fg/llmwiki/releases/latest/download/install.ps1 | iex
 
 # 3. Verify
 llmwiki-cli doctor

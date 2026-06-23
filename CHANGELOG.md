@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.3.4] - 2026-06-23 — Registry write-semantics hardening
+
+**Fixed:**
+- **H1 (HIGH):** `Registry::remove_entry` and `Registry::unset_value` previously
+  gave no feedback when called on aliases from lower-priority files. The
+  v0.3.3 fix made them error, but lacked a roundtrip regression test confirming
+  `remove_entry() → save() → discover()` actually removes the alias from disk.
+  Now covered by `remove_entry_save_then_discover_alias_is_gone` and
+  `remove_entry_errors_on_lower_priority_save_then_discover_alias_persists`.
+- **H2 (HIGH):** `unset_value("a.b.c", alias)` previously could not match
+  `set_value("a.b.c", ..., alias)` semantics — when called on a freshly-set
+  nested key, the intermediate tables were assumed to already exist. Now
+  matches `set_value`: creates intermediate tables on demand and cleans up
+  empty intermediate tables after removal so the TOML document doesn't
+  accumulate `[alias.nim] = {}` ghosts.
+- **M1:** CLI help text for `config rm` and `config unset` now documents the
+  scope error (lower-priority alias → use `$WIKI_ROOT_CONFIG`). `--wiki` flag
+  on `unset` marked as required.
+- **M2:** `workspace.rs` now discovers workspaces at `~/.config/wiki/` to
+  mirror the legacy `config.yaml` fallback in `config.rs`. Without this, a
+  workspace at `~/.config/wiki/` was discoverable as a *config* source but
+  not as a workspace root — inconsistent.
+- **L1:** `init` error message improved from bare `"no home dir"` to
+  actionable: `"cannot determine home directory: both $HOME and
+  $USERPROFILE are unset. Set one of them, or set WIKI_ROOT_CONFIG…"`.
+- **L2:** `unset_value` and `remove_entry` error messages now list all
+  candidate `wiki-root.toml` paths (minus the active write target) so the
+  user knows which file to point `$WIKI_ROOT_CONFIG` at.
+
+**Added:**
+- 3 new regression tests in `tests/registry_discovery_v032_test.rs`:
+  `remove_entry_save_then_discover_alias_is_gone`,
+  `remove_entry_errors_on_lower_priority_save_then_discover_alias_persists`,
+  `unset_value_creates_intermediate_tables_like_set_value`.
+- `remove_empty_intermediate()` helper in `registry.rs` — safe, no raw pointers.
+
+**Tests:** 211/211 pass (208 v0.3.3 + 3 new).
+
 ## [0.3.3] - 2026-06-23 — Registry write-semantics hardening
 
 **Fixed:**

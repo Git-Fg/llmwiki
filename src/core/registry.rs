@@ -618,7 +618,7 @@ impl Registry {
         Ok(())
     }
 
-    /// If the table at `[alias].path[..=depth]` inside `root` is empty, remove it.
+    /// If the table at `[alias].path` inside `root` is empty, remove it.
     fn remove_empty_intermediate(root: &mut toml::value::Table, alias: &str, path: &[&str]) {
         if path.is_empty() {
             return;
@@ -638,23 +638,22 @@ impl Registry {
             }
             alias_table.remove(path[0]);
         } else {
+            // Navigate from `alias_table` to the parent of the target leaf
+            // (i.e. one level above `path[path.len() - 1]`).
             let mut parent = alias_table;
-            for part in &path[..path.len() - 2] {
+            for part in &path[..path.len() - 1] {
                 parent = match parent.get_mut(*part).and_then(|v| v.as_table_mut()) {
                     Some(t) => t,
                     _ => return,
                 };
             }
-            let parent_key = path[path.len() - 2];
             let child_key = path[path.len() - 1];
-            let is_empty_child = match parent.get(parent_key).and_then(|v| v.as_table()) {
+            let is_empty_child = match parent.get(child_key).and_then(|v| v.as_table()) {
                 Some(t) => t.is_empty(),
                 None => return,
             };
             if is_empty_child {
-                if let Some(toml::Value::Table(p)) = parent.get_mut(parent_key) {
-                    p.remove(child_key);
-                }
+                parent.remove(child_key);
             }
         }
     }

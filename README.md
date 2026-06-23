@@ -1,6 +1,10 @@
 # wiki
 
-A markdown-based personal knowledge base, built on Andrej Karpathy's LLM Wiki pattern. Single Rust binary, NVIDIA NIM embeddings, agent skill integration, tailnet-friendly sync.
+[![CI](https://github.com/Git-Fg/llmwiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Git-Fg/llmwiki/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/llmwiki-cli.svg)](https://crates.io/crates/llmwiki-cli)
+[![License](https://img.shields.io/crates/l/llmwiki-cli.svg)](https://github.com/Git-Fg/llmwiki/blob/main/LICENSE)
+
+A markdown-based personal knowledge base, built on Andrej Karpathy's LLM Wiki pattern. Single Rust binary, NVIDIA NIM embeddings, agent skill integration, tailnet-friendly sync, multi-wiki registry.
 
 ## Install
 
@@ -8,12 +12,12 @@ Choose your platform:
 
 ```bash
 # Linux, macOS, Windows-with-Git-for-Windows
-curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh
+curl -LsSf https://github.com/Git-Fg/llmwiki/releases/latest/download/install.sh | sh
 ```
 
 ```powershell
 # Windows PowerShell 7+
-irm https://github.com/fg/llmwiki/releases/latest/download/install.ps1 | iex
+irm https://github.com/Git-Fg/llmwiki/releases/latest/download/install.ps1 | iex
 ```
 
 ```bash
@@ -46,6 +50,8 @@ cd ~/my-wiki
 llmwiki-cli doctor                                 # verify config + NIM reachability
 ```
 
+`llmwiki-cli init` auto-registers the wiki in `wiki-root.toml` (default: `~/.agents/wiki-root.toml`). To manage multiple wikis, see the [Multi-wiki registry](#multi-wiki-registry) section below.
+
 ## Quick Help
 
 ```bash
@@ -66,11 +72,32 @@ llmwiki-cli lint                                   # hygiene check
 git add . && git commit -m "ingest: X" && git push
 ```
 
+## Multi-wiki registry
+
+The CLI supports multiple wikis via `wiki-root.toml` — a git-friendly TOML registry that the CLI, LSP server, and MCP server all read. Concatenation semantics match `git config` (local + global):
+
+- **Project-local** (highest priority): `.agents/wiki-root.toml` at any ancestor of CWD. Closer-to-CWD wins.
+- **User-global** (lowest priority, loaded first): `~/wiki-root.toml`, `~/.claude/wiki-root.toml`, `~/.agents/wiki-root.toml`.
+
+All sources merge — every wiki from every file is visible. `wiki config set/add/rm/unset` writes to the highest-priority file (project-local if present, otherwise user-global). To target a specific file, set `$WIKI_ROOT_CONFIG` to its absolute path.
+
+```bash
+llmwiki-cli config list                 # show all registered wikis
+llmwiki-cli config path                 # print the active wiki-root.toml path
+llmwiki-cli config get nim.embed_model  # read a config value
+llmwiki-cli config set nim.embed_model nvidia/nv-embedqa-e5-v5 --wiki work
+llmwiki-cli --wiki work search "X"      # target a specific wiki by alias
+```
+
 ## Architecture
 
 - **Wiki content**: Markdown files in `wiki/`, sources in `raw/`, catalog in `index.md`, log in `log.md`. All committed to git.
+- **Registry**: `wiki-root.toml` (TOML, git-committed) — one entry per wiki with `[path, tags, description, what_to_read, qmd_slug, [alias.nim], …]`. Multi-wiki, multi-source, project-local + user-global merging.
 - **Embeddings**: `embeddings.jsonl` (gitignored, regenerated per device via `llmwiki-cli embed`).
+- **Config**: `[defaults]` + per-alias `[alias]` tables in `wiki-root.toml`. Legacy `~/.config/wiki/config.yaml` fallback still supported.
 - **CLI**: Single Rust binary. No database.
+- **LSP**: `llmwiki-cli lsp` — hover, completion, document symbols, diagnostics over stdio.
+- **MCP**: `llmwiki-cli mcp` — validate, hover, completion, schema, doctor over stdio.
 - **Skill**: stub at `~/.agents/skills/wiki/SKILL.md` (copied via `llmwiki-cli install-skill`). Full content served by `llmwiki-cli skill show [topic]`.
 - **Sync**: Git between devices. Embeddings regenerated locally.
 - **No viewer**: The wiki is consumed directly via the CLI; no static site is generated.
@@ -78,18 +105,25 @@ git add . && git commit -m "ingest: X" && git push
 ## Commands
 
 ```
-llmwiki-cli init [path]                scaffold a new wiki
-llmwiki-cli ingest <source>           add raw source + log entry
-llmwiki-cli build                     list pending raw sources
-llmwiki-cli embed                     compute embeddings (or --skip-existing)
-llmwiki-cli search <query>            semantic search
-llmwiki-cli query <question>          RAG-style query with citations
-llmwiki-cli lint                      hygiene checks
-llmwiki-cli models                    list supported NIM models
-llmwiki-cli doctor                    diagnose config + NIM
-llmwiki-cli status                    show wiki stats
-llmwiki-cli install-skill             install the bundled skill
-llmwiki-cli skill show [topic]        print skill content
+llmwiki-cli init <path>             scaffold a new wiki
+llmwiki-cli ingest <source>         add raw source + log entry
+llmwiki-cli build                   list pending raw sources
+llmwiki-cli embed                   compute embeddings (--skip-existing)
+llmwiki-cli search <query>          semantic search
+llmwiki-cli query <question>        RAG-style query with citations
+llmwiki-cli lint                    hygiene checks
+llmwiki-cli ls [--pages|--raw|--embed|--links|--config]
+                                   granular workspace listing
+llmwiki-cli tree                    flat, grep-friendly page listing
+llmwiki-cli models                  list supported NIM models
+llmwiki-cli doctor                  diagnose config + NIM
+llmwiki-cli status                  show wiki stats
+llmwiki-cli config <subcommand>     manage wiki-root.toml (get/set/unset/add/rm/list/path/edit/validate/show-schema)
+llmwiki-cli lsp                     run the LSP server (stdio)
+llmwiki-cli mcp                     run the MCP server (stdio)
+llmwiki-cli install-skill           install the bundled skill
+llmwiki-cli skill show [topic]      print skill content
+llmwiki-cli version                 print version
 ```
 
 Run `llmwiki-cli --help` for the full list.
@@ -104,13 +138,14 @@ Default: `nvidia/nv-embed-v1` (4096 dims, non-commercial). Other supported model
 - `nvidia/llama-nemotron-embed-vl-1b-v2` (multimodal)
 - Plus 3 reranker models
 
-Run `llmwiki-cli models` for full specs. Change via `nim.embed_model` in `.wiki/config.yaml`.
+Run `llmwiki-cli models` for full specs. Change via `wiki config set nim.embed_model <model>`.
 
 ## Documentation
 
 - Design spec: `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`
-- Implementation plan: `docs/superpowers/plans/2026-06-21-karpathy-wiki.md`
+- Multi-source registry spec: `docs/superpowers/specs/2026-06-23-multi-wiki-resolution-v032-design.md`
 - Agent behavioral layer: `AGENTS.md`
+- Full agent skill: `agents/skills/wiki/SKILL.md` (bundled, `llmwiki-cli skill show`)
 
 ## License
 
