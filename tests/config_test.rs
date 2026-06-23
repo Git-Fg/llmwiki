@@ -10,14 +10,14 @@ fn load_defaults_when_no_files_exist() {
 #[test]
 fn load_workspace_overrides_global() {
     let tmp = tempfile::tempdir().unwrap();
-    let global = tmp.path().join("global.yaml");
-    let workspace = tmp.path().join("workspace.yaml");
+    let global = tmp.path().join("global.toml");
+    let workspace = tmp.path().join("workspace.toml");
     std::fs::write(
         &global,
-        "nim:\n  embed_model: \"nvidia/nv-embedqa-e5-v5\"\n",
+        "[nim]\nembed_model = \"nvidia/nv-embedqa-e5-v5\"\n",
     )
     .unwrap();
-    std::fs::write(&workspace, "nim:\n  embed_model: \"nvidia/nv-embed-v1\"\n").unwrap();
+    std::fs::write(&workspace, "[nim]\nembed_model = \"nvidia/nv-embed-v1\"\n").unwrap();
 
     let cfg = load_config(&[global, workspace]).unwrap();
     assert_eq!(cfg.nim.embed_model, "nvidia/nv-embed-v1");
@@ -26,8 +26,8 @@ fn load_workspace_overrides_global() {
 #[test]
 fn load_unsupported_model_returns_error() {
     let tmp = tempfile::tempdir().unwrap();
-    let bad = tmp.path().join("bad.yaml");
-    std::fs::write(&bad, "nim:\n  embed_model: \"nvidia/invalid-model\"\n").unwrap();
+    let bad = tmp.path().join("bad.toml");
+    std::fs::write(&bad, "[nim]\nembed_model = \"nvidia/invalid-model\"\n").unwrap();
     let err = load_config(&[bad]).unwrap_err();
     let s = format!("{}", err);
     assert!(
@@ -38,17 +38,13 @@ fn load_unsupported_model_returns_error() {
 }
 
 #[test]
-fn load_invalid_yaml_returns_config_invalid() {
+fn load_invalid_toml_returns_config_invalid() {
     let tmp = tempfile::tempdir().unwrap();
-    let bad = tmp.path().join("bad.yaml");
-    std::fs::write(
-        &bad,
-        "nim:\n  embed_model: \"nvidia/nv-embed-v1\"\n invalid: [unclosed",
-    )
-    .unwrap();
+    let bad = tmp.path().join("bad.toml");
+    std::fs::write(&bad, "[nim\nembed_model = \"x\"\n").unwrap();
     let err = load_config(&[bad]).unwrap_err();
     let s = format!("{}", err);
-    assert!(s.contains("config invalid") || s.contains("YAML"));
+    assert!(s.contains("config invalid") || s.contains("TOML"));
 }
 
 #[test]

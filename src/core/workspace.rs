@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 /// 3. `WIKI_WORKSPACE` env var
 /// 4. `WIKI_ACTIVE` env var (looks up path in registry)
 /// 5. wiki-root.toml registry (CWD match against registered paths)
-/// 6. Walk up from CWD looking for `.wiki/` directory (legacy)
-/// 7. `~/wiki` if it has `.wiki/`
+/// 6. Walk up from CWD looking for `.wiki/` directory
+/// 7. `~/llmwiki-cli/` if it has `.wiki/` (user-global workspace)
 pub fn discover_workspace(
     flag: Option<PathBuf>,
     wiki_alias: Option<&str>,
@@ -58,15 +58,11 @@ pub fn discover_workspace(
         return Ok(p);
     }
     if let Some(home) = home_dir() {
-        let candidate = home.join("wiki");
+        // User-global workspace at `~/llmwiki-cli/.wiki/` — mirrors the
+        // `~/llmwiki-cli/config.toml` path used by `config_paths()`.
+        let candidate = home.join("llmwiki-cli");
         if candidate.join(".wiki").exists() {
             return Ok(candidate.canonicalize().unwrap_or(candidate));
-        }
-        // Mirror the legacy config path searched in `config.rs::resolve_config`
-        // so a workspace at `~/.config/wiki/` is discoverable symmetrically.
-        let alt = home.join(".config").join("wiki");
-        if alt.join(".wiki").exists() {
-            return Ok(alt.canonicalize().unwrap_or(alt));
         }
     }
     Err(WikiError::WorkspaceNotFound)

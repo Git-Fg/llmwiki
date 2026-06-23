@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.3.6] - 2026-06-23 — Config discovery simplified to `~/llmwiki-cli/config.toml`
+
+**Changed (BREAKING for users with custom config paths):**
+- Config file search simplified to two paths only:
+  1. `$LLMWIKI_CONFIG` env var (primary override, matches binary-name prefix
+     already used in `install.sh` as `LLMWIKI_BIN_DIR`)
+  2. `~/llmwiki-cli/config.toml` (user-global, TOML to match `wiki-root.toml`)
+- **Removed**: legacy `~/.config/wiki/config.yaml` (YAML) — the project is
+  still alpha, no backward compatibility shim.
+- **Removed**: legacy `<workspace>/.wiki/config.yaml` workspace-local fallback.
+- **Removed**: YAML parsing from `load_config` — TOML only.
+- Workspace discovery now also checks `~/llmwiki-cli/.wiki/` as a user-global
+  workspace root (mirrors the new config path).
+
+**Added:**
+- `pub fn config_paths()` in `src/core/config.rs` — single source of truth
+  for the config search order.
+- `pub fn load_config_unvalidated()` — loads config without whitelist
+  validation. Used by `wiki config validate` and by tests.
+- 9 new regression tests in `tests/config_v036_test.rs` covering env var
+  priority, home path fallback, empty env var, YAML rejection, and the
+  removal of legacy paths.
+
+**Tests:** 221/221 pass (212 v0.3.5 + 9 new).
+
+**Migration:** If you previously used `~/.config/wiki/config.yaml`, move its
+contents to `~/llmwiki-cli/config.toml`. If you prefer to keep your existing
+file path, set `LLMWIKI_CONFIG=/path/to/your/config.toml` in your shell rc.
+
+## [0.3.5] - 2026-06-23 — Global audit + off-by-one fix + GitHub community files
+
+**Fixed:**
+- **H1 (HIGH):** Off-by-one in `remove_empty_intermediate` — changed
+  `path[..path.len() - 2]` to `path[..path.len() - 1]` so the loop navigates
+  to the parent of the target leaf (not the grandparent). Previously checked
+  if `[alias].a` was empty and removed `[alias].a.b`; now correctly checks
+  if `[alias].a.b` is empty and removes it.
+
+**Changed:**
+- README.md fully rewritten with CI/crates.io/license badges, Multi-wiki
+  registry section, LSP/MCP commands, updated architecture diagram.
+- CHANGELOG.md updated with missing v0.3.4 entry.
+- install.sh / install.ps1 comment headers: `fg/llmwiki` → `Git-Fg/llmwiki`.
+- marketplace/skills/wiki/SETUP/SKILL.md + install.md: URLs updated,
+  version 0.3.0 → 0.3.4.
+
+**Added:**
+- 1 new regression test: `unset_value_three_levels_cleans_all_empty_intermediates`
+  (3-level dotted key cleanup).
+- GitHub community files: `ISSUE_TEMPLATE/bug_report.md`,
+  `ISSUE_TEMPLATE/feature_request.md`, `PULL_REQUEST_TEMPLATE.md`,
+  `CODEOWNERS`, `dependabot.yml`, `SECURITY.md`.
+
+**Tests:** 212/212 pass (211 v0.3.4 + 1 new).
+
 ## [0.3.4] - 2026-06-23 — Registry write-semantics hardening
 
 **Fixed:**

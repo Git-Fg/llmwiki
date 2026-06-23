@@ -136,42 +136,69 @@ impl Default for Config {
     }
 }
 
+use crate::core::registry::home_dir;
+
+/// Ordered list of config file paths searched at startup.
+///
+/// Highest priority first. Each entry is tried in order; the first existing
+/// file is loaded. Both `resolve_config()` (CLI/LSP/MCP startup) and the
+/// `doctor` command call this so the search order is defined in one place.
+///
+/// Search order:
+/// 1. `$LLMWIKI_CONFIG` env var (primary override, matches binary-name prefix
+///    already used in `install.sh` as `LLMWIKI_BIN_DIR`)
+/// 2. `~/llmwiki-cli/config.toml` (user-global, TOML to match `wiki-root.toml`)
+pub fn config_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    // 1. Hard override via env var — exact file, no merging.
+    if let Ok(p) = std::env::var("LLMWIKI_CONFIG") {
+        if !p.is_empty() {
+            paths.push(PathBuf::from(p));
+        }
+    }
+
+    // 2. User-global default.
+    if let Some(home) = home_dir() {
+        paths.push(home.join("llmwiki-cli").join("config.toml"));
+    }
+
+    paths
+}
+
+/// Load and merge every config file in `paths` (later wins per scalar key).
+/// Parses TOML (matches `wiki-root.toml` format). Returns `Ok(default)` if
+/// no file in `paths` exists. Validates the embedding model is whitelisted
+/// after merging — callers that want to skip validation should call
+/// `load_config_unvalidated` or run `validate` separately.
 pub fn load_config(paths: &[PathBuf]) -> Result<Config, WikiError> {
+    let cfg = load_config_unvalidated(paths)?;
+    validate(&cfg).map_err(|errs| {
+        WikiError::Other(anyhow::anyhow!(
+            "config validation failed:\n  - {}",
+            errs.join("\n  - ")
+        ))
+    })?;
+    Ok(cfg)
+}
+
+/// Like `load_config` but skips the whitelist/model validation step.
+/// Used by `wiki config validate` and by tests that want to inspect a
+/// config regardless of whether it's valid.
+pub fn load_config_unvalidated(paths: &[PathBuf]) -> Result<Config, WikiError> {
     let mut merged: Config = Config::default();
     for path in paths {
         if !path.exists() {
             continue;
         }
         let text = std::fs::read_to_string(path)?;
-        let partial: Config =
-            serde_yaml::from_str(&text).map_err(|e| WikiError::ConfigInvalid {
-                path: path.display().to_string(),
-                line: e.location().map(|l| l.line()).unwrap_or(0),
-                message: e.to_string(),
-            })?;
+        let partial: Config = toml::from_str(&text).map_err(|e| WikiError::ConfigInvalid {
+            path: path.display().to_string(),
+            line: 0,
+            message: e.to_string(),
+        })?;
         merged = merge(merged, partial);
     }
-
-    // Validate that the configured embedding/rerank model is whitelisted
-    let whitelisted = [
-        "nvidia/nv-embed-v1",
-        "nvidia/nv-embedqa-e5-v5",
-        "nvidia/nv-embedcode-7b-v1",
-        "nvidia/llama-nemotron-embed-1b-v2",
-        "nvidia/llama-nemotron-embed-vl-1b-v2",
-        "nvidia/llama-nemotron-rerank-1b-v2",
-        "nvidia/llama-nemotron-rerank-vl-1b-v2",
-        "nvidia/nv-rerankqa-mistral-4b-v3",
-    ];
-    if !merged.nim.embed_model.is_empty() && !whitelisted.contains(&merged.nim.embed_model.as_str())
-    {
-        return Err(WikiError::ConfigInvalid {
-            path: "validation".into(),
-            line: 0,
-            message: format!("Unsupported embedding model: {}", merged.nim.embed_model),
-        });
-    }
-
     Ok(merged)
 }
 
@@ -203,11 +230,7 @@ pub fn resolve_config(workspace: &Path) -> Result<Config, WikiError> {
         }
     }
 
-    // Legacy: load from ~/.config/wiki/config.yaml and .wiki/config.yaml
-    let mut paths = vec![home_dir().map(|h| h.join(".config/wiki/config.yaml"))];
-    paths.push(Some(workspace.join(".wiki/config.yaml")));
-    let paths: Vec<PathBuf> = paths.into_iter().flatten().collect();
-    load_config(&paths)
+    load_config(&config_paths())
 }
 
 /// Field-level validation independent of `load_config`. Used by `wiki config
@@ -264,8 +287,6 @@ pub fn validate_or_error(cfg: &Config) -> Result<(), crate::error::WikiError> {
     validate(cfg)
         .map_err(|errs| crate::error::WikiError::Other(anyhow::anyhow!(errs.join("\n  - "))))
 }
-
-use crate::core::registry::home_dir;
 
 /// Resolve the NIM API key, trying (in order):
 /// 1. The configured env var (e.g. `NVIDIA_NIM_API_KEY`)
