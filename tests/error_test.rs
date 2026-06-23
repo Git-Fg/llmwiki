@@ -33,12 +33,40 @@ fn wiki_root_not_found_lists_searched_paths() {
     assert!(msg.contains("wiki-root.toml"));
     assert!(msg.contains("not found"));
     // When WIKI_ROOT_CONFIG is set, the message should surface it.
+    // The registry now stores a pre-formatted suffix in `from_env`
+    // describing what went wrong (missing / empty / is-a-directory / not-a-file).
     let err_env = WikiError::WikiRootNotFound {
         searched: vec![std::path::PathBuf::from("/nope/wiki-root.toml")],
-        from_env: Some("/nope/wiki-root.toml".to_string()),
+        from_env: Some(" (WIKI_ROOT_CONFIG=/nope/wiki-root.toml did not exist)".to_string()),
     };
     let msg_env = format!("{}", err_env);
     assert!(msg_env.contains("WIKI_ROOT_CONFIG=/nope/wiki-root.toml"));
+    assert!(msg_env.contains("did not exist"));
+}
+
+#[test]
+fn wiki_root_config_empty_string_distinguished_from_missing() {
+    let err = WikiError::WikiRootNotFound {
+        searched: vec![std::path::PathBuf::from("")],
+        from_env: Some(
+            " (WIKI_ROOT_CONFIG is set to an empty string; unset it or point it at a real file)"
+                .to_string(),
+        ),
+    };
+    let msg = format!("{}", err);
+    assert!(msg.contains("empty string"));
+}
+
+#[test]
+fn wiki_root_config_directory_distinguished_from_missing() {
+    let err = WikiError::WikiRootNotFound {
+        searched: vec![std::path::PathBuf::from("/tmp")],
+        from_env: Some(
+            " (WIKI_ROOT_CONFIG=/tmp exists but is a directory, not a file)".to_string(),
+        ),
+    };
+    let msg = format!("{}", err);
+    assert!(msg.contains("is a directory, not a file"));
 }
 
 #[test]

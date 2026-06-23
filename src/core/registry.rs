@@ -35,7 +35,7 @@ impl Registry {
     pub fn load_from(path: &Path) -> Result<Self, WikiError> {
         let content = std::fs::read_to_string(path).map_err(|_| WikiError::WikiRootNotFound {
             searched: vec![path.to_path_buf()],
-            from_env: std::env::var("WIKI_ROOT_CONFIG").ok(),
+            from_env: wiki_root_env_error_suffix(),
         })?;
 
         let raw_doc: toml::Value = content.parse().map_err(|e| WikiError::ConfigInvalid {
@@ -146,7 +146,7 @@ impl Registry {
 
         merged.ok_or_else(|| WikiError::WikiRootNotFound {
             searched,
-            from_env: std::env::var("WIKI_ROOT_CONFIG").ok(),
+            from_env: wiki_root_env_error_suffix(),
         })
     }
 
@@ -154,11 +154,61 @@ impl Registry {
     /// conflict. `[defaults]` deep-merge (higher wins per key).
     /// `root_path` and `raw_doc` come from `higher` (most-specific scope).
     fn merged_with(mut self, higher: Registry) -> Registry {
-        // Aliases: override or append.
+        // Aliases: deep-merge the alias's raw TOML table, then re-derive the
+        // extracted fields (path, tags, description, what_to_read, qmd_slug)
+        // from the merged table so lower-priority sub-keys are preserved.
+        //
+        // Example: if `~/.agents/wiki-root.toml` has
+        //   [shared] path="/A" description="g"
+        //   [shared.nim] embed_model="GLOBAL"
+        // and `<project>/.agents/wiki-root.toml` has
+        //   [shared] path="/B" description="p"
+        // then after merge the alias table is
+        //   path="/B" description="p" nim={embed_model="GLOBAL"}
+        // — i.e. the project-local file overrides only the keys it sets,
+        //   and the lower-priority file's other sub-sections are preserved.
         let mut new_entries: Vec<WikiEntry> = self.entries.drain(..).collect();
         for h in higher.entries {
             if let Some(slot) = new_entries.iter_mut().find(|e| e.alias == h.alias) {
-                *slot = h;
+                slot.raw = merge_alias_tables(
+                    std::mem::replace(&mut slot.raw, toml::Value::Table(toml::value::Table::new())),
+                    h.raw,
+                );
+                // Re-derive extracted fields from the merged table.
+                if let Some(table) = slot.raw.as_table() {
+                    slot.path = table
+                        .get("path")
+                        .and_then(|v| v.as_str())
+                        .map(PathBuf::from)
+                        .unwrap_or_default();
+                    slot.tags = table
+                        .get("tags")
+                        .and_then(|v| v.as_array())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    slot.description = table
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    slot.what_to_read = table
+                        .get("what_to_read")
+                        .and_then(|v| v.as_array())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    slot.qmd_slug = table
+                        .get("qmd_slug")
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
+                }
             } else {
                 new_entries.push(h);
             }
@@ -197,6 +247,13 @@ impl Registry {
             ancestors.reverse();
             paths.extend(ancestors);
         }
+
+        // 4. Dedupe by canonical path so a HOME that's an ancestor of CWD
+        //    doesn't add `~/.agents/wiki-root.toml` twice (once via the
+        //    user-global chain, once via the walk-up). Without dedup the
+        //    file would be loaded twice and `searched:` in WikiRootNotFound
+        //    would be misleading.
+        dedupe_paths(&mut paths);
 
         paths
     }
@@ -641,6 +698,22 @@ fn walk_up_for_project_registries() -> Option<Vec<PathBuf>> {
     }
 }
 
+/// Dedupe a list of paths by canonical form. Falls back to the raw path when
+/// canonicalize fails (e.g. path no longer exists). Preserves the input
+/// order so the priority chain semantics are unchanged.
+fn dedupe_paths(paths: &mut Vec<PathBuf>) {
+    let mut seen: Vec<PathBuf> = Vec::with_capacity(paths.len());
+    paths.retain(|p| {
+        let key = p.canonicalize().unwrap_or_else(|_| p.clone());
+        if seen.contains(&key) {
+            false
+        } else {
+            seen.push(key);
+            true
+        }
+    });
+}
+
 /// Deep-merge two optional `[defaults]` tables. `higher` wins per key on
 /// conflict (matches git, hk, Atmos: more-specific scope wins).
 fn merge_defaults(lower: Option<toml::Value>, higher: Option<toml::Value>) -> Option<toml::Value> {
@@ -662,4 +735,53 @@ fn merge_defaults(lower: Option<toml::Value>, higher: Option<toml::Value>) -> Op
             Some(l)
         }
     }
+}
+
+/// Deep-merge two alias tables. `higher` wins per key on conflict; nested
+/// tables (e.g. `[alias.nim]`) are deep-merged recursively so lower-priority
+/// sub-keys are preserved when the higher file only sets top-level keys.
+/// Metadata keys (`path`, `tags`, `description`, `what_to_read`, `qmd_slug`)
+/// follow scalar-override semantics from `deep_merge_into`.
+fn merge_alias_tables(lower: toml::Value, higher: toml::Value) -> toml::Value {
+    match (lower, higher) {
+        (toml::Value::Table(mut l_table), toml::Value::Table(h_table)) => {
+            for (k, v) in h_table {
+                if let Some(existing) = l_table.get_mut(&k) {
+                    deep_merge_into(existing, v);
+                } else {
+                    l_table.insert(k, v);
+                }
+            }
+            toml::Value::Table(l_table)
+        }
+        (_, h) => h,
+    }
+}
+
+/// Build a human-readable error suffix describing what `$WIKI_ROOT_CONFIG`
+/// was set to when the wiki-root registry could not be loaded. Returns
+/// `None` if the env var was unset or empty after stripping.
+fn wiki_root_env_error_suffix() -> Option<String> {
+    let raw = std::env::var("WIKI_ROOT_CONFIG").ok()?;
+    if raw.is_empty() {
+        return Some(
+            " (WIKI_ROOT_CONFIG is set to an empty string; unset it or point it at a real file)"
+                .to_string(),
+        );
+    }
+    let path = PathBuf::from(&raw);
+    let msg = if path.is_dir() {
+        format!(
+            " (WIKI_ROOT_CONFIG={} exists but is a directory, not a file)",
+            path.display()
+        )
+    } else if !path.exists() {
+        format!(" (WIKI_ROOT_CONFIG={} did not exist)", path.display())
+    } else {
+        format!(
+            " (WIKI_ROOT_CONFIG={} is not a regular file)",
+            path.display()
+        )
+    };
+    Some(msg)
 }

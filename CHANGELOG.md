@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.3.2] - 2026-06-23 — Multi-source registry hardening
+
+**Fixed:**
+- **H1 (HIGH):** `Registry::merged_with` now deep-merges alias tables when a
+  higher-priority file overrides an alias that also appears in a lower-priority
+  file. Previously a project-local override of `[shared].description`
+  silently dropped the lower-priority `[shared.nim]` sub-section (embed
+  model, base URL, etc.). v0.3.2 merges nested TOML tables recursively so
+  only the explicitly-set keys are overridden.
+- **M1:** `candidate_paths()` now deduplicates canonical paths so a home
+  directory that is an ancestor of CWD (e.g. `~/projects/foo/` walked up
+  to `~/wiki-root.toml` already in the user-global chain) doesn't double-include
+  the same file. Merging then short-circuits and the user's home config is
+  applied exactly once.
+- **M2:** `WikiRootNotFound` error now distinguishes `$WIKI_ROOT_CONFIG`
+  states — empty string, directory, missing path, or non-regular file —
+  with a tailored message for each. Previously a misconfigured env var
+  produced a generic "not a regular file" message even when the path was
+  a directory.
+- **M4:** Spec rewritten to describe the actual multi-level merge
+  resolution. The previous v0.3.0-era spec described short-circuit-on-first-find
+  and has been archived to `docs/superpowers/specs/_archive/`.
+
+**Added:**
+- 13 new regression tests in `tests/registry_discovery_v032_test.rs`:
+  H1 repro, dedup verification, all four WIKI_ROOT_CONFIG error branches,
+  `load_all` direct calls, user-global chain precedence, symlinked-CWD
+  walk-up, HOME+USERPROFILE unset fallback, duplicate-alias uniqueness,
+  and a pin of the current `set_value` behavior.
+
+**Deferred to v0.3.3+ (documented as known limitations):**
+- `set_value` currently writes to the highest-priority file, which means
+  setting a key on an alias loaded from a lower file creates a new
+  override section. This is correct for "project local override" but
+  surprising when the user expects a write-through to the lower file.
+- `init` writes to the lowest-priority `~/wiki-root.toml` slot rather
+  than CWD-proximate. The intent is per-user scaffolding; we may want
+  per-project scaffolding instead.
+- `home_dir()` is defined in both `registry.rs` and `workspace.rs`.
+  Consolidate into one shared helper.
+- Walk-up depth is unbounded (defaults to ~64 ancestor hops). Bound it
+  explicitly for safety on very deep filesystems.
+- Save-after-merge writeback semantics: `Registry::save` writes only the
+  highest-priority file. Lower-priority entries are loaded fresh on every
+  `discover()` so they're not lost, but mutations to a merged entry
+  land in the top file.
+
 ## [0.3.0] - 2026-06-23 — BREAKING: rename to llmwiki-cli
 
 **BREAKING CHANGES:**

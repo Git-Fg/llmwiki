@@ -143,4 +143,8 @@ Registry file lookup (used by `--wiki`, `$WIKI_ACTIVE`, and the CWD prefix match
    - `<closest-ancestor>/.agents/wiki-root.toml`
    - ... up to `<farthest-ancestor>/.agents/wiki-root.toml`
 
+Duplicate canonical paths (e.g. home that is also an ancestor of CWD) are deduplicated before merging. On alias conflict, **the alias table is deep-merged recursively** — top-level scalar keys (`path`, `tags`, `description`, etc.) follow scalar-override semantics (higher wins per key), and nested TOML tables like `[alias.nim]` are merged key-by-key so a project-local override of `description` does NOT drop lower-priority `[alias.nim]` sub-sections like `embed_model` or `base_url`. The `[defaults]` table follows the same deep-merge rule.
+
 **Every wiki alias from every source is visible** to all commands (CLI, LSP, MCP). This lets teams register shared knowledge in `~/.agents/wiki-root.toml` while individual projects add their own scoped wikis via project-local `.agents/wiki-root.toml` — no duplication, no precedence guessing. Convention mirrors git (local + global), hk (per-project + per-user), and Atmos (CWD + parent search + git root).
+
+When no registry is found, `WikiRootNotFound` error distinguishes `$WIKI_ROOT_CONFIG` states (empty string / directory / missing / non-regular file) and lists every searched path so users can fix the config without guessing.
