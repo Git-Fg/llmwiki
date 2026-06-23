@@ -8,7 +8,6 @@ homepage = "https://github.com/fg/llmwiki"
 readme = "README.md"
 keywords = ["llmwiki", "karpathy-wiki", "wiki", "knowledge-base", "rag"]
 categories = ["command-line-utilities", "development-tools"]
-# TODO(pre-publish): confirm `fg/llmwiki` (or replace with the real repo URL) before tagging v0.3.0
 edition = "2021"
 rust-version = "1.85"
 

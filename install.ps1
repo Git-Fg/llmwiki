@@ -73,7 +73,7 @@ If you are on Windows PowerShell 5.1, Tls12 is enabled for HTTPS downloads.
 
 # --- Detect OS and architecture ---
 if ($IsWindows) {
-    $TargetOs = "pc-windows-msvc"
+    $TargetOs = "pc-windows-gnu"
 } elseif ($IsLinux) {
     $TargetOs = "unknown-linux-musl"
 } elseif ($IsMacOS) {

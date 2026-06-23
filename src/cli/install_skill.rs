@@ -6,7 +6,6 @@ use crate::skills;
 pub struct InstallSkillArgs {
     pub global: bool,
     pub workspace: Option<PathBuf>,
-    pub target: Option<PathBuf>,
 }
 
 pub fn run(args: InstallSkillArgs) -> Result<(), WikiError> {

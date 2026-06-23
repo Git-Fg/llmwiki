@@ -92,7 +92,7 @@ impl LanguageServer for Backend {
                 )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec!["=".into(), ".".into(), "[".into(), "\"".into()]),
+                    trigger_characters: Some(vec!["=".into(), ".".into(), "[".into()]),
                     ..Default::default()
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
@@ -102,7 +102,10 @@ impl LanguageServer for Backend {
                 name: "llmwiki-cli-lsp".into(),
                 version: Some(env!("CARGO_PKG_VERSION").into()),
             }),
-            offset_encoding: None,
+            // Tell clients to count positions in UTF-8 code units so our
+            // line_col_from_span (which counts codepoints) matches what the
+            // client sends and what we publish.
+            offset_encoding: Some("utf-8".into()),
         })
     }
 
@@ -205,8 +208,12 @@ async fn read_text(uri: &Uri) -> Result<String> {
 }
 
 pub async fn run(_args: LspArgs) -> std::result::Result<(), WikiError> {
+    // `Server::serve` returns `()` in tower-lsp-server 0.23: panics inside
+    // the request loop surface as a process exit, which is the standard LSP
+    // contract. Errors reaching the outer dispatcher (broken stdio pipes,
+    // accept-loop startup failures) come through the panic path.
     let (service, socket) = LspService::new(Backend::new);
-    let _ = Server::new(tokio::io::stdin(), tokio::io::stdout(), socket)
+    Server::new(tokio::io::stdin(), tokio::io::stdout(), socket)
         .serve(service)
         .await;
     Ok(())

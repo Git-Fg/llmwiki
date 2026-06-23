@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "config_version": {
+      "description": "Schema version of this config",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "nim": {
+      "description": "NIM API client configuration",
+      "$ref": "#/$defs/NimConfig"
+    },
+    "wiki": {
+      "description": "Wiki page chunking and lint settings",
+      "$ref": "#/$defs/WikiConfig"
+    }
+  },
+  "required": [
+    "nim",
+    "wiki",
+    "config_version"
+  ],
+  "$defs": {
+    "NimConfig": {
+      "type": "object",
+      "properties": {
+        "api_key_env": {
+          "description": "Env var name holding the NIM API key",
+          "type": "string"
+        },
+        "base_url": {
+          "description": "NIM API base URL (no /v1 suffix)",
+          "type": "string"
+        },
+        "batch_size": {
+          "description": "Embedding request batch size (1+)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "embed_dim_override": {
+          "description": "Override embedding dimension (empty = use model default)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "embed_model": {
+          "description": "Embedding model identifier (must be in the whitelisted NVIDIA NIM set)",
+          "type": "string"
+        },
+        "request_timeout_secs": {
+          "description": "NIM request timeout in seconds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "rerank_model": {
+          "description": "Re-ranking model identifier (empty = disabled)",
+          "type": "string"
+        },
+        "retry": {
+          "description": "Retry policy for failed NIM calls",
+          "$ref": "#/$defs/RetryConfig"
+        }
+      },
+      "required": [
+        "base_url",
+        "embed_model",
+        "rerank_model",
+        "api_key_env",
+        "batch_size",
+        "request_timeout_secs",
+        "retry"
+      ]
+    },
+    "RetryConfig": {
+      "type": "object",
+      "properties": {
+        "backoff_ms": {
+          "description": "Backoff between retries in milliseconds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "max_attempts": {
+          "description": "Maximum attempts per NIM call",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "max_attempts",
+        "backoff_ms"
+      ]
+    },
+    "WikiConfig": {
+      "type": "object",
+      "properties": {
+        "chunk_overlap_tokens": {
+          "description": "Chunk overlap in tokens (must be < default_chunk_tokens)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "default_chunk_tokens": {
+          "description": "Default chunk size in tokens",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "min_chunk_tokens": {
+          "description": "Minimum chunk size in tokens (must be <= default_chunk_tokens)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "require_frontmatter": {
+          "description": "Require YAML frontmatter on every page",
+          "type": "boolean"
+        },
+        "require_wikilinks_min": {
+          "description": "Minimum wikilink count per page (0 = no minimum)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "default_chunk_tokens",
+        "chunk_overlap_tokens",
+        "min_chunk_tokens",
+        "require_frontmatter",
+        "require_wikilinks_min"
+      ]
+    }
+  }
+}

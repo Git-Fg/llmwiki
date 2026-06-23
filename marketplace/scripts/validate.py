@@ -105,8 +105,13 @@ def main() -> int:
     marketplace = Path(__file__).parent.parent
     rc = 0
 
-    # Validate plugin manifests.
-    for plugin_dir in marketplace.glob(".claude-plugin"):
+    # Validate plugin manifests across every .*-plugin dir (.claude-plugin,
+    # .codex-plugin, etc.) so the marketplace works in any host that follows the
+    # same convention.
+    plugin_dirs = [p for p in marketplace.glob(".*-plugin") if p.is_dir()]
+    if not plugin_dirs:
+        print(f"warning: no .*-plugin dir found under {marketplace}", file=sys.stderr)
+    for plugin_dir in plugin_dirs:
         for f in plugin_dir.glob("*.json"):
             rc |= validate_manifest(f)
 

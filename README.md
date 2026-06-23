@@ -71,7 +71,7 @@ git add . && git commit -m "ingest: X" && git push
 - **Wiki content**: Markdown files in `wiki/`, sources in `raw/`, catalog in `index.md`, log in `log.md`. All committed to git.
 - **Embeddings**: `embeddings.jsonl` (gitignored, regenerated per device via `llmwiki-cli embed`).
 - **CLI**: Single Rust binary. No database.
-- **Skill**: stub at `~/.agents/skills/wiki/SKILL.md` (symlinked via `llmwiki-cli install-skill`). Full content served by `llmwiki-cli skill show [topic]`.
+- **Skill**: stub at `~/.agents/skills/wiki/SKILL.md` (copied via `llmwiki-cli install-skill`). Full content served by `llmwiki-cli skill show [topic]`.
 - **Sync**: Git between devices. Embeddings regenerated locally.
 - **No viewer**: The wiki is consumed directly via the CLI; no static site is generated.
 

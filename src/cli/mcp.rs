@@ -149,6 +149,7 @@ impl WikiMcp {
     }
 
     /// Run llmwiki-cli doctor. Returns the JSON report as a JSON-encoded text string.
+    /// Times out after 30 seconds to keep the MCP request handler responsive.
     #[tool(description = "Run llmwiki-cli doctor and return the JSON diagnostic report.")]
     async fn doctor(
         &self,
@@ -159,14 +160,17 @@ impl WikiMcp {
         let exe = std::env::current_exe().map_err(|e| {
             rmcp::ErrorData::internal_error(format!("locate current exe: {e}"), None)
         })?;
-        let mut cmd = std::process::Command::new(exe);
+        let mut cmd = tokio::process::Command::new(exe);
         cmd.arg("doctor").arg("--json");
         if let Some(alias) = p.workspace.as_deref() {
             // `workspace` is documented as a wiki alias, so pass it via `--wiki`.
             cmd.arg("--wiki").arg(alias);
         }
-        let output = cmd
-            .output()
+        let output = tokio::time::timeout(std::time::Duration::from_secs(30), cmd.output())
+            .await
+            .map_err(|_| {
+                rmcp::ErrorData::internal_error("doctor timed out after 30s".to_string(), None)
+            })?
             .map_err(|e| rmcp::ErrorData::internal_error(format!("spawn failed: {e}"), None))?;
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }

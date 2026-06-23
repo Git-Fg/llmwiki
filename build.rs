@@ -90,32 +90,24 @@ fn main() {
         }
     }
 
-    // Inject JSON Schema into SETUP/SKILL.md (between BEGIN SCHEMA / END SCHEMA markers).
-    // Always rewrites the block so the schema stays in sync on every build.
-    let setup_path = manifest_path.join("marketplace/skills/wiki/SETUP/SKILL.md");
-    if let Ok(content) = fs::read_to_string(&setup_path) {
-        let begin_marker = "<!-- BEGIN SCHEMA -->";
-        let end_marker = "<!-- END SCHEMA -->";
-        if let (Some(begin), Some(end)) = (content.find(begin_marker), content.find(end_marker)) {
-            if end > begin {
-                let schema = schemars::schema_for!(Config);
-                let schema_json =
-                    serde_json::to_string_pretty(&schema).expect("schema is always serializable");
-                // Preserve the markdown code-fence wrapper around the JSON
-                let fenced = format!("```json\n{}\n```", schema_json);
-                let mut new_content = String::with_capacity(content.len() + schema_json.len());
-                new_content.push_str(&content[..=begin + begin_marker.len()]);
-                new_content.push('\n');
-                new_content.push_str(&fenced);
-                new_content.push('\n');
-                new_content.push_str(&content[end..]);
-                if let Err(e) = fs::write(&setup_path, new_content) {
-                    println!(
-                        "cargo:warning=failed to inject JSON schema into SETUP/SKILL.md: {}",
-                        e
-                    );
-                }
-            }
+    // Write the JSON Schema for the Config type to SETUP/references/schema.json
+    // so it ships with the skill bundle and can be referenced by agents.
+    let schema_path = manifest_path.join("marketplace/skills/wiki/SETUP/references/schema.json");
+    if let Some(parent) = schema_path.parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            println!(
+                "cargo:warning=failed to create schema dir {:?}: {}",
+                parent, e
+            );
         }
+    }
+    let schema = schemars::schema_for!(Config);
+    let schema_json =
+        serde_json::to_string_pretty(&schema).expect("schema is always serializable");
+    if let Err(e) = fs::write(&schema_path, schema_json) {
+        println!(
+            "cargo:warning=failed to write schema.json {:?}: {}",
+            schema_path, e
+        );
     }
 }

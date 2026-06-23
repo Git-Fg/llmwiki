@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
 # llmwiki-cli installer (POSIX sh).
 # Usage:
-#   curl -LsSf https://github.com/<owner>/llmwiki/releases/latest/download/install.sh | sh
-#   curl -LsSf https://github.com/<owner>/llmwiki/releases/latest/download/install.sh | sh -s -- --bin-dir /usr/local/bin
+#   curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh
+#   curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh -s -- --bin-dir /usr/local/bin
 
-set -eu
+set -euo pipefail
 
-REPO="<owner>/llmwiki"
+REPO="fg/llmwiki"
 BINARY="llmwiki-cli"
 VERSION="latest"
 BIN_DIR="${LLMWIKI_BIN_DIR:-${LLMWIKI_INSTALL_DIR:-$HOME/.local/bin}}"
@@ -48,19 +48,6 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$VERBOSE" = "1" ]; then set -x; fi
-
-# Guard against un-rendered <owner> placeholder. The repo version at
-# https://github.com/fg/llmwiki/blob/main/install.sh keeps this literal
-# so the release workflow can sed-render it before upload. If you are
-# running this directly from a checkout, download the rendered version:
-case "$REPO" in
-  *"<owner>"*)
-    echo "ERROR: this is a repo template with the <owner> placeholder unset." >&2
-    echo "       Download the rendered version instead:" >&2
-    echo "         curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh" >&2
-    exit 1
-    ;;
-esac
 
 # Pick a download tool (curl preferred, wget fallback).
 if command -v curl >/dev/null 2>&1; then

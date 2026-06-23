@@ -101,5 +101,5 @@ Any host that speaks MCP-over-stdio can integrate:
 | `command not found: llmwiki-cli` | Binary not on PATH | Run `install.sh` (see `setup/`) |
 | Host can't list tools | Binary panicked at startup | Run `llmwiki-cli mcp` in a terminal to see the panic |
 | `validate` returns errors for a valid file | Cached old binary | Rebuild with `cargo install --path . --force` |
-| `doctor` tool times out | NIM endpoint unreachable | Check `~/.wiki-root.toml` `[nim].base_url` |
+| `doctor` tool times out | NIM endpoint unreachable | Check `~/.agents/wiki-root.toml` `[nim].base_url` |
 | Tools appear but `completion` is empty | Cursor at column 0 | Move cursor to inside a `[table]` block |

@@ -153,7 +153,7 @@ pub enum Command {
         #[arg(long)]
         global: bool,
         #[arg(long)]
-        target: Option<std::path::PathBuf>,
+        workspace: Option<std::path::PathBuf>,
     },
     /// Print version
     Version,
@@ -330,11 +330,10 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Skill(args)) => crate::cli::skill::run(args),
-        Some(Command::InstallSkill { global, target }) => {
+        Some(Command::InstallSkill { global, workspace }) => {
             crate::cli::install_skill::run(crate::cli::install_skill::InstallSkillArgs {
                 global,
-                workspace: cli.workspace,
-                target,
+                workspace,
             })
         }
         Some(Command::Ingest {
