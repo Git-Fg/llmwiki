@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.12] - 2026-06-23 — `show-effective` filters + doctor source attribution
+
+**Added:**
+- `wiki config show-effective [<prefix>]` — optional positional argument
+  that filters output to keys starting with the given prefix (e.g.
+  `wiki config show-effective nim.` shows only the `[nim]` table).
+  Mirrors the positional-pattern syntax of `git config --list --show-origin -- <pattern>`.
+- `wiki config show-effective --source <path>` — only show keys whose
+  source file matches the given path. Useful for "what did THIS specific
+  file set?" audits. Handles the macOS `/tmp` ↔ `/private/tmp`
+  canonicalization asymmetry.
+- `wiki doctor --json` now includes a `config_sources` field alongside
+  the existing `config` field: `key → file-it-came-from` (or
+  `<default>`). Mirrors `wiki config show-effective` so the most
+  user-visible diagnostic surface reports which file overrode which key.
+
+**Tests:** 250/250 pass (246 v0.3.11 + 4 new tests: 3 for filters,
+1 for doctor source attribution).
+
 ## [0.3.11] - 2026-06-23 — Config-surface audit tests
 
 **Added (test-only):**

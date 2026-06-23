@@ -21,7 +21,12 @@ pub async fn run(cmd: ConfigCmd) -> Result<(), WikiError> {
         ConfigCmd::ConfigEdit { workspace } => cmd_config_edit(workspace).await,
         ConfigCmd::Validate => cmd_validate().await,
         ConfigCmd::ShowSchema => cmd_show_schema().await,
-        ConfigCmd::ShowEffective { workspace, json } => cmd_show_effective(workspace, json).await,
+        ConfigCmd::ShowEffective {
+            workspace,
+            json,
+            key_prefix,
+            source,
+        } => cmd_show_effective(workspace, json, key_prefix, source).await,
     }
 }
 
@@ -303,9 +308,19 @@ async fn cmd_config_edit(workspace_override: Option<PathBuf>) -> Result<(), Wiki
 
 /// Print every effective config key alongside the source file it came from,
 /// mirroring `git config --list --show-origin`. Deep-merges all loaded files
-/// (LLMWIKI_CONFIG → per-workspace → per-computer → defaults) so the LAST
+/// (per-computer → per-workspace → LLMWIKI_CONFIG → defaults) so the LAST
 /// file containing a key is reported as its source — same semantics as git.
-async fn cmd_show_effective(workspace: Option<PathBuf>, json: bool) -> Result<(), WikiError> {
+///
+/// Optional filters:
+///   - `key_prefix`: only show keys starting with this prefix (e.g. `nim.`)
+///   - `source`: only show keys whose source file matches this path
+///     (canonicalized comparison; useful for "what did THIS file set?")
+async fn cmd_show_effective(
+    workspace: Option<PathBuf>,
+    json: bool,
+    key_prefix: Option<String>,
+    source: Option<PathBuf>,
+) -> Result<(), WikiError> {
     use crate::core::config::{config_paths, load_config_unvalidated};
     use crate::core::workspace::discover_workspace;
 
@@ -320,6 +335,12 @@ async fn cmd_show_effective(workspace: Option<PathBuf>, json: bool) -> Result<()
         )?,
     };
     let paths = config_paths(&ws);
+
+    // Canonicalize the source filter (if provided) so path-display differences
+    // (e.g. /tmp vs /private/tmp on macOS) don't defeat the comparison.
+    let source_filter_canon: Option<PathBuf> = source
+        .as_ref()
+        .and_then(|p| p.canonicalize().ok().or_else(|| Some(p.clone())));
 
     // For each path that exists, parse it and record its leaf keys. Then merge
     // by key so the LAST path (highest priority) wins; the surviving key's
@@ -352,8 +373,31 @@ async fn cmd_show_effective(workspace: Option<PathBuf>, json: bool) -> Result<()
     let value_tree = config_to_value(&final_cfg);
     let all_keys: Vec<(String, String)> = collect_dotted(&value_tree, "").into_iter().collect();
 
+    // Apply the optional filters.
+    let filtered: Vec<(String, String)> = all_keys
+        .into_iter()
+        .filter(|(key, _)| match &key_prefix {
+            Some(prefix) => key.starts_with(prefix.as_str()),
+            None => true,
+        })
+        .filter(|(key, _)| match &source_filter_canon {
+            Some(filter) => match origin.get(key) {
+                Some(src) => source_path_matches(src, filter),
+                None => false,
+            },
+            None => true,
+        })
+        .collect();
+
+    let filter_note = match (&key_prefix, &source) {
+        (Some(p), Some(s)) => format!(" (filtered: key={p:?}, source={})", s.display()),
+        (Some(p), None) => format!(" (filtered: key={p:?})"),
+        (None, Some(s)) => format!(" (filtered: source={})", s.display()),
+        (None, None) => String::new(),
+    };
+
     if json {
-        let entries: Vec<_> = all_keys
+        let entries: Vec<_> = filtered
             .iter()
             .map(|(key, val)| {
                 serde_json::json!({
@@ -367,13 +411,17 @@ async fn cmd_show_effective(workspace: Option<PathBuf>, json: bool) -> Result<()
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
                 "workspace": ws.display().to_string(),
+                "filter": filter_note,
                 "entries": entries,
             }))?
         );
     } else {
         println!("Workspace: {}", ws.display());
-        println!("Effective config (git config --show-origin style):");
-        for (key, val) in &all_keys {
+        println!(
+            "Effective config (git config --show-origin style){}:",
+            filter_note
+        );
+        for (key, val) in &filtered {
             let src = origin
                 .get(key)
                 .cloned()
@@ -389,6 +437,19 @@ async fn cmd_show_effective(workspace: Option<PathBuf>, json: bool) -> Result<()
     // order in which keys were first observed (mostly for future use).
     let _ = ordered_keys;
     Ok(())
+}
+
+/// Compare a stored source-path string (as printed by `Path::display()`)
+/// against a user-supplied filter path. Handles the macOS `/tmp` ↔
+/// `/private/tmp` canonicalization asymmetry by comparing canonical paths
+/// when both succeed, and falling back to a string-prefix comparison when
+/// either side can't be canonicalized (e.g. the path no longer exists).
+fn source_path_matches(stored: &str, filter: &std::path::Path) -> bool {
+    let stored_path = std::path::Path::new(stored);
+    if let (Some(a), Ok(b)) = (stored_path.canonicalize().ok(), filter.canonicalize()) {
+        return a == b;
+    }
+    stored.starts_with(filter.to_string_lossy().as_ref())
 }
 
 /// Shorten a path for `wiki config show-effective` output. Replaces HOME

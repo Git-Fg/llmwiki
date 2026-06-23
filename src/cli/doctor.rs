@@ -28,6 +28,10 @@ struct DoctorReport {
     embed_model_available: bool,
     /// Full reflective config dump as `key → value` pairs (dotted keys).
     config: std::collections::BTreeMap<String, String>,
+    /// Per-key source attribution: `key → file-it-came-from` (or `<default>`).
+    /// Mirrors `wiki config show-effective`. Lets users audit which file
+    /// overrode which key without running a separate command.
+    config_sources: std::collections::BTreeMap<String, String>,
 }
 
 pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
@@ -91,6 +95,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                         nim_error: Some(format!("config load failed: {e}")),
                         embed_model_available: false,
                         config: Default::default(),
+                        config_sources: Default::default(),
                     })?
                 );
                 return Ok(());
@@ -111,6 +116,37 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
         crate::cli::config::collect_dotted(&crate::cli::config::config_to_value(&cfg), "")
             .into_iter()
             .collect();
+
+    // Per-key source attribution (mirrors `wiki config show-effective`).
+    // Maps each config key to the file it was loaded from (`<default>` if
+    // no file explicitly set it). Lets users see which file is in effect
+    // for every key without running a separate command.
+    let config_sources: std::collections::BTreeMap<String, String> = {
+        let mut origin: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::new();
+        for p in crate::core::config::config_paths(&ws) {
+            if !p.is_file() {
+                continue;
+            }
+            let text = std::fs::read_to_string(&p).unwrap_or_default();
+            if let Ok(parsed) = text.parse::<toml::Value>() {
+                for (key, _v) in crate::cli::config::collect_dotted(&parsed, "") {
+                    origin.insert(key, p.display().to_string());
+                }
+            }
+        }
+        // Walk in `config_dump` order (sorted, deterministic) so the JSON
+        // output is stable across runs.
+        config_dump
+            .keys()
+            .map(|k| {
+                (
+                    k.clone(),
+                    origin.get(k).cloned().unwrap_or_else(|| "<default>".into()),
+                )
+            })
+            .collect()
+    };
 
     // base_url is the host (e.g. https://integrate.api.nvidia.com);
     // the NIM API lives under /v1/<endpoint>.
@@ -173,6 +209,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                 nim_error,
                 embed_model_available,
                 config: config_dump,
+                config_sources,
             })?
         );
     } else {

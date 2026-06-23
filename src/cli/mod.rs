@@ -283,7 +283,9 @@ pub enum ConfigCmd {
     },
     /// Print every effective config key, its merged value, and the file it
     /// came from. Mirrors `git config --list --show-origin` so users can see
-    /// which file overrides which key.
+    /// which file overrides which key. Use `[<prefix>]` to filter to keys
+    /// starting with that prefix, or `--source <path>` to filter to keys
+    /// set in a specific config file.
     ShowEffective {
         /// Override the workspace used as the walk-up start. `from_global`
         /// receives the value of the top-level `--workspace` flag so
@@ -293,6 +295,14 @@ pub enum ConfigCmd {
         /// JSON output
         #[arg(long)]
         json: bool,
+        /// Only show keys starting with this prefix (e.g. `nim.`, `wiki.`).
+        /// Mirrors the positional pattern syntax of `git config --list -- <pattern>`.
+        #[arg(value_name = "PREFIX")]
+        key_prefix: Option<String>,
+        /// Only show keys whose source file matches this path. Useful for
+        /// "what did this specific file set?" audits.
+        #[arg(long, value_name = "PATH")]
+        source: Option<std::path::PathBuf>,
     },
 }
 

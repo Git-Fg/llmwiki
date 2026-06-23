@@ -1018,3 +1018,141 @@ fn registry_only_config_subcommands_ignore_workspace_flag() {
         );
     }
 }
+
+// ─── `wiki config show-effective` filters (v0.3.12) ───
+//
+// Two filters narrow the output:
+//   - `[<prefix>]` positional: only keys starting with the prefix
+//   - `--source <path>`: only keys whose source file matches the path
+//
+// Mirrors `git config --list --show-origin -- <pattern>` and
+// `git config --file <path> --list`.
+
+#[test]
+fn show_effective_key_prefix_filter_narrows_output() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nembed_model = \"nvidia/nv-embedcode-7b-v1\"\n",
+    )
+    .unwrap();
+
+    let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+        .args(["config", "show-effective", "nim."])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Should include nim.* keys
+    assert!(
+        stdout.contains("nim.embed_model"),
+        "missing nim.embed_model: {stdout}"
+    );
+    // Should NOT include wiki.* or other top-level keys
+    assert!(
+        !stdout.contains("wiki.default_chunk_tokens"),
+        "filter should exclude non-nim keys, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("filtered: key=\"nim.\""),
+        "missing filter note: {stdout}"
+    );
+}
+
+#[test]
+fn show_effective_source_filter_returns_only_keys_from_that_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(home.join(".llmwiki-cli")).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    // Per-workspace sets BOTH nim.embed_model and wiki.require_frontmatter
+    let per_ws_path = workspace.join(".llmwiki-cli").join("config.toml");
+    std::fs::write(
+        &per_ws_path,
+        "[nim]\nembed_model = \"nvidia/nv-embedcode-7b-v1\"\n[wiki]\nrequire_frontmatter = false\n",
+    )
+    .unwrap();
+    // Per-computer sets nim.base_url (overridden by per-workspace? no, different key)
+    std::fs::write(
+        home.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nbase_url = \"https://integrate.api.nvidia.com\"\n",
+    )
+    .unwrap();
+
+    // Filter to per-workspace only
+    let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+        .args([
+            "config",
+            "show-effective",
+            "--source",
+            per_ws_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // nim.embed_model is set by per-workspace → should appear
+    assert!(
+        stdout.contains("nim.embed_model"),
+        "expected nim.embed_model: {stdout}"
+    );
+    // wiki.require_frontmatter is set by per-workspace → should appear
+    assert!(
+        stdout.contains("wiki.require_frontmatter"),
+        "expected wiki.require_frontmatter: {stdout}"
+    );
+    // nim.base_url is set by per-computer → should NOT appear (filtered out)
+    assert!(
+        !stdout.contains("nim.base_url"),
+        "filter should exclude per-computer keys, got: {stdout}"
+    );
+}
+
+#[test]
+fn show_effective_key_and_source_combine() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(home.join(".llmwiki-cli")).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    let per_ws_path = workspace.join(".llmwiki-cli").join("config.toml");
+    std::fs::write(
+        &per_ws_path,
+        "[nim]\nembed_model = \"x\"\n[wiki]\nrequire_frontmatter = false\n",
+    )
+    .unwrap();
+    std::fs::write(
+        home.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nbase_url = \"y\"\n",
+    )
+    .unwrap();
+
+    let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+        .args([
+            "config",
+            "show-effective",
+            "nim.",
+            "--source",
+            per_ws_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("nim.embed_model"));
+    // wiki.* excluded by key filter
+    assert!(!stdout.contains("wiki.require_frontmatter"));
+    // nim.base_url excluded by source filter
+    assert!(!stdout.contains("nim.base_url"));
+}
