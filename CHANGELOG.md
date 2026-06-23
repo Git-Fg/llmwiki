@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.10] - 2026-06-23 — Config discoverability follow-ups
+
+**Changed:**
+- `ConfigCmd::Paths`, `ConfigEdit`, and `ShowEffective` now use clap's
+  explicit `#[arg(from_global)]` attribute on their `--workspace` field
+  instead of relying on clap's auto-propagation of global flags. The
+  behavior is identical, but the intent is now explicit and survives
+  future clap changes (see [clap issue #5525](https://github.com/clap-rs/clap/issues/5525)).
+- `walk_up_for_llmwiki_cli_config()` no longer returns `None` when the
+  workspace path doesn't exist on disk (e.g., `wiki --workspace
+  /not/yet/init config paths`). It still returns the per-workspace
+  candidate so `wiki config paths` can show users where to put their
+  config when scripting against not-yet-initialized wikis.
+
+**Documentation:**
+- `wiki config --help` now describes the four-tier config resolution
+  priority (`$LLMWIKI_CONFIG` → per-workspace → per-computer → defaults).
+- `README.md` gained a "Per-workspace & per-computer config" section
+  with the priority order and pointers to `paths` / `show-effective` /
+  `config-edit`.
+
+**Tests:** 244/244 pass (242 v0.3.9 + 2 new `global_workspace_flag_*`
+regression tests).
+
 ## [0.3.9] - 2026-06-23 — Config editor + effective-config view
 
 **Added:**

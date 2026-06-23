@@ -181,16 +181,21 @@ pub fn config_paths(workspace: &Path) -> Vec<PathBuf> {
 /// Skips the user's HOME directory so `~/.llmwiki-cli/` is treated as the
 /// per-computer config location, not as a workspace marker.
 ///
-/// Always returns `Some` for a valid workspace: either the closest
-/// `.llmwiki-cli/config.toml` found in an ancestor (which may or may not
-/// exist on disk — `load_config` skips missing files) or `<workspace>/.llmwiki-cli/config.toml`
-/// as the default location if no ancestor carries one. Returning `Some`
+/// Always returns `Some`: either the closest `.llmwiki-cli/config.toml`
+/// found in an ancestor (which may or may not exist on disk — `load_config`
+/// skips missing files), or `<workspace>/.llmwiki-cli/config.toml` as the
+/// default location if no ancestor carries one. Returning `Some`
 /// unconditionally lets `wiki config paths` print the candidate location so
-/// users see where to put a per-workspace config.
+/// users see where to put a per-workspace config, even when the workspace
+/// directory doesn't exist yet (e.g., scripted setup).
 fn walk_up_for_llmwiki_cli_config(start: &Path) -> Option<PathBuf> {
-    let canonical = start.canonicalize().ok()?;
+    let canonical = start.canonicalize().ok();
     let home_canon = home_dir().and_then(|h| h.canonicalize().ok());
-    let mut current: Option<PathBuf> = Some(canonical.clone());
+    // When canonicalize fails (path doesn't exist), walk the literal path
+    // components instead of bailing. This keeps the candidate discoverable
+    // for not-yet-created workspaces.
+    let mut current: Option<PathBuf> =
+        Some(canonical.clone().unwrap_or_else(|| start.to_path_buf()));
     while let Some(dir) = current {
         // Skip HOME — `~/.llmwiki-cli/` is the per-computer config and must
         // not be promoted to a workspace marker.
@@ -212,7 +217,13 @@ fn walk_up_for_llmwiki_cli_config(start: &Path) -> Option<PathBuf> {
         if dir.join(".llmwiki-cli").is_dir() {
             return Some(candidate);
         }
-        current = dir.parent().map(PathBuf::from);
+        // Don't walk above the filesystem root. Also stop when we've
+        // exhausted the canonical path; if we never canonicalized, fall
+        // through to the default candidate below.
+        current = match canonical {
+            Some(_) => dir.parent().map(PathBuf::from),
+            None => None,
+        };
     }
     // No ancestor with `.llmwiki-cli/` and no `.llmwiki-cli/config.toml`:
     // default to `<workspace>/.llmwiki-cli/config.toml` so the user has a

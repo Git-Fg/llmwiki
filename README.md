@@ -89,6 +89,17 @@ llmwiki-cli config set nim.embed_model nvidia/nv-embedqa-e5-v5 --wiki work
 llmwiki-cli --wiki work search "X"      # target a specific wiki by alias
 ```
 
+## Per-workspace & per-computer config (v0.3.7+)
+
+Beyond the multi-wiki registry, NIM and wiki settings can be split between a **per-computer** default and a **per-workspace** override. Resolution priority (highest wins):
+
+1. `$LLMWIKI_CONFIG` env var — points at a single config file (highest priority, hard override).
+2. `<workspace>/.llmwiki-cli/config.toml` — per-workspace override, found by walking up from the resolved workspace looking for the closest `.llmwiki-cli/` ancestor.
+3. `~/.llmwiki-cli/config.toml` — per-computer fallback (hidden dotfile directory).
+4. Built-in defaults.
+
+Use `wiki config paths` to see the resolved search order for the current workspace, `wiki config show-effective` to see which file overrode which key (mirrors `git config --list --show-origin`), and `wiki config config-edit` to open the highest-priority existing config file (or the per-workspace candidate if none exists) in `$EDITOR`.
+
 ## Architecture
 
 - **Wiki content**: Markdown files in `wiki/`, sources in `raw/`, catalog in `index.md`, log in `log.md`. All committed to git.

@@ -157,7 +157,17 @@ pub enum Command {
     },
     /// Print version
     Version,
-    /// Manage wiki-root.toml configuration
+    /// Manage wiki-root.toml and per-workspace configuration
+    ///
+    /// Config resolution priority (highest wins):
+    ///   1. `$LLMWIKI_CONFIG` env var (points at a single config file)
+    ///   2. `<workspace>/.llmwiki-cli/config.toml` (per-workspace, walks up)
+    ///   3. `~/.llmwiki-cli/config.toml` (per-computer fallback)
+    ///   4. built-in defaults
+    ///
+    /// Use `wiki config paths` to see the resolved search order for the
+    /// current workspace, and `wiki config show-effective` to see which file
+    /// overrode which key.
     Config {
         #[command(subcommand)]
         cmd: ConfigCmd,
@@ -250,8 +260,11 @@ pub enum ConfigCmd {
     /// Pass --workspace <path> to override the walk-up start; otherwise the
     /// resolved workspace is used (registry → env → walk-up → single-wiki).
     Paths {
-        /// Override the workspace used as the walk-up start
-        #[arg(long)]
+        /// Override the workspace used as the walk-up start. `from_global`
+        /// receives the value of the top-level `--workspace` flag (declared
+        /// `global = true` on `Cli`) so `wiki --workspace <ws> config paths`
+        /// works without a subcommand-level flag.
+        #[arg(from_global)]
         workspace: Option<std::path::PathBuf>,
         /// JSON output
         #[arg(long)]
@@ -261,19 +274,21 @@ pub enum ConfigCmd {
     /// first, then per-computer, then $LLMWIKI_CONFIG). If no file exists yet,
     /// opens the per-workspace candidate so you can create one.
     ConfigEdit {
-        /// Override the workspace used as the walk-up start. Inherited from
-        /// the global `--workspace` flag, which clap auto-propagates here so
-        /// `wiki --workspace <ws> config config-edit` works without a
-        /// subcommand-level flag.
-        #[arg(long)]
+        /// Override the workspace used as the walk-up start. `from_global`
+        /// receives the value of the top-level `--workspace` flag (declared
+        /// `global = true` on `Cli`) so `wiki --workspace <ws> config
+        /// config-edit` works without a subcommand-level flag.
+        #[arg(from_global)]
         workspace: Option<std::path::PathBuf>,
     },
     /// Print every effective config key, its merged value, and the file it
     /// came from. Mirrors `git config --list --show-origin` so users can see
     /// which file overrides which key.
     ShowEffective {
-        /// Override the workspace used as the walk-up start
-        #[arg(long)]
+        /// Override the workspace used as the walk-up start. `from_global`
+        /// receives the value of the top-level `--workspace` flag so
+        /// `wiki --workspace <ws> config show-effective` works.
+        #[arg(from_global)]
         workspace: Option<std::path::PathBuf>,
         /// JSON output
         #[arg(long)]

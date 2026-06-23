@@ -805,3 +805,108 @@ fn config_edit_falls_back_to_per_workspace_candidate_when_none_exist() {
         "stub editor should have been invoked with the per-workspace candidate, got: {invoked:?}"
     );
 }
+
+// ─── Global --workspace propagation (regression for v0.3.9) ───
+//
+// These tests guard against future refactors that silently drop the global
+// `--workspace` flag on a config subcommand. The bug fixed in v0.3.9 was that
+// `ConfigCmd::ConfigEdit` was a unit variant with no subcommand `--workspace`
+// field; clap's global-flag auto-fill couldn't reach the command, so
+// `cmd_config_edit` re-discovered from CWD and failed with "workspace not
+// found". The fix added a `--workspace` field on `ConfigEdit` so clap's
+// auto-fill applies.
+
+/// Every workspace-aware config subcommand must accept the global
+/// `--workspace <path>` flag and successfully resolve the workspace from it.
+/// This test runs a no-op-ish invocation against each subcommand and asserts
+/// the output references the workspace path (not CWD).
+#[test]
+fn global_workspace_flag_propagates_to_every_config_subcommand() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nembed_model = \"nvidia/nv-embedcode-7b-v1\"\n",
+    )
+    .unwrap();
+
+    // Each entry: (subcommand + args, must reference this substring)
+    let cases: &[(&[&str], &str)] = &[
+        (&["config", "paths"], "ws"),
+        (&["config", "show-effective"], "ws"),
+        // `config-edit` needs an editor stub so it doesn't open vim.
+        // The editor stub always exits 0; we only check exit status here.
+        // (See config_edit_picks_per_workspace_when_present for full
+        //  invocation-path verification.)
+    ];
+
+    for (args, must_contain) in cases {
+        let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+            .args(*args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "subcommand {args:?} failed with global --workspace: stderr={}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains(must_contain),
+            "subcommand {args:?} output should reference workspace {must_contain:?}, got: {stdout}"
+        );
+    }
+}
+
+/// `wiki config config-edit` specifically: with a stub editor and the global
+/// `--workspace` flag set, the editor must be invoked with the per-workspace
+/// config file path. This is the exact regression test for the v0.3.9 bug.
+#[test]
+fn global_workspace_flag_propagates_to_config_edit() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nembed_model = \"nvidia/nv-embedcode-7b-v1\"\n",
+    )
+    .unwrap();
+
+    let stub = tmp.path().join("stub_editor.sh");
+    let log = tmp.path().join("editor_invocation.log");
+    std::fs::write(
+        &stub,
+        format!("#!/bin/sh\necho \"$1\" > {}\n", log.display()),
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+        .env("EDITOR", &stub)
+        .args(["config", "config-edit"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "config-edit with global --workspace failed: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let invoked = std::fs::read_to_string(&log).unwrap_or_default();
+    assert!(
+        invoked.contains("ws/.llmwiki-cli/config.toml"),
+        "editor should have received the per-workspace config (proving the global --workspace flag propagated); got: {invoked:?}"
+    );
+}
