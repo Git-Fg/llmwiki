@@ -91,3 +91,16 @@ where
     }
     result
 }
+
+/// Create a fresh tempdir that is used as both `$HOME` and CWD. Returns
+/// the `tempdir` so the caller can keep the directory alive for the
+/// duration of the test (dropping it removes the directory). Does NOT
+/// modify any process state on its own — pair with `with_lock` and
+/// `with_home_and_cwd` to actually set the env vars.
+pub fn isolated_tempdir() -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().expect("create isolated tempdir");
+    // The walk-up home skip in `walk_up_for_llmwiki_cli_dir` requires the
+    // canonical path to differ from the test runner's HOME. Using a temp
+    // path under `/tmp` (Linux CI) or `$TMPDIR` (macOS dev) satisfies this.
+    tmp
+}
