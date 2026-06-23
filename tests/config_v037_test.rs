@@ -66,7 +66,10 @@ fn config_paths_includes_per_workspace_when_present() {
                         "expected per-computer config in path list, got: {:?}",
                         paths
                     );
-                    // Per-workspace appears BEFORE per-computer in priority order.
+                    // Order convention is "lowest priority first, highest
+                    // priority last" so `load_config`'s "last-wins" merge
+                    // gives the intuitively-correct result: per-workspace
+                    // (higher priority) comes AFTER per-computer.
                     let ws_idx = paths
                         .iter()
                         .position(|p| {
@@ -82,8 +85,8 @@ fn config_paths_includes_per_workspace_when_present() {
                         })
                         .unwrap();
                     assert!(
-                        ws_idx < home_idx,
-                        "per-workspace must come before per-computer"
+                        ws_idx > home_idx,
+                        "per-workspace (higher priority) must come AFTER per-computer (lowest priority first)"
                     );
                 });
             });

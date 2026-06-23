@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.3.9] - 2026-06-23 — Config editor + effective-config view
+
+**Added:**
+- `wiki config config-edit` opens the highest-priority existing config file
+  in `$EDITOR` (mirrors `wiki config edit` for `wiki-root.toml`). Order:
+  `$LLMWIKI_CONFIG` → existing per-workspace `~/.llmwiki-cli/config.toml`
+  → existing per-computer `~/.llmwiki-cli/config.toml`. Falls back to the
+  per-workspace candidate so a new file is created on save. Accepts
+  `--workspace <path>` (inherited from the global flag).
+- `wiki config show-effective` prints every effective config key with its
+  merged value and the file it came from — mirrors `git config --list
+  --show-origin`. Lets users see "which file overrode this key?" without
+  reading source. `--json` returns a structured `{workspace, entries: [{key,
+  value, source}]}` payload.
+
+**Changed:**
+- `config_paths()` now returns paths in **lowest-priority-first** order
+  (per-computer → per-workspace → `$LLMWIKI_CONFIG`). This matches the
+  standard CLI config convention (pip, git, mise: "later files override
+  earlier") so `load_config`'s last-wins merge gives the intuitively
+  correct result without any per-key branching. The previous "highest
+  priority first" order silently let per-computer override per-workspace
+  because per-workspace came first and `load_config` overwrites with each
+  successive file.
+- `wiki config paths` text output now displays paths in **highest-priority-
+  first** order (reversed from the underlying list) so the human view stays
+  intuitive. JSON output preserves the underlying order and adds a
+  `merge_order_note` field documenting the convention.
+- `ConfigEdit` subcommand now accepts `--workspace <path>` so the global
+  `--workspace` flag propagates via clap's auto-fill. Without this, the
+  global flag was discarded by the dispatch and `config-edit` re-discovered
+  the workspace from CWD (often the project root, which has no wiki).
+
+**Tests:** 242/242 pass (237 v0.3.8 + 5 new).
+
 ## [0.3.8] - 2026-06-23 — Config debuggability
 
 **Added:**

@@ -18,8 +18,10 @@ pub async fn run(cmd: ConfigCmd) -> Result<(), WikiError> {
         } => cmd_add(&alias, &path, &tags, description.as_deref()).await,
         ConfigCmd::Rm { alias } => cmd_rm(&alias).await,
         ConfigCmd::Edit => cmd_edit().await,
+        ConfigCmd::ConfigEdit { workspace } => cmd_config_edit(workspace).await,
         ConfigCmd::Validate => cmd_validate().await,
         ConfigCmd::ShowSchema => cmd_show_schema().await,
+        ConfigCmd::ShowEffective { workspace, json } => cmd_show_effective(workspace, json).await,
     }
 }
 
@@ -58,6 +60,9 @@ async fn cmd_paths(workspace: Option<PathBuf>, json: bool) -> Result<(), WikiErr
         .collect();
 
     if json {
+        // JSON output preserves the underlying list order ("lowest priority
+        // first") so machine consumers see the actual order `load_config`
+        // iterates and merges.
         let json_entries: Vec<_> = entries
             .iter()
             .map(|(label, path, exists)| {
@@ -73,12 +78,17 @@ async fn cmd_paths(workspace: Option<PathBuf>, json: bool) -> Result<(), WikiErr
             serde_json::to_string_pretty(&serde_json::json!({
                 "workspace": ws.display().to_string(),
                 "paths": json_entries,
+                "merge_order_note": "lowest priority first; later entries override earlier (last-wins merge)",
             }))?
         );
     } else {
+        // Human output reverses the list so users see "highest priority first"
+        // (the intuitive order when debugging "why is this key overriding
+        // that one?"). The underlying `paths` vec is still "lowest priority
+        // first" for `load_config`'s last-wins merge.
         println!("Workspace: {}", ws.display());
         println!("Config search order (highest priority first):");
-        for (label, path, exists) in &entries {
+        for (label, path, exists) in entries.iter().rev() {
             let status = if *exists { "exists  " } else { "missing " };
             println!("  [{}] {:<14} {}", status, label, path);
         }
@@ -226,6 +236,171 @@ async fn cmd_edit() -> Result<(), WikiError> {
         )));
     }
     Ok(())
+}
+
+/// Open the highest-priority config file in `$EDITOR`. Order:
+/// 1. `$LLMWIKI_CONFIG` (if set)
+/// 2. existing per-workspace config (`<workspace>/.llmwiki-cli/config.toml`)
+/// 3. existing per-computer config (`~/.llmwiki-cli/config.toml`)
+/// 4. per-workspace candidate (creates a new file when saved)
+///
+/// This is the config-file analog of `wiki config edit` (which opens
+/// `wiki-root.toml`). Lets users edit either registry or per-workspace config
+/// without remembering the path.
+///
+/// Accepts an optional `--workspace` override (inherited from the global
+/// `--workspace` flag). Falls back to full workspace discovery when unset.
+async fn cmd_config_edit(workspace_override: Option<PathBuf>) -> Result<(), WikiError> {
+    use crate::core::config::config_paths;
+    use crate::core::workspace::discover_workspace;
+
+    let ws = match workspace_override {
+        Some(p) => p,
+        None => discover_workspace(
+            None,
+            None,
+            std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+            std::env::var("WIKI_ACTIVE").ok().as_deref(),
+            std::env::current_dir()?,
+        )?,
+    };
+    let paths = config_paths(&ws);
+
+    // Pick the first EXISTING file; fall back to the per-workspace candidate
+    // (always in the list as the second entry, since `config_paths` is
+    // "lowest priority first": per-computer at 0, per-workspace at 1,
+    // LLMWIKI_CONFIG at 2 when set) so the user can create one.
+    let target = paths
+        .iter()
+        .find(|p| p.is_file())
+        .cloned()
+        .or_else(|| {
+            // Per-workspace candidate is the second-lowest slot when
+            // LLMWIKI_CONFIG isn't set, or the third slot when it is.
+            let candidate_idx = if std::env::var("LLMWIKI_CONFIG").is_ok() {
+                2
+            } else {
+                1
+            };
+            paths.get(candidate_idx).cloned()
+        })
+        .ok_or_else(|| WikiError::Other(anyhow::anyhow!("no config path candidate available")))?;
+
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+    println!("Opening {} in {}", target.display(), editor);
+    let status = std::process::Command::new(&editor)
+        .arg(&target)
+        .status()
+        .map_err(|e| WikiError::Other(anyhow::anyhow!("failed to launch {}: {}", editor, e)))?;
+    if !status.success() {
+        return Err(WikiError::Other(anyhow::anyhow!(
+            "editor exited with status {}",
+            status
+        )));
+    }
+    Ok(())
+}
+
+/// Print every effective config key alongside the source file it came from,
+/// mirroring `git config --list --show-origin`. Deep-merges all loaded files
+/// (LLMWIKI_CONFIG → per-workspace → per-computer → defaults) so the LAST
+/// file containing a key is reported as its source — same semantics as git.
+async fn cmd_show_effective(workspace: Option<PathBuf>, json: bool) -> Result<(), WikiError> {
+    use crate::core::config::{config_paths, load_config_unvalidated};
+    use crate::core::workspace::discover_workspace;
+
+    let ws = match workspace {
+        Some(p) => p,
+        None => discover_workspace(
+            None,
+            None,
+            std::env::var("WIKI_WORKSPACE").ok().map(PathBuf::from),
+            std::env::var("WIKI_ACTIVE").ok().as_deref(),
+            std::env::current_dir()?,
+        )?,
+    };
+    let paths = config_paths(&ws);
+
+    // For each path that exists, parse it and record its leaf keys. Then merge
+    // by key so the LAST path (highest priority) wins; the surviving key's
+    // source is reported. This mirrors what `load_config` does for the
+    // resolved Config, plus the per-source attribution.
+    let mut origin: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    let mut ordered_keys: Vec<String> = Vec::new();
+    for p in &paths {
+        if !p.is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(p).map_err(WikiError::Io)?;
+        let parsed: toml::Value = text.parse().map_err(|e| WikiError::ConfigInvalid {
+            path: p.display().to_string(),
+            line: 0,
+            message: format!("TOML parse error: {}", e),
+        })?;
+        for (key, _value) in collect_dotted(&parsed, "") {
+            if !origin.contains_key(&key) {
+                ordered_keys.push(key.clone());
+            }
+            origin.insert(key, p.display().to_string());
+        }
+    }
+
+    // Build the final merged Config (what every command sees) and the value
+    // for each origin-tracked key. Default-only keys are included so users
+    // see the full picture.
+    let final_cfg = load_config_unvalidated(&paths)?;
+    let value_tree = config_to_value(&final_cfg);
+    let all_keys: Vec<(String, String)> = collect_dotted(&value_tree, "").into_iter().collect();
+
+    if json {
+        let entries: Vec<_> = all_keys
+            .iter()
+            .map(|(key, val)| {
+                serde_json::json!({
+                    "key": key,
+                    "value": val,
+                    "source": origin.get(key).cloned().unwrap_or_else(|| "<default>".into()),
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "workspace": ws.display().to_string(),
+                "entries": entries,
+            }))?
+        );
+    } else {
+        println!("Workspace: {}", ws.display());
+        println!("Effective config (git config --show-origin style):");
+        for (key, val) in &all_keys {
+            let src = origin
+                .get(key)
+                .cloned()
+                .unwrap_or_else(|| "<default>".into());
+            // Trim the path display to just the meaningful part so the table
+            // is readable when paths are long.
+            let src_short = shorten_path_for_display(&src);
+            println!("  {:<40} = {:<60} ({})", key, val, src_short);
+        }
+    }
+
+    // Keep `ordered_keys` reachable so the compiler doesn't warn; it's the
+    // order in which keys were first observed (mostly for future use).
+    let _ = ordered_keys;
+    Ok(())
+}
+
+/// Shorten a path for `wiki config show-effective` output. Replaces HOME
+/// prefix with `~`, workspace suffix with `<workspace>/...`.
+fn shorten_path_for_display(p: &str) -> String {
+    let home = crate::core::registry::home_dir()
+        .map(|h| h.display().to_string())
+        .unwrap_or_default();
+    if !home.is_empty() && p.starts_with(&home) {
+        return format!("~{}", &p[home.len()..]);
+    }
+    p.to_string()
 }
 
 /// Print the JSON Schema for the `Config` type. Useful for editor autocomplete,

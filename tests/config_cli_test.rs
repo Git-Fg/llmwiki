@@ -588,3 +588,220 @@ fn subprocess_config_show_schema_outputs_valid_json() {
     assert!(v["properties"]["nim"].is_object());
     assert!(v["$defs"]["NimConfig"].is_object());
 }
+
+// ─── `wiki config show-effective` (git config --show-origin style) ───
+
+fn isolated_cmd_with_workspace_and_config(
+    reg_path: &std::path::Path,
+    home: &std::path::Path,
+    workspace: &std::path::Path,
+    extra_config: Option<(&std::path::Path, &str)>,
+) -> Command {
+    let mut cmd = isolated_cmd(reg_path);
+    cmd.env("HOME", home);
+    cmd.env_remove("LLMWIKI_CONFIG");
+    cmd.arg("--workspace").arg(workspace);
+    if let Some((dir, content)) = extra_config {
+        std::fs::create_dir_all(dir.join(".llmwiki-cli")).unwrap();
+        std::fs::write(dir.join(".llmwiki-cli").join("config.toml"), content).unwrap();
+    }
+    cmd
+}
+
+#[test]
+fn show_effective_json_lists_every_key_with_source() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nembed_model = \"nvidia/nv-embedqa-e5-v5\"\n",
+    )
+    .unwrap();
+
+    let mut cmd = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None);
+    let output = cmd
+        .args(["config", "show-effective", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "show-effective --json failed: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(v.get("workspace").is_some());
+    let entries = v["entries"].as_array().unwrap();
+    assert!(!entries.is_empty());
+    // Every entry has key/value/source.
+    for e in entries {
+        assert!(e.get("key").is_some(), "missing key: {e}");
+        assert!(e.get("value").is_some(), "missing value: {e}");
+        assert!(e.get("source").is_some(), "missing source: {e}");
+    }
+    // Find the nim.embed_model key — its source must be the per-workspace file.
+    let embed = entries
+        .iter()
+        .find(|e| e["key"] == "nim.embed_model")
+        .expect("nim.embed_model entry");
+    let src = embed["source"].as_str().unwrap();
+    assert!(
+        src.contains(".llmwiki-cli/config.toml"),
+        "expected source to mention per-workspace .llmwiki-cli/config.toml, got: {src}"
+    );
+    assert!(
+        !src.contains("home"),
+        "source should be per-workspace, not per-computer (HOME), got: {src}"
+    );
+    assert_eq!(embed["value"], "nvidia/nv-embedqa-e5-v5");
+}
+
+#[test]
+fn show_effective_text_includes_source_column() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(&workspace).unwrap();
+
+    let mut cmd = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None);
+    let output = cmd.args(["config", "show-effective"]).output().unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Effective config"),
+        "missing header: {stdout}"
+    );
+    assert!(
+        stdout.contains("nim.embed_model"),
+        "missing nim.embed_model line: {stdout}"
+    );
+    assert!(
+        stdout.contains("<default>"),
+        "expected <default> for keys not in any file: {stdout}"
+    );
+}
+
+#[test]
+fn show_effective_per_workspace_overrides_per_computer() {
+    // Per-workspace wins; its source should be the per-workspace file.
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(home.join(".llmwiki-cli")).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        home.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nembed_model = \"nvidia/nv-embedqa-e5-v5\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nembed_model = \"nvidia/nv-embedcode-7b-v1\"\n",
+    )
+    .unwrap();
+
+    let mut cmd = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None);
+    let output = cmd
+        .args(["config", "show-effective", "--json"])
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let embed = v["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["key"] == "nim.embed_model")
+        .unwrap();
+    assert_eq!(embed["value"], "nvidia/nv-embedcode-7b-v1");
+    let src = embed["source"].as_str().unwrap();
+    assert!(src.contains("ws/.llmwiki-cli/config.toml"));
+}
+
+// ─── `wiki config config-edit` ───
+
+#[test]
+fn config_edit_picks_per_workspace_when_present() {
+    // Use a stub `EDITOR` that just records the path it was given and exits 0.
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    let per_ws = workspace.join(".llmwiki-cli").join("config.toml");
+    std::fs::write(&per_ws, "[nim]\n").unwrap();
+
+    // Stub editor: writes the path it received to a file and exits 0.
+    let stub = tmp.path().join("stub_editor.sh");
+    let log = tmp.path().join("editor_invocation.log");
+    std::fs::write(
+        &stub,
+        format!("#!/bin/sh\necho \"$1\" > {}\n", log.display()),
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    let mut cmd = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None);
+    cmd.env("EDITOR", &stub);
+    let output = cmd.args(["config", "config-edit"]).output().unwrap();
+    assert!(output.status.success(), "config-edit failed: {output:?}");
+    let invoked = std::fs::read_to_string(&log).unwrap_or_default();
+    assert!(
+        invoked.contains(".llmwiki-cli/config.toml"),
+        "stub editor should have been invoked with the per-workspace config, got: {invoked:?}"
+    );
+}
+
+#[test]
+fn config_edit_falls_back_to_per_workspace_candidate_when_none_exist() {
+    // No config file exists. config-edit should still succeed and open the
+    // per-workspace candidate (so the user can create one).
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(&workspace).unwrap();
+
+    let stub = tmp.path().join("stub_editor.sh");
+    let log = tmp.path().join("editor_invocation.log");
+    std::fs::write(
+        &stub,
+        format!("#!/bin/sh\necho \"$1\" > {}\n", log.display()),
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    let mut cmd = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None);
+    cmd.env("EDITOR", &stub);
+    let output = cmd.args(["config", "config-edit"]).output().unwrap();
+    assert!(
+        output.status.success(),
+        "config-edit should fall back to per-workspace candidate, failed: {output:?}"
+    );
+    let invoked = std::fs::read_to_string(&log).unwrap_or_default();
+    assert!(
+        invoked.contains("ws/.llmwiki-cli/config.toml"),
+        "stub editor should have been invoked with the per-workspace candidate, got: {invoked:?}"
+    );
+}

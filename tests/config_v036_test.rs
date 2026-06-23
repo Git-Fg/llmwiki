@@ -47,13 +47,25 @@ where
 
 #[test]
 fn config_paths_env_var_takes_priority() {
+    // Order convention is "lowest priority first, highest priority last" so
+    // `load_config`'s "last-wins" merge gives the intuitively-correct result.
+    // This test asserts that the LLMWIKI_CONFIG slot exists in the list and
+    // is the LAST entry when present (so it wins under last-wins merge).
     with_lock(|| {
         without_llmwiki_config(|| {
             let tmp = tempfile::tempdir().unwrap();
             let custom = tmp.path().join("my-config.toml");
             with_llmwiki_config(&custom, || {
                 let paths = config_paths(tmp.path());
-                assert_eq!(paths[0], custom);
+                assert!(
+                    paths.contains(&custom),
+                    "expected LLMWIKI_CONFIG path in list, got: {paths:?}"
+                );
+                assert_eq!(
+                    paths.last().unwrap(),
+                    &custom,
+                    "LLMWIKI_CONFIG should be the LAST (highest priority) entry"
+                );
             });
         });
     });
@@ -62,6 +74,9 @@ fn config_paths_env_var_takes_priority() {
 #[test]
 fn config_paths_falls_back_to_home_dot_llmwiki_cli() {
     // v0.3.7: user-global config moved to hidden directory `~/.llmwiki-cli/config.toml`.
+    // With "lowest priority first" ordering, the home config is the FIRST
+    // entry (since it has the lowest priority) when no workspace config or
+    // env override exists.
     with_lock(|| {
         without_llmwiki_config(|| {
             let tmp = tempfile::tempdir().unwrap();
@@ -69,9 +84,14 @@ fn config_paths_falls_back_to_home_dot_llmwiki_cli() {
             std::fs::create_dir_all(&home).unwrap();
             with_home_and_cwd(&home, &home, || {
                 let paths = config_paths(&home);
+                assert!(
+                    paths.contains(&home.join(".llmwiki-cli").join("config.toml")),
+                    "expected home config in path list, got: {paths:?}"
+                );
                 assert_eq!(
-                    paths.last().unwrap(),
-                    &home.join(".llmwiki-cli").join("config.toml")
+                    paths.first().unwrap(),
+                    &home.join(".llmwiki-cli").join("config.toml"),
+                    "home config should be the FIRST (lowest priority) entry"
                 );
             });
         });

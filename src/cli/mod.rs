@@ -257,6 +257,28 @@ pub enum ConfigCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Open the highest-priority existing config file in $EDITOR (per-workspace
+    /// first, then per-computer, then $LLMWIKI_CONFIG). If no file exists yet,
+    /// opens the per-workspace candidate so you can create one.
+    ConfigEdit {
+        /// Override the workspace used as the walk-up start. Inherited from
+        /// the global `--workspace` flag, which clap auto-propagates here so
+        /// `wiki --workspace <ws> config config-edit` works without a
+        /// subcommand-level flag.
+        #[arg(long)]
+        workspace: Option<std::path::PathBuf>,
+    },
+    /// Print every effective config key, its merged value, and the file it
+    /// came from. Mirrors `git config --list --show-origin` so users can see
+    /// which file overrides which key.
+    ShowEffective {
+        /// Override the workspace used as the walk-up start
+        #[arg(long)]
+        workspace: Option<std::path::PathBuf>,
+        /// JSON output
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 pub async fn run(cli: Cli) {

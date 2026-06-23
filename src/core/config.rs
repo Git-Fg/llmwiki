@@ -140,40 +140,41 @@ use crate::core::registry::home_dir;
 
 /// Ordered list of config file paths searched at startup.
 ///
-/// Highest priority first. Each entry is tried in order; missing files are
-/// skipped silently. Both `resolve_config()` (CLI/LSP/MCP startup) and the
-/// `doctor` command call this so the search order is defined in one place.
+/// Order convention: **lowest priority first, highest priority last** so
+/// `load_config()`'s "last-wins" merge semantics give the intuitively-correct
+/// result: the highest-priority file overrides everything below it. This
+/// matches the standard CLI config convention (later overrides earlier),
+/// used by pip, git, hk, mise, etc.
 ///
-/// Search order:
-/// 1. `$LLMWIKI_CONFIG` env var (primary override, matches binary-name prefix
-///    already used in `install.sh` as `LLMWIKI_BIN_DIR`)
-/// 2. `<workspace>/.llmwiki-cli/config.toml` — per-workspace, found by
-///    walking up from `workspace` looking for the closest `.llmwiki-cli/`
-///    ancestor (skipping HOME so `~/.llmwiki-cli/` is not mistaken for a
-///    workspace marker).
-/// 3. `~/.llmwiki-cli/config.toml` — per-computer, hidden dotfile directory
-///    (matches the `.llmwiki-cli/` convention used for per-workspace config).
+/// Concrete order returned by this function (when all slots are populated):
+///   1. `~/.llmwiki-cli/config.toml` — per-computer fallback (lowest)
+///   2. `<workspace>/.llmwiki-cli/config.toml` — per-workspace
+///   3. `$LLMWIKI_CONFIG` env var (highest; only added when set + non-empty)
+///
+/// `wiki config paths` reverses this list before printing so users see the
+/// "highest priority first" order they intuitively expect when debugging.
 pub fn config_paths(workspace: &Path) -> Vec<PathBuf> {
-    let mut paths = Vec::new();
+    let mut lowest_first: Vec<PathBuf> = Vec::new();
 
-    // 1. Hard override via env var — exact file, no merging.
+    // Lowest priority: per-computer fallback.
+    if let Some(home) = home_dir() {
+        lowest_first.push(home.join(".llmwiki-cli").join("config.toml"));
+    }
+
+    // Middle: per-workspace (walk-up from `workspace` looking for
+    // `.llmwiki-cli/config.toml`).
+    if let Some(p) = walk_up_for_llmwiki_cli_config(workspace) {
+        lowest_first.push(p);
+    }
+
+    // Highest priority: hard override via env var — exact file, no merging.
     if let Ok(p) = std::env::var("LLMWIKI_CONFIG") {
         if !p.is_empty() {
-            paths.push(PathBuf::from(p));
+            lowest_first.push(PathBuf::from(p));
         }
     }
 
-    // 2. Per-workspace: walk up from `workspace` looking for `.llmwiki-cli/config.toml`.
-    if let Some(p) = walk_up_for_llmwiki_cli_config(workspace) {
-        paths.push(p);
-    }
-
-    // 3. User-global default.
-    if let Some(home) = home_dir() {
-        paths.push(home.join(".llmwiki-cli").join("config.toml"));
-    }
-
-    paths
+    lowest_first
 }
 
 /// Walk up from `start` to find the closest per-workspace config candidate.
