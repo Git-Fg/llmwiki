@@ -1,6 +1,6 @@
 [package]
 name = "llmwiki-cli"
-version = "0.3.17"
+version = "0.3.18"
 description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
 license = "Apache-2.0"
 repository = "https://github.com/Git-Fg/llmwiki"

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.18] - 2026-06-23 — Fix `msrv-check` CI: drop `--locked`
+
+**Fixed:**
+- `.github/workflows/ci.yml::msrv-check`: dropped `--locked` from
+  the `cargo check` invocation. The first run of this job failed
+  with "the lock file Cargo.lock needs to be updated but --locked
+  was passed" because `Cargo.lock` is in `.gitignore` (this is a
+  binary project; lockfiles aren't tracked). Without `--locked`,
+  cargo generates a fresh lockfile from the current crates.io
+  index, which still verifies the MSRV claim — the freshly-fetched
+  deps all need to compile under rustc 1.88 for the check to pass.
+  If a future Dependabot bump raises a transitive dep's MSRV above
+  1.88, this job fails with a clear "package X requires rustc N"
+  error.
+- `CHANGELOG.md`: corrected v0.3.17 description to match the actual
+  job definition (no `--locked`).
+
+**Tests:** 252/252 pass; clippy `-D warnings` clean; fmt clean.
+
 ## [0.3.17] - 2026-06-23 — Defensive cleanup + MSRV CI gate
 
 **Changed:**
