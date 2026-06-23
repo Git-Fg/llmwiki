@@ -13,7 +13,7 @@ fn version_prints_current_cargo_version() {
         .nth(1)
         .expect("version is a quoted string")
         .to_string();
-    let expected = format!("llmwiki-cli {}", cargo_version);
+    let expected = format!("llmwiki-cli {cargo_version}");
     Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--version")

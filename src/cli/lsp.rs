@@ -202,9 +202,9 @@ async fn read_text(uri: &Uri) -> Result<String> {
     let path = uri
         .to_file_path()
         .ok_or_else(|| tower_lsp_server::jsonrpc::Error::invalid_params("invalid file path"))?;
-    tokio::fs::read_to_string(&path).await.map_err(|e| {
-        tower_lsp_server::jsonrpc::Error::invalid_params(format!("read failed: {}", e))
-    })
+    tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| tower_lsp_server::jsonrpc::Error::invalid_params(format!("read failed: {e}")))
 }
 
 pub async fn run(_args: LspArgs) -> std::result::Result<(), WikiError> {

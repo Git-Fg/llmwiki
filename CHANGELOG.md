@@ -1,23 +1,34 @@
 # Changelog
 
-## [0.3.14] - 2026-06-23 — CI: clippy + toolchain forward-compat
+## [0.3.14] - 2026-06-23 — CI: clippy forward-compat (110 format args inlined)
 
 **Fixed:**
-- `build.rs`: inlined format-string args (`uninlined_format_args`).
-  Newer clippy on CI promoted this lint to default-warn, so the
-  pre-existing `"… {:?}: {}", parent, e` style started failing the
-  `fmt-clippy-test` job. Inlined as `"… {parent:?}: {e}"`.
+- Inlined 110 `format!` / `println!` / `eprintln!` / `writeln!` /
+  `write!` / `eprint!` / `print!` positional args across 28 files
+  (17 in `src/`, 11 in `tests/`). Required because newer clippy on
+  Linux CI promotes `clippy::uninlined_format_args` to default-warn,
+  causing 72+ errors on every push from main. The macOS dev environment
+  does not trigger the lint (platform-specific promotion schedule), so
+  the issue was invisible locally until CI ran.
+  - Multi-line `assert!` calls in tests: removed now-redundant trailing
+    arg after inlining (caught by strict `-D warnings` build).
+  - Multi-line `anyhow!` calls in `src/core/registry.rs`: same var
+    referenced twice in one format string was inlined both times.
+- `build.rs`: inlined format-string args. (Same root cause.)
 - CI: bumped `rust-toolchain.toml` channel from `1.85` to `1.88` to
-  satisfy transitive deps pulled in by a recent reqwest bump:
-  `darling@0.23.0` requires rustc 1.88; `icu_*@2.2.0` require rustc 1.86.
-  Without this bump every push to main (including v0.3.12, v0.3.13, and
-  Dependabot reqwest bumps) failed the `fmt-clippy-test` and `skill-smoke`
-  jobs with "rustc 1.85.1 is not supported".
-- Cargo.toml version bumped from `0.3.12` to `0.3.14` to match the
-  release tag (forgotten in the initial v0.3.14 commit; corrected here).
+  satisfy transitive deps: `darling@0.23.0` requires rustc 1.88;
+  `icu_*@2.2.0` require rustc 1.86.
+- Cargo.toml version bumped from `0.3.12` to `0.3.14`.
+
+**Skipped (not inlinable):**
+- Args that are method/function calls (`.display()`, `.status()`,
+  `serde_json::to_string_pretty(...)`, etc.) — clippy only inlines
+  simple variable names.
+- Closure bodies in `.map(|e| format!(...))` where the inner format
+  call uses complex args.
 
 **Verified locally on rustc 1.88 and 1.96:** 251/251 tests pass,
-clippy clean, fmt clean. Binary version reported: `llmwiki-cli 0.3.14`.
+clippy `-D warnings` clean, fmt clean. Binary: `llmwiki-cli 0.3.14`.
 
 ## [0.3.13] - 2026-06-23 — `show-effective` filters + tighter path matching
 

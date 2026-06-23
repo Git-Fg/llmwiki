@@ -88,7 +88,7 @@ pub async fn run(args: SearchArgs) -> Result<(), WikiError> {
     } else {
         println!("\n✓ {} result(s) for \"{}\":\n", scored.len(), args.query);
         for (path, score, _idx, _start, _end) in &scored {
-            println!("  [{:.3}] {}\n", score, path);
+            println!("  [{score:.3}] {path}\n");
         }
     }
     Ok(())

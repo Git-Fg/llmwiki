@@ -96,7 +96,7 @@ async fn cmd_paths(workspace: Option<PathBuf>, json: bool) -> Result<(), WikiErr
         println!("Config search order (highest priority first):");
         for (label, path, exists) in entries.iter().rev() {
             let status = if *exists { "exists  " } else { "missing " };
-            println!("  [{}] {:<14} {}", status, label, path);
+            println!("  [{status}] {label:<14} {path}");
         }
         if !entries.iter().any(|(_, _, e)| *e) {
             println!(
@@ -184,7 +184,7 @@ async fn cmd_get(key: &str, wiki: Option<&str>) -> Result<(), WikiError> {
 
     let value = config_to_value(&cfg);
     let rendered = navigate(&value, key)?;
-    println!("{}", rendered);
+    println!("{rendered}");
     Ok(())
 }
 
@@ -193,7 +193,7 @@ async fn cmd_set(key: &str, value: &str, wiki: Option<&str>) -> Result<(), WikiE
     reg.set_value(key, value, wiki)?;
     reg.save()?;
     let target = wiki.unwrap_or("defaults");
-    println!("Set {} = {} in [{}]", key, value, target);
+    println!("Set {key} = {value} in [{target}]");
     Ok(())
 }
 
@@ -203,7 +203,7 @@ async fn cmd_unset(key: &str, wiki: Option<&str>) -> Result<(), WikiError> {
     let mut reg = crate::core::registry::Registry::discover()?;
     reg.unset_value(key, alias)?;
     reg.save()?;
-    println!("Unset {} from [{}]", key, alias);
+    println!("Unset {key} from [{alias}]");
     Ok(())
 }
 
@@ -224,7 +224,7 @@ async fn cmd_rm(alias: &str) -> Result<(), WikiError> {
     let mut reg = crate::core::registry::Registry::discover()?;
     reg.remove_entry(alias)?;
     reg.save()?;
-    println!("Removed wiki '{}'", alias);
+    println!("Removed wiki '{alias}'");
     Ok(())
 }
 
@@ -234,11 +234,10 @@ async fn cmd_edit() -> Result<(), WikiError> {
     let status = std::process::Command::new(&editor)
         .arg(&reg.root_path)
         .status()
-        .map_err(|e| WikiError::Other(anyhow::anyhow!("failed to launch {}: {}", editor, e)))?;
+        .map_err(|e| WikiError::Other(anyhow::anyhow!("failed to launch {editor}: {e}")))?;
     if !status.success() {
         return Err(WikiError::Other(anyhow::anyhow!(
-            "editor exited with status {}",
-            status
+            "editor exited with status {status}",
         )));
     }
     Ok(())
@@ -297,11 +296,10 @@ async fn cmd_config_edit(workspace_override: Option<PathBuf>) -> Result<(), Wiki
     let status = std::process::Command::new(&editor)
         .arg(&target)
         .status()
-        .map_err(|e| WikiError::Other(anyhow::anyhow!("failed to launch {}: {}", editor, e)))?;
+        .map_err(|e| WikiError::Other(anyhow::anyhow!("failed to launch {editor}: {e}")))?;
     if !status.success() {
         return Err(WikiError::Other(anyhow::anyhow!(
-            "editor exited with status {}",
-            status
+            "editor exited with status {status}",
         )));
     }
     Ok(())
@@ -358,7 +356,7 @@ async fn cmd_show_effective(
         let parsed: toml::Value = text.parse().map_err(|e| WikiError::ConfigInvalid {
             path: p.display().to_string(),
             line: 0,
-            message: format!("TOML parse error: {}", e),
+            message: format!("TOML parse error: {e}"),
         })?;
         for (key, _value) in collect_dotted(&parsed, "") {
             if !origin.contains_key(&key) {
@@ -442,10 +440,7 @@ async fn cmd_show_effective(
         );
     } else {
         println!("Workspace: {}", ws.display());
-        println!(
-            "Effective config (git config --show-origin style){}:",
-            filter_note
-        );
+        println!("Effective config (git config --show-origin style){filter_note}:",);
         for (key, val) in &filtered {
             let src = origin
                 .get(key)
@@ -454,7 +449,7 @@ async fn cmd_show_effective(
             // Trim the path display to just the meaningful part so the table
             // is readable when paths are long.
             let src_short = shorten_path_for_display(&src);
-            println!("  {:<40} = {:<60} ({})", key, val, src_short);
+            println!("  {key:<40} = {val:<60} ({src_short})");
         }
     }
 
@@ -533,13 +528,13 @@ async fn cmd_validate() -> Result<(), WikiError> {
                 Err(errs) => {
                     println!("✗ [defaults]");
                     for e in errs {
-                        println!("    {}", e);
+                        println!("    {e}");
                     }
                     failures += 1;
                 }
             },
             Err(e) => {
-                println!("✗ [defaults] — {}", e);
+                println!("✗ [defaults] — {e}");
                 failures += 1;
             }
         }
@@ -555,7 +550,7 @@ async fn cmd_validate() -> Result<(), WikiError> {
                 Err(errs) => {
                     println!("✗ [{}]", entry.alias);
                     for e in errs {
-                        println!("    {}", e);
+                        println!("    {e}");
                     }
                     failures += 1;
                 }
@@ -571,8 +566,7 @@ async fn cmd_validate() -> Result<(), WikiError> {
         Ok(())
     } else {
         Err(WikiError::Other(anyhow::anyhow!(
-            "{} wiki(s) failed validation",
-            failures
+            "{failures} wiki(s) failed validation",
         )))
     }
 }
@@ -610,7 +604,7 @@ pub(crate) fn navigate(root: &toml::Value, key: &str) -> Result<String, WikiErro
                         if !prefix.is_empty() {
                             prefix.push('.');
                         }
-                        format!("{}{}", prefix, k)
+                        format!("{prefix}{k}")
                     })
                     .collect();
                 return Err(WikiError::Other(anyhow::anyhow!(
@@ -660,7 +654,7 @@ fn collect_dotted_into(value: &toml::Value, prefix: &str, out: &mut Vec<(String,
             let full = if prefix.is_empty() {
                 k.clone()
             } else {
-                format!("{}.{}", prefix, k)
+                format!("{prefix}.{k}")
             };
             if matches!(v, toml::Value::Table(_)) {
                 collect_dotted_into(v, &full, out);
@@ -675,7 +669,7 @@ fn collect_dotted_into(value: &toml::Value, prefix: &str, out: &mut Vec<(String,
 /// dot-separated prefixes (e.g. `nim.retry.max_attempts = 3`).
 fn print_value_dotted(value: &toml::Value, prefix: &str) {
     for (key, value) in collect_dotted(value, prefix) {
-        println!("{} = {}", key, value);
+        println!("{key} = {value}");
     }
 }
 

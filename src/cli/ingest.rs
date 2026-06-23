@@ -50,7 +50,7 @@ pub fn run(args: IngestArgs) -> Result<(), WikiError> {
         sha
     );
 
-    std::fs::write(&dest, format!("{}{}", frontmatter, body))?;
+    std::fs::write(&dest, format!("{frontmatter}{body}"))?;
     println!("✓ Added source to {}", dest.display());
 
     let log_path = ws.join("log.md");

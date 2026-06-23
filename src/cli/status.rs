@@ -61,13 +61,13 @@ pub fn run(args: StatusArgs) -> Result<(), WikiError> {
         );
     } else {
         println!("\nWiki: {}", ws.display());
-        println!("  Pages: {}", page_count);
+        println!("  Pages: {page_count}");
         println!(
             "  Embedded: {} ({} chunks)",
             embedded_pages.len(),
             total_chunks
         );
-        println!("  Raw sources: {}", raw_count);
+        println!("  Raw sources: {raw_count}");
     }
 
     Ok(())

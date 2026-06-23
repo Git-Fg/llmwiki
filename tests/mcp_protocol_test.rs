@@ -24,7 +24,7 @@ fn mcp_initializes_and_reports_capabilities() {
             "clientInfo": { "name": "test", "version": "0.0.1" }
         }
     });
-    writeln!(stdin, "{}", init).unwrap();
+    writeln!(stdin, "{init}").unwrap();
     stdin.flush().unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(1));

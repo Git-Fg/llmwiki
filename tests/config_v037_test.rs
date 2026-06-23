@@ -56,15 +56,13 @@ fn config_paths_includes_per_workspace_when_present() {
                         paths.iter().any(|p| p
                             .to_string_lossy()
                             .ends_with("workspace/.llmwiki-cli/config.toml")),
-                        "expected per-workspace config in path list, got: {:?}",
-                        paths
+                        "expected per-workspace config in path list, got: {paths:?}",
                     );
                     assert!(
                         paths.iter().any(|p| p
                             .to_string_lossy()
                             .ends_with("home/.llmwiki-cli/config.toml")),
-                        "expected per-computer config in path list, got: {:?}",
-                        paths
+                        "expected per-computer config in path list, got: {paths:?}",
                     );
                     // Order convention is "lowest priority first, highest
                     // priority last" so `load_config`'s "last-wins" merge
@@ -120,16 +118,14 @@ fn config_paths_includes_per_workspace_candidate_when_absent() {
                     let candidate = workspace.join(".llmwiki-cli").join("config.toml");
                     assert!(
                         paths.iter().any(|p| p == &candidate),
-                        "expected per-workspace candidate in path list, got: {:?}",
-                        paths
+                        "expected per-workspace candidate in path list, got: {paths:?}",
                     );
                     // Per-computer path is also still present.
                     assert!(
                         paths
                             .iter()
                             .any(|p| p == &home.join(".llmwiki-cli").join("config.toml")),
-                        "expected per-computer config in path list, got: {:?}",
-                        paths
+                        "expected per-computer config in path list, got: {paths:?}",
                     );
                     // load_config skips the missing candidate and still reads
                     // the per-computer config.
@@ -212,8 +208,7 @@ fn config_paths_skips_home_when_walking_up() {
                     let occurrences = paths.iter().filter(|p| **p == home_config).count();
                     assert_eq!(
                         occurrences, 1,
-                        "home config should appear exactly once as per-computer; got: {:?}",
-                        paths
+                        "home config should appear exactly once as per-computer; got: {paths:?}",
                     );
                 });
             });

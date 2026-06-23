@@ -3,7 +3,7 @@ use llmwiki_cli::error::WikiError;
 #[test]
 fn error_display_does_not_leak_secrets() {
     let err = WikiError::NimApiKeyMissing;
-    let s = format!("{}", err);
+    let s = format!("{err}");
     assert!(!s.contains("NVIDIA_NIM_API_KEY="));
     assert!(s.contains("API key"));
 }
@@ -15,7 +15,7 @@ fn config_invalid_has_location() {
         line: 7,
         message: "bad value".into(),
     };
-    let s = format!("{}", err);
+    let s = format!("{err}");
     assert!(s.contains("/tmp/config.yaml"));
     assert!(s.contains("line 7"));
 }
@@ -29,7 +29,7 @@ fn wiki_root_not_found_lists_searched_paths() {
         ],
         from_env: None,
     };
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(msg.contains("wiki-root.toml"));
     assert!(msg.contains("not found"));
     // When WIKI_ROOT_CONFIG is set, the message should surface it.
@@ -39,7 +39,7 @@ fn wiki_root_not_found_lists_searched_paths() {
         searched: vec![std::path::PathBuf::from("/nope/wiki-root.toml")],
         from_env: Some(" (WIKI_ROOT_CONFIG=/nope/wiki-root.toml did not exist)".to_string()),
     };
-    let msg_env = format!("{}", err_env);
+    let msg_env = format!("{err_env}");
     assert!(msg_env.contains("WIKI_ROOT_CONFIG=/nope/wiki-root.toml"));
     assert!(msg_env.contains("did not exist"));
 }
@@ -53,7 +53,7 @@ fn wiki_root_config_empty_string_distinguished_from_missing() {
                 .to_string(),
         ),
     };
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(msg.contains("empty string"));
 }
 
@@ -65,7 +65,7 @@ fn wiki_root_config_directory_distinguished_from_missing() {
             " (WIKI_ROOT_CONFIG=/tmp exists but is a directory, not a file)".to_string(),
         ),
     };
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(msg.contains("is a directory, not a file"));
 }
 
@@ -75,7 +75,7 @@ fn alias_not_found_lists_available() {
         alias: "missing".to_string(),
         available: "pharma, mevin".to_string(),
     };
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(msg.contains("missing"));
     assert!(msg.contains("pharma"));
 }

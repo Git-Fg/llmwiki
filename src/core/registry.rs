@@ -41,7 +41,7 @@ impl Registry {
         let raw_doc: toml::Value = content.parse().map_err(|e| WikiError::ConfigInvalid {
             path: path.display().to_string(),
             line: 0,
-            message: format!("TOML parse error: {}", e),
+            message: format!("TOML parse error: {e}"),
         })?;
 
         let root_table = raw_doc.as_table().ok_or_else(|| WikiError::ConfigInvalid {
@@ -376,7 +376,7 @@ impl Registry {
         let env_workspace = std::env::var("WIKI_WORKSPACE").ok();
         let env_active = std::env::var("WIKI_ACTIVE").ok();
         let cwd = std::env::current_dir()
-            .map_err(|e| WikiError::Other(anyhow::anyhow!("cannot get CWD: {}", e)))?;
+            .map_err(|e| WikiError::Other(anyhow::anyhow!("cannot get CWD: {e}")))?;
         self.resolve_active(
             flag_alias,
             flag_path,
@@ -449,12 +449,12 @@ impl Registry {
                 std::fs::read_to_string(&ws_config).map_err(|e| WikiError::ConfigInvalid {
                     path: ws_config.display().to_string(),
                     line: 0,
-                    message: format!("read failed: {}", e),
+                    message: format!("read failed: {e}"),
                 })?;
             let ws_toml: toml::Value = text.parse().map_err(|e| WikiError::ConfigInvalid {
                 path: ws_config.display().to_string(),
                 line: 0,
-                message: format!("TOML parse error: {}", e),
+                message: format!("TOML parse error: {e}"),
             })?;
             deep_merge_into(&mut merged_value, ws_toml);
         }
@@ -466,7 +466,7 @@ impl Registry {
                 .map_err(|e: toml::de::Error| WikiError::ConfigInvalid {
                     path: self.root_path.display().to_string(),
                     line: 0,
-                    message: format!("Failed to deserialize merged config: {}", e),
+                    message: format!("Failed to deserialize merged config: {e}"),
                 })?;
 
         Ok(cfg)
@@ -483,7 +483,7 @@ impl Registry {
                     .map_err(|e: toml::de::Error| WikiError::ConfigInvalid {
                         path: self.root_path.display().to_string(),
                         line: 0,
-                        message: format!("Failed to deserialize [defaults]: {}", e),
+                        message: format!("Failed to deserialize [defaults]: {e}"),
                     })
             }
             None => Ok(Config::default()),
@@ -524,7 +524,7 @@ impl Registry {
             toml::to_string_pretty(&self.raw_doc).map_err(|e| WikiError::ConfigInvalid {
                 path: self.root_path.display().to_string(),
                 line: 0,
-                message: format!("TOML serialization error: {}", e),
+                message: format!("TOML serialization error: {e}"),
             })?;
         let tmp_path = self.root_path.with_extension("toml.tmp");
         std::fs::write(&tmp_path, &content)?;
@@ -561,16 +561,14 @@ impl Registry {
                             current = t;
                         } else {
                             return Err(WikiError::Other(anyhow::anyhow!(
-                                "cannot navigate into non-table key '{}'",
-                                part
+                                "cannot navigate into non-table key '{part}'",
                             )));
                         }
                     }
                 }
             } else {
                 return Err(WikiError::Other(anyhow::anyhow!(
-                    "section '{}' is not a table",
-                    section_key
+                    "section '{section_key}' is not a table",
                 )));
             }
         }
@@ -613,9 +611,7 @@ impl Registry {
                     if i == parts.len() - 1 {
                         if current.remove(*part).is_none() {
                             return Err(WikiError::Other(anyhow::anyhow!(
-                                "key '{}' not found in [{}]",
-                                key,
-                                wiki_alias
+                                "key '{key}' not found in [{wiki_alias}]",
                             )));
                         }
                         // Clean up empty intermediate tables by re-navigating
@@ -632,9 +628,7 @@ impl Registry {
                             current = t;
                         } else {
                             return Err(WikiError::Other(anyhow::anyhow!(
-                                "key '{}' not found in [{}]",
-                                key,
-                                wiki_alias
+                                "key '{key}' not found in [{wiki_alias}]",
                             )));
                         }
                     }
@@ -694,9 +688,7 @@ impl Registry {
     ) -> Result<(), WikiError> {
         if self.entries.iter().any(|e| e.alias == alias) {
             return Err(WikiError::Other(anyhow::anyhow!(
-                "alias '{}' already exists. Use 'wiki config rm {}' first.",
-                alias,
-                alias
+                "alias '{alias}' already exists. Use 'wiki config rm {alias}' first.",
             )));
         }
 

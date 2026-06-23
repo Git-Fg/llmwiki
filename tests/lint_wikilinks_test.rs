@@ -39,7 +39,7 @@ fn two_outbound_passes() {
     let body = "Links: [[a]] and [[b]].";
     let pages = vec!["wiki/a.md".to_string(), "wiki/b.md".to_string()];
     let issues = check_wikilinks("wiki/a.md", body, &pages, 1, 10);
-    assert!(issues.is_empty(), "{:?}", issues);
+    assert!(issues.is_empty(), "{issues:?}");
 }
 
 #[test]

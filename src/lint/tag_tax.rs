@@ -8,7 +8,7 @@ pub fn validate_tag_list(tags: &[String]) -> Vec<String> {
     for tag in tags {
         let lower = tag.to_lowercase();
         if !seen_lower.insert(lower) {
-            errors.push(format!("duplicate tag: `{}`", tag));
+            errors.push(format!("duplicate tag: `{tag}`"));
         }
     }
     errors

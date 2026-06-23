@@ -105,10 +105,10 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
 
     let mut reg = reg;
     if let Err(e) = reg.add_entry(&alias, &target, &args.tags, None) {
-        eprintln!("Warning: {}", e);
+        eprintln!("Warning: {e}");
     } else {
         reg.save()?;
-        println!("Registered wiki '{}' in wiki-root.toml", alias);
+        println!("Registered wiki '{alias}' in wiki-root.toml");
     }
 
     println!("✓ Initialized wiki at {}", target.display());

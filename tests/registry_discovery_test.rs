@@ -74,7 +74,7 @@ description = "project"
                 let aliases: Vec<&str> = reg.entries.iter().map(|e| e.alias.as_str()).collect();
                 assert!(aliases.contains(&"global-wiki"), "missing global alias");
                 assert!(aliases.contains(&"project-wiki"), "missing project alias");
-                assert_eq!(aliases.len(), 2, "expected 2 aliases, got: {:?}", aliases);
+                assert_eq!(aliases.len(), 2, "expected 2 aliases, got: {aliases:?}");
             });
         });
     });
@@ -241,11 +241,10 @@ fn wiki_root_config_missing_file_reports_env_in_error() {
             Registry::discover,
         );
         let err = result.unwrap_err();
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(
             msg.contains("WIKI_ROOT_CONFIG"),
-            "error should mention WIKI_ROOT_CONFIG; got: {}",
-            msg
+            "error should mention WIKI_ROOT_CONFIG; got: {msg}",
         );
     });
 }

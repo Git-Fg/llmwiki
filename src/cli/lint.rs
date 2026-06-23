@@ -66,7 +66,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                         severity: "error".into(),
                         code: "page-in-index-multiple-times".into(),
                         path: "index.md".into(),
-                        message: format!("path `{}` appears {} times in index.md", path, count),
+                        message: format!("path `{path}` appears {count} times in index.md"),
                     });
                 }
             }
@@ -100,7 +100,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                             severity: "warn".into(),
                             code: "link-to-self".into(),
                             path: page_path.into(),
-                            message: format!("page links to itself via `[[{}]]`", link),
+                            message: format!("page links to itself via `[[{link}]]`"),
                         });
                     }
                 }
@@ -125,7 +125,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                                 severity: "warn".into(),
                                 code: "invalid-date".into(),
                                 path: page_path.into(),
-                                message: format!("`created` value `{}` is not YYYY-MM-DD", c),
+                                message: format!("`created` value `{c}` is not YYYY-MM-DD"),
                             });
                         }
                     }
@@ -135,7 +135,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                                 severity: "warn".into(),
                                 code: "invalid-date".into(),
                                 path: page_path.into(),
-                                message: format!("`updated` value `{}` is not YYYY-MM-DD", u),
+                                message: format!("`updated` value `{u}` is not YYYY-MM-DD"),
                             });
                         }
                     }
@@ -149,10 +149,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                                     severity: "warn".into(),
                                     code: "updated-before-created".into(),
                                     path: page_path.into(),
-                                    message: format!(
-                                        "`updated` ({}) is before `created` ({})",
-                                        u, c
-                                    ),
+                                    message: format!("`updated` ({u}) is before `created` ({c})",),
                                 });
                             }
                         }
@@ -186,7 +183,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                             severity: "error".into(),
                             code: "footnote-undefined".into(),
                             path: page_path.into(),
-                            message: format!("`[^{}]` used but no definition found", label),
+                            message: format!("`[^{label}]` used but no definition found"),
                         });
                     }
                 }
@@ -196,7 +193,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                             severity: "warn".into(),
                             code: "footnote-unused".into(),
                             path: page_path.into(),
-                            message: format!("`[^{}]:` defined but never referenced", label),
+                            message: format!("`[^{label}]:` defined but never referenced"),
                         });
                     }
                 }
@@ -238,7 +235,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                         severity: "error".into(),
                         code: "index-points-to-missing".into(),
                         path: "index.md".into(),
-                        message: format!("index links to `{}` which does not exist", link_path),
+                        message: format!("index links to `{link_path}` which does not exist"),
                     });
                 }
             }
@@ -354,7 +351,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
     } else {
         let errors = all_issues.iter().filter(|i| i.severity == "error").count();
         let warnings = all_issues.iter().filter(|i| i.severity == "warn").count();
-        println!("\n{} error(s), {} warning(s)\n", errors, warnings);
+        println!("\n{errors} error(s), {warnings} warning(s)\n");
         for issue in &all_issues {
             println!(
                 "  [{}] [{}] {} — {}",

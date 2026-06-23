@@ -25,7 +25,7 @@ fn lsp_initializes_and_reports_capabilities() {
             "workspaceFolders": null
         }
     });
-    writeln!(stdin, "{}", init).unwrap();
+    writeln!(stdin, "{init}").unwrap();
     stdin.flush().unwrap(); // LSP uses Content-Length headers in real wire; for a smoke test, a newline-delimited message works for some servers.
 
     // Give the server 1 second to respond, then kill it.

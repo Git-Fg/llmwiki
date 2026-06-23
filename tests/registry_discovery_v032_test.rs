@@ -157,7 +157,7 @@ fn load_all_returns_wiki_root_not_found_when_all_missing() {
         let paths = vec![tmp.path().join("nope1.toml"), tmp.path().join("nope2.toml")];
         let result = Registry::load_all(&paths);
         let err = result.unwrap_err();
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(msg.contains("wiki-root.toml"));
         assert!(msg.contains("nope1.toml"));
         assert!(msg.contains("nope2.toml"));
@@ -250,11 +250,10 @@ fn wiki_root_config_empty_string_reports_empty_in_error() {
             std::env::remove_var("WIKI_ROOT_CONFIG");
         }
         let err = result.unwrap_err();
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(
             msg.contains("empty string"),
-            "error must mention 'empty string'; got: {}",
-            msg
+            "error must mention 'empty string'; got: {msg}",
         );
     });
 }
@@ -274,11 +273,10 @@ fn wiki_root_config_directory_reports_directory_in_error() {
             std::env::remove_var("WIKI_ROOT_CONFIG");
         }
         let err = result.unwrap_err();
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(
             msg.contains("is a directory, not a file"),
-            "error must distinguish directory case; got: {}",
-            msg
+            "error must distinguish directory case; got: {msg}",
         );
     });
 }
@@ -316,16 +314,14 @@ fn candidate_paths_dedupes_when_cwd_walks_into_home_agents() {
                     .count();
                 assert_eq!(
                     agents_count, 1,
-                    "HOME/.agents/wiki-root.toml should appear once after dedup; paths: {:?}",
-                    strs
+                    "HOME/.agents/wiki-root.toml should appear once after dedup; paths: {strs:?}",
                 );
                 let total = strs.len();
                 let unique: std::collections::HashSet<_> = strs.iter().collect();
                 assert_eq!(
                     unique.len(),
                     total,
-                    "all paths must be unique after dedup; paths: {:?}",
-                    strs
+                    "all paths must be unique after dedup; paths: {strs:?}",
                 );
             });
         });
@@ -357,8 +353,7 @@ fn walk_up_resolves_symlinked_cwd() {
                 let aliases: Vec<&str> = reg.entries.iter().map(|e| e.alias.as_str()).collect();
                 assert!(
                     aliases.contains(&"r"),
-                    "walk-up must find .agents/wiki-root.toml via symlinked CWD; got: {:?}",
-                    aliases
+                    "walk-up must find .agents/wiki-root.toml via symlinked CWD; got: {aliases:?}",
                 );
             });
         });
@@ -385,8 +380,8 @@ fn candidate_paths_with_no_home_falls_back_to_project_local_only() {
             std::env::remove_var("USERPROFILE");
 
             let result: Result<Registry, _> = std::env::set_current_dir(&project)
-                .map_err(|e| format!("set_current_dir: {}", e))
-                .and_then(|_| Registry::discover().map_err(|e| format!("discover: {}", e)));
+                .map_err(|e| format!("set_current_dir: {e}"))
+                .and_then(|_| Registry::discover().map_err(|e| format!("discover: {e}")));
 
             // (Restore cwd regardless.)
             let _ = std::env::set_current_dir(tmp.path());
@@ -537,13 +532,11 @@ path = "/proj/wiki"
                 let msg = err.to_string();
                 assert!(
                     msg.contains("lower-priority wiki-root.toml"),
-                    "expected lower-priority message, got: {}",
-                    msg
+                    "expected lower-priority message, got: {msg}",
                 );
                 assert!(
                     msg.contains("WIKI_ROOT_CONFIG"),
-                    "expected WIKI_ROOT_CONFIG hint, got: {}",
-                    msg
+                    "expected WIKI_ROOT_CONFIG hint, got: {msg}",
                 );
             });
         });
@@ -595,8 +588,7 @@ description = "override"
                 let msg = err.to_string();
                 assert!(
                     msg.contains("key 'path' not found in [shared]"),
-                    "expected key-not-found error, got: {}",
-                    msg
+                    "expected key-not-found error, got: {msg}",
                 );
             });
         });
@@ -704,8 +696,7 @@ path = "/proj/wiki"
                 let msg = err.to_string();
                 assert!(
                     msg.contains("lower-priority wiki-root.toml"),
-                    "expected lower-priority message, got: {}",
-                    msg
+                    "expected lower-priority message, got: {msg}",
                 );
 
                 // save() was NOT called (error returned early), so re-discover

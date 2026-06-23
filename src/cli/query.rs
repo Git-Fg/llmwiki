@@ -158,7 +158,7 @@ pub async fn run(args: QueryArgs) -> Result<(), WikiError> {
         });
         println!("{}", serde_json::to_string_pretty(&out).unwrap());
     } else {
-        println!("\n{}\n", answer);
+        println!("\n{answer}\n");
         if !args.no_citations && !citation_paths.is_empty() {
             println!("\nSources:");
             for (i, p) in citation_paths.iter().enumerate() {

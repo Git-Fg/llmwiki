@@ -68,5 +68,5 @@ fn bad_filename_is_error() {
 fn good_page_passes() {
     let content = "---\nschema_version: 1\ntitle: Good Page\ncreated: 2026-01-01\nupdated: 2026-01-01\ntype: concept\ntags: [concept, software]\nsources: [raw/articles/src.md]\n---\n\nBody\n";
     let issues = check_frontmatter("wiki/good-page.md", content);
-    assert!(issues.is_empty(), "{:?}", issues);
+    assert!(issues.is_empty(), "{issues:?}");
 }

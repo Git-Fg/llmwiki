@@ -38,7 +38,7 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
         .into_iter()
         .find(|m| m.name == model_name && m.role == Role::Embed)
         .ok_or_else(|| {
-            crate::error::WikiError::Other(anyhow::anyhow!("unknown embed model: {}", model_name))
+            crate::error::WikiError::Other(anyhow::anyhow!("unknown embed model: {model_name}"))
         })?;
     let api_key = resolve_api_key(&cfg.nim);
     let client = NimClient::new(cfg.nim.base_url.clone(), api_key)
@@ -74,7 +74,7 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
         let digest = Sha256::digest(content.as_bytes());
         let sha = digest
             .iter()
-            .map(|b| format!("{:02x}", b))
+            .map(|b| format!("{b:02x}"))
             .collect::<String>();
         if args.skip_existing {
             if let Some(existing) = emb_file.find_page(&rel, &model_name) {
@@ -125,6 +125,6 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
     }
 
     emb_file.write_to(&jsonl_path)?;
-    println!("✓ Embedded {} page(s)", updated);
+    println!("✓ Embedded {updated} page(s)");
     Ok(())
 }

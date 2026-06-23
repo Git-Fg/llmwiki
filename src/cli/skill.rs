@@ -25,23 +25,23 @@ pub fn run(args: SkillArgs) -> Result<(), WikiError> {
             print!("{}", skills::SKILL_MD);
         }
         Some(SkillCmd::Show { topic: Some(t) }) => match skills::find_topic(&t) {
-            Some(content) => print!("{}", content),
+            Some(content) => print!("{content}"),
             None => {
-                eprintln!("Unknown topic '{}'. Available:", t);
+                eprintln!("Unknown topic '{t}'. Available:");
                 for (name, lines) in skills::list_topics() {
-                    eprintln!("  {:<20} ({} lines)", name, lines);
+                    eprintln!("  {name:<20} ({lines} lines)");
                 }
                 return Err(WikiError::UnknownSkillTopic(t));
             }
         },
         Some(SkillCmd::List) => {
             for (name, lines) in skills::list_topics() {
-                println!("{:<20} ({} lines)", name, lines);
+                println!("{name:<20} ({lines} lines)");
             }
         }
         Some(SkillCmd::Path) => {
             let home = std::env::var("HOME").unwrap_or_default();
-            println!("{}/.agents/skills/wiki/SKILL.md", home);
+            println!("{home}/.agents/skills/wiki/SKILL.md");
         }
     }
     Ok(())

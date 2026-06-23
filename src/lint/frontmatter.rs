@@ -55,9 +55,9 @@ pub fn check_frontmatter(path: &str, content: &str) -> Vec<LintIssue> {
             let code = field.replace('_', "-");
             issues.push(LintIssue {
                 severity: "error".into(),
-                code: format!("missing-{}", code),
+                code: format!("missing-{code}"),
                 path: path.into(),
-                message: format!("frontmatter missing required field `{}`", field),
+                message: format!("frontmatter missing required field `{field}`"),
             });
         }
     }
@@ -99,7 +99,7 @@ pub fn check_frontmatter(path: &str, content: &str) -> Vec<LintIssue> {
                     severity: "error".into(),
                     code: "unknown-tag".into(),
                     path: path.into(),
-                    message: format!("tag `{}` not in taxonomy", tag),
+                    message: format!("tag `{tag}` not in taxonomy"),
                 });
             }
         }

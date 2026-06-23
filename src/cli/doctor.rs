@@ -40,7 +40,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
     // `~/.llmwiki-cli/config.toml` (hidden). If the legacy file still exists,
     // tell the user to move it — the legacy file is NOT loaded anymore.
     if let Some(msg) = legacy_config_notice() {
-        eprintln!("{}", msg);
+        eprintln!("{msg}");
     }
 
     // Report wiki-root.toml info
@@ -100,7 +100,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                 );
                 return Ok(());
             }
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             std::process::exit(2);
         }
     };
@@ -215,12 +215,12 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
     } else {
         println!("✓ Workspace: {}", ws.display());
         if let Some((path, count)) = &registry_info {
-            println!("✓ Wiki registry: {} ({} entries)", path, count);
+            println!("✓ Wiki registry: {path} ({count} entries)");
         } else {
             println!("✗ Wiki registry: not found");
         }
         if !active_alias.is_empty() {
-            println!("✓ Active alias: {}", active_alias);
+            println!("✓ Active alias: {active_alias}");
         }
         println!("✓ Config loaded");
         println!("  Embed model: {}", cfg.nim.embed_model);
@@ -237,7 +237,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
                 std::process::exit(3);
             }
         } else {
-            println!("✓ API key set (length: {})", api_key_length);
+            println!("✓ API key set (length: {api_key_length})");
         }
         if nim_reachable {
             println!("✓ NIM endpoint reachable");
@@ -332,8 +332,7 @@ mod tests {
         let msg = notice_for_home(tmp.path());
         assert!(
             msg.is_none(),
-            "expected NO notice when new path is already in place; got: {:?}",
-            msg
+            "expected NO notice when new path is already in place; got: {msg:?}",
         );
     }
 
@@ -343,8 +342,7 @@ mod tests {
         let msg = notice_for_home(tmp.path());
         assert!(
             msg.is_none(),
-            "expected NO notice when neither path exists; got: {:?}",
-            msg
+            "expected NO notice when neither path exists; got: {msg:?}",
         );
     }
 }

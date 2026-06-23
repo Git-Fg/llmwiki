@@ -29,7 +29,7 @@ fn load_unsupported_model_returns_error() {
     let bad = tmp.path().join("bad.toml");
     std::fs::write(&bad, "[nim]\nembed_model = \"nvidia/invalid-model\"\n").unwrap();
     let err = load_config(&[bad]).unwrap_err();
-    let s = format!("{}", err);
+    let s = format!("{err}");
     assert!(
         s.contains("Unsupported")
             || s.contains("invalid")
@@ -43,7 +43,7 @@ fn load_invalid_toml_returns_config_invalid() {
     let bad = tmp.path().join("bad.toml");
     std::fs::write(&bad, "[nim\nembed_model = \"x\"\n").unwrap();
     let err = load_config(&[bad]).unwrap_err();
-    let s = format!("{}", err);
+    let s = format!("{err}");
     assert!(s.contains("config invalid") || s.contains("TOML"));
 }
 

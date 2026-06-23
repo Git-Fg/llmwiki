@@ -52,7 +52,7 @@ pub fn parse_config(text: &str) -> Result<Config, Vec<DomainDiagnostic>> {
                 end_line,
                 end_character,
                 severity: 1,
-                message: format!("parse error: {}", e),
+                message: format!("parse error: {e}"),
             }])
         }
     }
@@ -116,7 +116,7 @@ fn key_doc(key: &str) -> Option<&'static str> {
 
 pub fn hover_for(key: &str) -> Option<DomainHover> {
     key_doc(key).map(|doc| DomainHover {
-        contents_markdown: format!("**`{}`**\n\n{}", key, doc),
+        contents_markdown: format!("**`{key}`**\n\n{doc}"),
     })
 }
 

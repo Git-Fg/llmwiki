@@ -10,7 +10,7 @@ fn chunk_short_text_returns_one_chunk() {
 #[test]
 fn chunk_long_text_splits_into_multiple() {
     let text = (0..100)
-        .map(|i| format!("Paragraph {}.\n\n", i))
+        .map(|i| format!("Paragraph {i}.\n\n"))
         .collect::<String>();
     let chunks = chunk_text(&text, 50, 10, 5);
     assert!(chunks.len() > 1);

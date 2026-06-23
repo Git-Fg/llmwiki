@@ -28,7 +28,7 @@ pub fn check_wikilinks(
                 severity: "error".into(),
                 code: "dangling-link".into(),
                 path: path.into(),
-                message: format!("[[{}]] does not resolve to a wiki page", link),
+                message: format!("[[{link}]] does not resolve to a wiki page"),
             });
         }
     }
@@ -67,10 +67,7 @@ pub fn check_wikilinks(
             severity: "warn".into(),
             code: "page-too-long".into(),
             path: path.into(),
-            message: format!(
-                "page is {} lines (> {}); consider splitting",
-                line_count, MAX_LINES
-            ),
+            message: format!("page is {line_count} lines (> {MAX_LINES}); consider splitting",),
         });
     }
 
