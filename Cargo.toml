@@ -34,10 +34,12 @@ indicatif = "0.17"
 schemars = "0.8"
 regex = "1.12.4"
 toml = "0.8"
+toml_edit = "0.22"
 serde-toml-merge = "0.2"
 sha2 = "0.11.0"
 chrono = "0.4.45"
 hex = "0.4"
+tower-lsp-server = "0.23"
 
 [dev-dependencies]
 assert_cmd = "2"
