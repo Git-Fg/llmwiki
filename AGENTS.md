@@ -64,6 +64,71 @@ build.rs                   # generates agents/skills/wiki/SKILL.md hub stub,
 
 **Test isolation with env vars / CWD**: tests that mutate `$HOME`, `$USERPROFILE`, `$WIKI_ROOT_CONFIG`, or CWD MUST go through the helpers in `tests/common/mod.rs`: `with_lock` (serializes across all test binaries), `with_home_and_cwd`, `with_wiki_root_config`, `without_wiki_root_config`, `isolated_tempdir`. The `with_home_and_cwd` helper uses an `EnvGuard` RAII struct (post-v0.3.16) so the captured env state is restored on Drop, including during unwinding from a panic. **Do not write a fresh env-modifying helper** without the same Drop-guard pattern — a panic in the inner closure would otherwise leak `$HOME`/`CWD` into every later test in the same binary, producing flaky NotFound failures that are very hard to reproduce.
 
+## Pre-release real-wiki smoke test (mandatory since v0.3.25)
+
+**This check is mandatory before any tagged release.** Wiremock-backed unit/integration tests confirm the CLI handles expected inputs — they cannot catch the case where the CLI silently does nothing because the workspace layout it expects doesn't match the user's reality. The five real wikis in `~/.agents/wiki-root.toml` are the canonical integration targets; their divergences from the spec'd `wiki/<page>.md` layout are themselves signal.
+
+### Real-wiki registry
+
+`~/.agents/wiki-root.toml` is the user-global registry (see Workspace Resolution below for the full lookup chain). After filtering out the `.tmp*` / `tmp.*` test-fixture entries that the CLI's own tests write, the real-wiki aliases on this machine are:
+
+| Alias | Path | Layout |
+|---|---|---|
+| `mevin` | `/Users/felix/Documents/Tauri2/mevin-tauri2/wiki` | **flat** (pages at workspace root) |
+| `minimax` | `/Users/felix/Documents/MinimaxCode/minimax-code-wiki` | **flat** (pages at workspace root) |
+| `mywiki` | (see registry) | **flat** |
+| `pharma` | (see registry) | **flat** |
+| `pharma.nim` | (see registry) | **flat** |
+
+Run `grep -E "^\[" ~/.agents/wiki-root.toml | grep -v "\.tmp\|\"tmp\."` to regenerate this list.
+
+### The check itself
+
+Run, in order, against at least ONE of the flat-layout wikis above (e.g. `--wiki minimax`):
+
+```bash
+# 1. Confirm the CLI under test is the one about to ship
+llmwiki-cli --version
+# Expected: prints "llmwiki-cli 0.3.XX" (the version you intend to release)
+
+# 2. Workspace + registry resolution
+llmwiki-cli --wiki minimax doctor
+# Expected: "✓ Workspace: ...", "✓ Wiki registry: ...", "✓ Active alias: minimax",
+# "✓ Config loaded", "✓ NIM endpoint reachable". Exit code 0.
+
+# 3. JSON shape of doctor output (catches schema drift between the live binary and
+# the bundled doctor.schema.json)
+llmwiki-cli --wiki minimax doctor --json | jq 'keys'
+# Expected: a 15-key array matching the canonical DoctorReport field set documented
+# in marketplace/skills/wiki/MCP/references/doctor.schema.json
+
+# 4. Config resolution path — verifies the priority chain works
+llmwiki-cli --wiki minimax config paths
+# Expected: lists per-computer + per-workspace candidates in priority order
+
+# 5. Effective config dump — verifies deep-merge + dotted-key reflection
+llmwiki-cli --wiki minimax config show-effective
+# Expected: ~14 `<default>`-sourced dotted-key entries (no per-workspace overrides
+# in the flat-layout wikis; that's expected)
+
+# 6. Page discovery (KNOWN ISSUE — see below)
+llmwiki-cli --wiki minimax ls --pages
+llmwiki-cli --wiki minimax tree
+# Expected for `wiki/`-layout wikis (e.g. an init'd example-wiki): non-empty listing.
+# Expected for FLAT-layout wikis (all 5 real ones on this machine): empty listing.
+# This is the documented design-vs-reality gap. Do NOT ship a release that
+# regresses page discovery on flat-layout wikis further. Filing or fixing the
+# gap is tracked separately — see "Known issues" below.
+```
+
+### Why this is mandatory
+
+A test suite that uses `wiremock` and `tempfile`-isolated workspaces cannot detect: registry resolution failures against the user's real `wiki-root.toml`, alias conflicts when multiple real wikis share a path, NIM connectivity with the user's actual API key, or layout assumptions that don't hold for the user's real wikis. The five real wikis in this registry collectively represent ~50 MB of curated content over months of edits — if the CLI can't read them, the CLI is broken regardless of what `cargo test` says.
+
+### Known issues surfaced by this check
+
+- **Flat-layout page discovery is broken (pre-existing, predates v0.3.25)**. `ls --pages`, `tree`, `embed`, `lint --scope wiki`, and `status` all hardcode `ws.join("wiki")` (six call sites: `src/cli/ls.rs:148,332`, `src/cli/embed.rs:48`, `src/cli/lint.rs:32`, `src/cli/status.rs:24`, `src/cli/tree.rs:35`). None of the five real wikis on this machine have a `wiki/` subdirectory — pages live at the workspace root (`comparisons/...`, `queries/...`, `index.md`, etc.). v0.3.25 does not fix this; tracked for v0.3.26. Until fixed, step 6 above returns empty results against real wikis — this is the documented limitation, not a release-blocker for the SSoT schema refactor itself.
+
 ## NIM API Conventions (do not change without updating the wiremock tests)
 
 The CLI talks to an OpenAI-compatible endpoint hosted on NVIDIA NIM. Two invariants the code relies on — breaking either of these silently breaks every NIM call:
