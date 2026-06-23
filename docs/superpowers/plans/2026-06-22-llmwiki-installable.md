@@ -1914,15 +1914,22 @@ git commit -m "test(skills): smoke-test SETUP skill content"
 **Files:**
 - Modify: `Cargo.toml`
 
-- [ ] **Step 1: Add the three crates**
+> **Important breaking change in `tower-lsp-server` v0.23** (Dec 2025):
+> the LSP types library was switched from the unmaintained `gluon-lang/lsp-types`
+> to `tower-lsp-community/ls-types` (re-exported as `tower_lsp_server::ls_types`).
+> So we only need **two** crate deps, not three — `lsp-types` is no longer pulled
+> in separately. Always import LSP types via `use tower_lsp_server::ls_types::*;`.
+
+- [ ] **Step 1: Add the two crates**
 
 Edit `Cargo.toml` dependencies:
 
 ```toml
 tower-lsp-server = "0.23"
-lsp-types = "0.95"
 toml_edit = "0.22"
 ```
+
+(Do NOT add `lsp-types` — superseded by the re-exported `tower_lsp_server::ls_types`.)
 
 - [ ] **Step 2: Verify the build**
 
@@ -1933,7 +1940,7 @@ Expected: builds clean; `Cargo.lock` updated.
 
 ```bash
 git add Cargo.toml Cargo.lock
-git commit -m "feat(lsp): add tower-lsp-server, lsp-types, toml_edit deps"
+git commit -m "feat(lsp): add tower-lsp-server, toml_edit deps"
 ```
 
 ## Task 4.2: Write `src/core/lsp_domain.rs` — shared domain logic
@@ -1949,7 +1956,7 @@ Create `src/core/lsp_domain.rs` with the test module first:
 ```rust
 //! Shared LSP/MCP domain logic. Stateless per request.
 
-use crate::core::config::{Config, validate};
+use crate::core::config::Config;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -2118,14 +2125,19 @@ Append to `src/core/lsp_domain.rs` (above the test module):
 
 ```rust
 pub fn validate_config(cfg: &Config) -> Vec<DomainDiagnostic> {
-    validate(cfg).unwrap_or_default().into_iter().map(|msg| DomainDiagnostic {
-        line: 0,
-        character: 0,
-        end_line: 0,
-        end_character: 0,
-        severity: 1,
-        message: msg,
-    }).collect()
+    validate(cfg)
+        .err()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|msg| DomainDiagnostic {
+            line: 0,
+            character: 0,
+            end_line: 0,
+            end_character: 0,
+            severity: 1,
+            message: msg,
+        })
+        .collect()
 }
 ```
 
@@ -2231,11 +2243,10 @@ fn all_keys_in_table(parent: &[&str]) -> Vec<String> {
         "wiki.require_wikilinks_min",
     ]
     .into_iter()
-    .filter(|k| {
+    .filter_map(|k| {
         let rest = k.strip_prefix(&prefix).unwrap_or(k);
-        !rest.contains('.')
+        if rest.contains('.') { None } else { Some(rest.to_string()) }
     })
-    .map(String::from)
     .collect()
 }
 
@@ -2273,7 +2284,7 @@ pub fn completion_for(parent_path: &[&str], _cfg: &Config) -> Vec<DomainCompleti
     keys.into_iter().map(|k| {
         let detail = key_doc(&k).map(|d| d.lines().next().unwrap_or("").to_string());
         DomainCompletionItem {
-            label: k,
+            label: k.clone(),
             kind: 10, // CompletionItemKind::Property
             detail,
             documentation: key_doc(&k).map(String::from),
@@ -2338,18 +2349,26 @@ Some(Command::Lsp(args)) => crate::cli::lsp::run(args).await,
 
 - [ ] **Step 2: Write `src/cli/lsp.rs`**
 
+> **API corrections for `tower-lsp-server` v0.23** (verified via docs.rs):
+> 1. Types import is `tower_lsp_server::ls_types::*` (not `lsp_types` — renamed in v0.23).
+> 2. `Backend` MUST have a `client: Client` field (the `self.client()` call won't compile otherwise).
+> 3. NO `#[tower_lsp_server::async_trait]` attribute — the trait uses native `impl Trait` since v0.21 and the macro is no longer exported.
+> 4. `LspService::new(|client| Backend { client })` — the spec's `LspService::build(Backend).finish()` is the v0.20 builder API; v0.23 uses `new(closure)` directly.
+
 ```rust
 use crate::cli::LspArgs;
 use crate::core::lsp_domain::{
     self, DomainCompletionItem, DomainDiagnostic, DomainHover, DomainSymbol,
 };
 use crate::error::WikiError;
-use tower_lsp_server::{LspService, Server};
 use tower_lsp_server::jsonrpc::Result;
-use tower_lsp_server::lsp_types::*;
+use tower_lsp_server::ls_types::*;
+use tower_lsp_server::{Client, LanguageServer, LspService, Server};
 
-#[derive(Clone)]
-struct Backend;
+#[derive(Clone, Debug)]
+struct Backend {
+    client: Client,
+}
 
 const NIM_MODEL_ENUM: &[&str] = &[
     "nvidia/nv-embed-v1", "nvidia/nv-embedqa-e5-v5", "nvidia/nv-embedcode-7b-v1",
@@ -2393,10 +2412,12 @@ fn to_lsp_completion_item(i: DomainCompletionItem) -> CompletionItem {
             _ => CompletionItemKind::PROPERTY,
         }),
         detail: i.detail,
-        documentation: i.documentation.map(|d| Documentation::MarkupContent(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: d,
-        })),
+        documentation: i.documentation.map(|d| {
+            Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: d,
+            })
+        }),
         ..Default::default()
     }
 }
@@ -2418,8 +2439,7 @@ fn to_lsp_symbol(s: &DomainSymbol) -> DocumentSymbol {
     }
 }
 
-#[tower_lsp_server::async_trait]
-impl tower_lsp_server::LanguageServer for Backend {
+impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
@@ -2458,7 +2478,7 @@ impl tower_lsp_server::LanguageServer for Backend {
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        let _ = self.client().publish_diagnostics(params.text_document.uri, vec![], None).await;
+        let _ = self.client.publish_diagnostics(params.text_document.uri, vec![], None).await;
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
@@ -2492,7 +2512,7 @@ impl Backend {
             Err(parse_diags) => all_diags.extend(parse_diags),
         }
         let lsp_diags: Vec<_> = all_diags.iter().map(to_lsp_diag).collect();
-        let _ = self.client().publish_diagnostics(uri.clone(), lsp_diags, None).await;
+        let _ = self.client.publish_diagnostics(uri.clone(), lsp_diags, None).await;
     }
 }
 
@@ -2505,7 +2525,7 @@ async fn read_text(uri: &Url) -> Result<String> {
 }
 
 pub async fn run(_args: LspArgs) -> Result<(), WikiError> {
-    let (service, socket) = LspService::build(Backend).finish();
+    let (service, socket) = LspService::new(|client| Backend { client });
     Server::new(tokio::io::stdin(), tokio::io::stdout(), socket).serve(service).await;
     Ok(())
 }
@@ -2555,53 +2575,93 @@ fn parent_path_at_position_for_nested() {
 
 - [ ] **Step 2: Run — should FAIL**
 
-- [ ] **Step 3: Implement using `toml_edit`**
+- [ ] **Step 3: Implement using a simple line-by-line parser**
 
-Add to `src/core/lsp_domain.rs`:
+> **Implementation note**: the spec literal's `collect_key_path_at_line` is a stub that references undefined helper functions (`item_table_header_span`, `table_name`, etc.) that would need a full `toml_edit::DocumentMut` walker. For an LSP key-at-position helper, a simple line-by-line parser is sufficient and ships in <30 lines vs the ~80-line recursive walker. This matches the spec's "this is a simplified version... iterate until tests pass" guidance.
 
 ```rust
-pub fn key_at_position(text: &str, line: u32, character: u32) -> Option<String> {
-    let doc: toml_edit::DocumentMut = text.parse().ok()?;
+/// Returns the full dotted key path at the given cursor position.
+/// For cursor on a table header `[nim.retry]`, returns `Some("nim.retry")`.
+/// For cursor on a key `embed_model = "..."` inside `[nim]`, returns `Some("nim.embed_model")`.
+pub fn key_at_position(text: &str, line: u32, _character: u32) -> Option<String> {
+    let lines: Vec<&str> = text.lines().collect();
     let line_idx = line as usize;
-    let items = doc.items().collect::<Vec<_>>();
-    if line_idx >= items.len() { return None; }
-    let mut parts: Vec<String> = Vec::new();
-    let mut current = doc.as_item();
-    collect_key_path_at_line(&items, line_idx, character as usize, &mut parts);
-    if parts.is_empty() { None } else { Some(parts.join(".")) }
+    if line_idx >= lines.len() { return None; }
+    let target = lines[line_idx];
+
+    // Cursor on a table header: return the table name (possibly dotted).
+    if let Some(name) = parse_table_header(target) {
+        return Some(name);
+    }
+
+    // Cursor on a key=value line: walk backward to find the enclosing table.
+    if let Some(key) = parse_key(target) {
+        let mut path = vec![key];
+        for i in (0..line_idx).rev() {
+            let prev = lines[i];
+            if let Some(table) = parse_table_header(prev) {
+                path.insert(0, table);
+                // Continue walking: a table inside a table (rare but valid in TOML).
+            } else if prev.trim().is_empty() || prev.trim_start().starts_with('#') {
+                continue;
+            } else {
+                break;
+            }
+        }
+        return Some(path.join("."));
+    }
+    None
 }
 
-fn collect_key_path_at_line(items: &[toml_edit::Item], line_idx: usize, _char: usize, out: &mut Vec<String>) {
-    for item in items {
-        if let Some((header_range, _)) = item_table_header_span(item) {
-            if header_range.contains(&line_idx) {
-                if let Some(name) = table_name(item) {
-                    out.push(name.to_string());
-                    if let Some(table) = item.as_table_like() {
-                        let children: Vec<_> = table.iter().collect();
-                        collect_key_path_at_line(&children.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>(), line_idx, _char, out);
-                    }
-                }
-                return;
+/// Returns the path components of the scope at the cursor (everything
+/// except the leaf key). For cursor on `[nim.retry]` header, returns
+/// `vec!["nim", "retry"]`. For cursor on `embed_model = "x"` inside
+/// `[nim]`, returns `vec!["nim"]`.
+pub fn parent_path_at_position(text: &str, line: u32, character: u32) -> Vec<String> {
+    let lines: Vec<&str> = text.lines().collect();
+    let line_idx = line as usize;
+    if line_idx >= lines.len() { return vec![]; }
+    let target = lines[line_idx];
+
+    // Cursor on a table header: scope IS the table.
+    if let Some(name) = parse_table_header(target) {
+        return name.split('.').map(String::from).collect();
+    }
+
+    // Cursor on a key: scope is the enclosing table.
+    if parse_key(target).is_some() {
+        for i in (0..line_idx).rev() {
+            if let Some(table) = parse_table_header(lines[i]) {
+                return table.split('.').map(String::from).collect();
             }
         }
-        if let Some((key_range, _)) = item_key_span(item) {
-            if key_range.contains(&line_idx) {
-                if let Some(name) = item_key_name(item) {
-                    out.push(name.to_string());
-                }
-                return;
-            }
-        }
+    }
+    vec![]
+}
+
+fn parse_table_header(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.starts_with('[') && trimmed.ends_with(']') && !trimmed.starts_with("[[") {
+        Some(trimmed[1..trimmed.len() - 1].trim().to_string())
+    } else {
+        None
+    }
+}
+
+fn parse_key(line: &str) -> Option<String> {
+    let trimmed = line.trim_start();
+    if let Some(eq) = trimmed.find('=') {
+        let key = trimmed[..eq].trim();
+        if key.is_empty() || key.contains(' ') { None } else { Some(key.to_string()) }
+    } else {
+        None
     }
 }
 ```
 
-(Note: this is a simplified version. The actual implementation needs to walk the `toml_edit::DocumentMut` tree. Refer to `toml_edit` docs for the precise API.)
+- [ ] **Step 4: Run tests — should PASS**
 
-- [ ] **Step 4: Iterate until tests pass**
-
-(Adjust the implementation as needed based on `toml_edit` 0.22 API.)
+(Step numbering shifts by 1: was Step 4 "Iterate", now Step 4 "Verify".)
 
 - [ ] **Step 5: Commit**
 
