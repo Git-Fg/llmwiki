@@ -469,5 +469,5 @@ fn subprocess_config_show_schema_outputs_valid_json() {
     let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(v["title"], "Config");
     assert!(v["properties"]["nim"].is_object());
-    assert!(v["definitions"]["NimConfig"].is_object());
+    assert!(v["$defs"]["NimConfig"].is_object());
 }
