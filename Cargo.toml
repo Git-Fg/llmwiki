@@ -1,10 +1,10 @@
 [package]
 name = "llmwiki-cli"
-version = "0.3.3"
+version = "0.3.4"
 description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
 license = "Apache-2.0"
-repository = "https://github.com/fg/llmwiki"
-homepage = "https://github.com/fg/llmwiki"
+repository = "https://github.com/Git-Fg/llmwiki"
+homepage = "https://github.com/Git-Fg/llmwiki"
 readme = "README.md"
 keywords = ["llmwiki", "karpathy-wiki", "wiki", "knowledge-base", "rag"]
 categories = ["command-line-utilities", "development-tools"]
@@ -58,5 +58,5 @@ strip = "symbols"
 
 [package.metadata.binstall]
 bin = "llmwiki-cli"
-pkg-url = "https://github.com/fg/llmwiki/releases/download/v{ version }/llmwiki-cli-{ target }.tar.gz"
+pkg-url = "https://github.com/Git-Fg/llmwiki/releases/download/v{ version }/llmwiki-cli-{ target }.tar.gz"
 pkg-fmt = "tgz"

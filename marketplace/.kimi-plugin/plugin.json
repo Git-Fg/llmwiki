@@ -1,6 +1,6 @@
 {
   "name": "wiki",
-  "version": "0.3.0",
+  "version": "0.3.4",
   "skills": "./skills/",
   "skillInstructions": "Tool mapping: 'spawn a subagent' → Agent; 'run a shell command' → Bash; 'read a file' → Read; 'edit a file' → Edit. Prefer LSP-driven diagnostics over re-reading files when available."
 }

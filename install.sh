@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-REPO="fg/llmwiki"
+REPO="Git-Fg/llmwiki"
 BINARY="llmwiki-cli"
 VERSION="latest"
 BIN_DIR="${LLMWIKI_BIN_DIR:-${LLMWIKI_INSTALL_DIR:-$HOME/.local/bin}}"
@@ -29,7 +29,7 @@ Environment overrides:
   LLMWIKI_INSTALL_DIR  Legacy alias for --bin-dir
 
 Examples:
-  bash install.sh --version v0.3.0
+  bash install.sh --version v0.3.4
   bash install.sh --bin-dir /usr/local/bin --force
   curl -LsSf .../install.sh | bash -s -- --verbose
 EOF

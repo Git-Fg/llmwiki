@@ -34,7 +34,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Repo = "fg/llmwiki"
+$Repo = "Git-Fg/llmwiki"
 $Binary = "llmwiki-cli"
 
 function New-TempDir {

@@ -1,6 +1,6 @@
 {
   "name": "wiki-marketplace",
-  "owner": { "name": "fg" },
+  "owner": { "name": "Git-Fg" },
   "plugins": [
     {
       "name": "wiki",
