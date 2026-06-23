@@ -1,14 +1,15 @@
-# AGENTS.md — wiki (the tool)
+# AGENTS.md — llmwiki-cli (the tool)
 
-> Behavioral layer for AI agents working on the `wiki` Rust CLI codebase at `/Users/felix/Documents/llmwiki/`.
-> Structural truth lives in source files; design rationale lives in `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`.
+> Behavioral layer for AI agents working on the `llmwiki-cli` Rust CLI codebase at `/Users/felix/Documents/llmwiki/`.
+> Structural truth lives in source files; design rationale lives in `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md` (original concept) and `docs/superpowers/specs/2026-06-22-llmwiki-installable-design.md` (v0.3.0 installable + LSP/MCP).
 
 ## Project Overview
 
-`wiki` is a single Rust binary CLI for managing a Karpathy-style LLM Wiki (markdown files + JSONL embeddings, no database). It ships with a bundled skill.
+`llmwiki-cli` is a single Rust binary CLI for managing a Karpathy-style LLM Wiki (markdown files + JSONL embeddings, no database). It ships with a bundled marketplace skill that auto-installs into the host agent's skill directory.
 
-- Spec: `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`
-- Plan: `docs/superpowers/plans/2026-06-21-karpathy-wiki.md`
+- Spec (concept): `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`
+- Spec (v0.3.0 installable): `docs/superpowers/specs/2026-06-22-llmwiki-installable-design.md`
+- Plan: `docs/superpowers/plans/2026-06-22-llmwiki-installable.md`
 
 ## Build Commands
 
@@ -34,7 +35,8 @@ src/
   error.rs                 # WikiError thiserror enum
   lib.rs                   # module exports
 
-build.rs                   # generates agents/skills/wiki/SKILL.md stub
+build.rs                   # generates marketplace/skills/wiki/SKILL.md hub stub
+                          # and marketplace/skills/wiki/SETUP/references/schema.json
 ```
 
 ## Coding Conventions
@@ -76,7 +78,7 @@ The `tests/doctor_test.rs::doctor_uses_correct_models_endpoint` and the `tests/e
 
 ## Importing an Existing Wiki
 
-The `wiki` layout is `wiki/<page>.md` + `raw/<category>/<source>.<ext>` + `embeddings.jsonl` + `.wiki/config.yaml`. If the source wiki uses a different layout (e.g. `concepts/`, `entities/`), the manual recipe is:
+The canonical workspace layout uses a `wiki/` subdirectory containing markdown pages (`wiki/<page>.md`), a `raw/` directory for ingested sources (`raw/<category>/<source>.<ext>`), a `embeddings.jsonl` index, and a `.wiki/config.yaml`. If the source wiki uses a different layout (e.g. `concepts/`, `entities/`), the manual recipe is:
 
 ```bash
 llmwiki-cli init /path/to/new-wiki
