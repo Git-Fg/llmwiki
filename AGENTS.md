@@ -162,6 +162,8 @@ Config files are searched in this order (highest priority first; later files dee
 
 When the registry has a matching `[alias]` entry for the workspace, `Registry::resolve_config()` deep-merges `[defaults]` + `[alias]` first, then deep-merges `<workspace>/.llmwiki-cli/config.toml` on top. Per-workspace config wins per-key over registry entries; per-computer config is folded into `Config::default()` upstream.
 
+**Both code paths use the same TOML-level deep merge** (`registry::deep_merge_into`, post-v0.3.15). The non-registry path (`load_config_unvalidated`) was refactored in v0.3.15 from a brittle per-field `Config::merge()` (which silently dropped every `wiki.*` and most `nim.*` override) to the same `deep_merge_into` the registry path uses. Every field with `#[serde(default)]` is now handled uniformly — no per-field enumeration to forget. Do not reintroduce a per-field merge helper; if a new config field is added, just annotate it with `#[serde(default)]` and the deep merge picks it up automatically.
+
 TOML only — matches `wiki-root.toml` format. YAML and legacy `~/.config/wiki/config.yaml` paths were removed in v0.3.6; `.wiki/` walk-up and the `~/llmwiki-cli/.wiki/` workspace fallback were removed in v0.3.7. The project is still alpha, so no backward compatibility shims. To customize:
 
 ```bash

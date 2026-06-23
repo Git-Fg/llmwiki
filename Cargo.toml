@@ -1,6 +1,6 @@
 [package]
 name = "llmwiki-cli"
-version = "0.3.15"
+version = "0.3.16"
 description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
 license = "Apache-2.0"
 repository = "https://github.com/Git-Fg/llmwiki"
@@ -9,7 +9,7 @@ readme = "README.md"
 keywords = ["llmwiki", "karpathy-wiki", "wiki", "knowledge-base", "rag"]
 categories = ["command-line-utilities", "development-tools"]
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [[bin]]
 name = "llmwiki-cli"

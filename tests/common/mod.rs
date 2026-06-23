@@ -31,7 +31,34 @@ where
     f()
 }
 
-/// Run `f` with `$HOME` and CWD overridden; restore on return.
+/// RAII guard that restores captured env vars and CWD on drop.
+/// Prevents state leakage if the inner closure panics — without this,
+/// a failing test could leave `$HOME`/`$USERPROFILE`/CWD pointing at
+/// a tempdir that has already been dropped, silently corrupting every
+/// later test in the same binary.
+struct EnvGuard {
+    prev_home: Option<std::ffi::OsString>,
+    prev_userprofile: Option<std::ffi::OsString>,
+    prev_cwd: std::path::PathBuf,
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match self.prev_home.take() {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
+        match self.prev_userprofile.take() {
+            Some(u) => std::env::set_var("USERPROFILE", u),
+            None => std::env::remove_var("USERPROFILE"),
+        }
+        let _ = std::env::set_current_dir(&self.prev_cwd);
+    }
+}
+
+/// Run `f` with `$HOME` and CWD overridden; restore on return OR on
+/// panic in `f`. Uses the `EnvGuard` RAII struct so unwind-safe cleanup
+/// always runs even when a test assertion panics.
 pub fn with_home_and_cwd<F, R>(home: &std::path::Path, cwd: &std::path::Path, f: F) -> R
 where
     F: FnOnce() -> R,
@@ -44,20 +71,15 @@ where
         let _ = std::env::set_current_dir("/tmp");
         std::path::PathBuf::from("/tmp")
     });
+    let _guard = EnvGuard {
+        prev_home,
+        prev_userprofile,
+        prev_cwd,
+    };
     std::env::set_var("HOME", home);
     std::env::remove_var("USERPROFILE");
     let _ = std::env::set_current_dir(cwd);
-    let result = f();
-    if let Some(h) = prev_home {
-        std::env::set_var("HOME", h);
-    } else {
-        std::env::remove_var("HOME");
-    }
-    if let Some(u) = prev_userprofile {
-        std::env::set_var("USERPROFILE", u);
-    }
-    let _ = std::env::set_current_dir(&prev_cwd);
-    result
+    f()
 }
 
 /// Run `f` with `$WIKI_ROOT_CONFIG` unset; restore on return.

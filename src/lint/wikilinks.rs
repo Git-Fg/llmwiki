@@ -67,7 +67,7 @@ pub fn check_wikilinks(
             severity: "warn".into(),
             code: "page-too-long".into(),
             path: path.into(),
-            message: format!("page is {line_count} lines (> {MAX_LINES}); consider splitting",),
+            message: format!("page is {line_count} lines (> {MAX_LINES}); consider splitting"),
         });
     }
 

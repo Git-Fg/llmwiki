@@ -149,7 +149,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                                     severity: "warn".into(),
                                     code: "updated-before-created".into(),
                                     path: page_path.into(),
-                                    message: format!("`updated` ({u}) is before `created` ({c})",),
+                                    message: format!("`updated` ({u}) is before `created` ({c})"),
                                 });
                             }
                         }

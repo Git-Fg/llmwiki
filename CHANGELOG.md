@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.16] - 2026-06-23 — Test safety + MSRV pin + docs
+
+**Fixed:**
+- `tests/common/mod.rs::with_home_and_cwd` (and by extension
+  `with_wiki_root_config` / `without_wiki_root_config`) is now
+  panic-safe via an `EnvGuard` RAII struct. Previously, an assertion
+  panic inside the inner closure would leave `$HOME` /
+  `$USERPROFILE` / CWD pointing at a tempdir that has already been
+  dropped, silently corrupting every later test in the same binary.
+  Now the Drop guard runs unconditionally during unwind.
+- `Cargo.toml`: bumped `rust-version` from `1.85` to `1.88`. This is
+  the project's MSRV (matches `rust-toolchain.toml` post-v0.3.14 and
+  the transitive dep requirements: `darling@0.23.0` requires 1.88,
+  `icu_*@2.2.0` require 1.86). `cargo build` will now fail early on
+  older toolchains with a clear MSRV error instead of "rustc 1.85.1
+  is not supported" mid-way through dependency resolution.
+- `src/cli/lint.rs:152`, `src/lint/wikilinks.rs:70`: removed stray
+  trailing commas inside `format!(...)` argument lists (cargo-fmt
+  artifacts of the v0.3.14 inlining sweep — purely cosmetic).
+
+**Documentation:**
+- `AGENTS.md`: added a note in the "Config File Resolution" section
+  that both `load_config_unvalidated` and `Registry::resolve_config`
+  use the same `registry::deep_merge_into` (post-v0.3.15), and warned
+  future contributors not to reintroduce a per-field merge helper.
+
+**Tests:** 252/252 pass; clippy `-D warnings` clean; fmt clean.
+
 ## [0.3.15] - 2026-06-23 — config: deep-merge all fields (not just 3 nim.*)
 
 **Fixed:**
