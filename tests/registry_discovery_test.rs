@@ -340,15 +340,14 @@ fn candidate_paths_order_user_global_before_project_local() {
                         && !strs[0].contains(".claude")
                         && !strs[0].contains(".agents"),
                     "first path should be bare ~/wiki-root.toml; got: {}",
-                    strs[0]
+                    strs[0],
                 );
                 assert!(strs[1].ends_with(".claude/wiki-root.toml"));
                 assert!(strs[2].ends_with(".agents/wiki-root.toml"));
                 let last = strs.last().unwrap();
                 assert!(
                     last.contains("/p/.agents/wiki-root.toml"),
-                    "last path should be project-local; got: {}",
-                    last
+                    "last path should be project-local; got: {last}",
                 );
             });
         });

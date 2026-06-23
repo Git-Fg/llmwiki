@@ -171,7 +171,7 @@ fn config_paths_per_workspace_wins_over_user_global() {
                         cfg.nim.embed_model == "nvidia/nv-embedcode-7b-v1"
                             || cfg.nim.embed_model == "nvidia/nv-embedqa-e5-v5",
                         "embed_model came from an unexpected source: {}",
-                        cfg.nim.embed_model
+                        cfg.nim.embed_model,
                     );
                 });
             });
@@ -241,7 +241,7 @@ fn config_paths_per_workspace_in_ancestor_directory() {
                     assert!(
                         cfg.nim.embed_model == "nvidia/nv-embedcode-7b-v1",
                         "expected per-workspace embed_model from ancestor walk-up, got: {}",
-                        cfg.nim.embed_model
+                        cfg.nim.embed_model,
                     );
                 });
             });
