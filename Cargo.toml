@@ -40,6 +40,7 @@ sha2 = "0.11.0"
 chrono = "0.4.45"
 hex = "0.4"
 tower-lsp-server = "0.23"
+rmcp = { version = "0.2", features = ["server", "macros", "schemars", "transport-io"] }
 
 [dev-dependencies]
 assert_cmd = "2"
