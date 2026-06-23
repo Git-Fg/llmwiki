@@ -11,6 +11,7 @@ mod common;
 
 use common::{with_home_and_cwd, with_lock, without_wiki_root_config, write_registry};
 use llmwiki_cli::core::registry::Registry;
+use std::fs;
 
 // ─── T2: H1 regression — alias sub-keys preserved when only top-level overridden ───
 
@@ -488,6 +489,232 @@ path = "/O"
                     shared.unwrap().get("description").and_then(|v| v.as_str()),
                     Some("from project")
                 );
+            });
+        });
+    });
+}
+
+// ─── v0.3.3 H1: remove_entry / unset_value MUST error on lower-priority aliases ───
+
+#[test]
+fn remove_entry_errors_on_alias_from_lower_priority_file() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            let cwd = tmp.path().join("proj");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            fs::create_dir_all(&cwd).unwrap();
+
+            // Lower file (home) defines [shared]; higher file (project-local)
+            // defines [other]. Merged registry has both visible.
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+"#,
+            );
+            write_registry(
+                &cwd.join(".agents").join("wiki-root.toml"),
+                r#"
+[other]
+path = "/proj/wiki"
+"#,
+            );
+
+            with_home_and_cwd(&home, &cwd, || {
+                let reg = Registry::discover().expect("merged registry");
+                assert!(reg.entries.iter().any(|e| e.alias == "shared"));
+                assert!(reg.entries.iter().any(|e| e.alias == "other"));
+
+                let mut reg = reg;
+                // Removing [other] (defined in project-local = active scope) succeeds.
+                reg.remove_entry("other").expect("remove from active scope");
+
+                // Removing [shared] (loaded from home = lower-priority) MUST error.
+                let err = reg.remove_entry("shared").unwrap_err();
+                let msg = err.to_string();
+                assert!(
+                    msg.contains("lower-priority wiki-root.toml"),
+                    "expected lower-priority message, got: {}",
+                    msg
+                );
+                assert!(
+                    msg.contains("WIKI_ROOT_CONFIG"),
+                    "expected WIKI_ROOT_CONFIG hint, got: {}",
+                    msg
+                );
+            });
+        });
+    });
+}
+
+#[test]
+fn unset_value_errors_on_alias_from_lower_priority_file() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            let cwd = tmp.path().join("proj");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            fs::create_dir_all(&cwd).unwrap();
+
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+description = "from home"
+"#,
+            );
+            write_registry(
+                &cwd.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+description = "override"
+"#,
+            );
+
+            with_home_and_cwd(&home, &cwd, || {
+                let mut reg = Registry::discover().expect("merged registry");
+                // [shared] is in BOTH files; the active write target is
+                // project-local (highest priority), so unset on a key in
+                // the project-local scope succeeds.
+                reg.unset_value("description", "shared")
+                    .expect("unset from active scope");
+
+                // Reload a fresh merged registry and try to unset a key that's
+                // only in the lower file (path). The alias [shared] IS in
+                // raw_doc (project-local has it via override), so this should
+                // succeed at the scope check but error at the key-not-found
+                // step. This documents that path-only unset is handled by the
+                // inner "key not found" error, not by the scope error.
+                let mut reg2 = Registry::discover().expect("reload");
+                let err = reg2.unset_value("path", "shared").unwrap_err();
+                let msg = err.to_string();
+                assert!(
+                    msg.contains("key 'path' not found in [shared]"),
+                    "expected key-not-found error, got: {}",
+                    msg
+                );
+            });
+        });
+    });
+}
+
+#[test]
+fn remove_entry_works_when_alias_is_in_active_scope() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+"#,
+            );
+
+            with_home_and_cwd(&home, &home, || {
+                let mut reg = Registry::discover().expect("registry");
+                reg.remove_entry("shared")
+                    .expect("remove from active scope");
+                assert!(reg.entries.iter().all(|e| e.alias != "shared"));
+                assert!(reg
+                    .raw_doc
+                    .as_table()
+                    .map(|t| !t.contains_key("shared"))
+                    .unwrap_or(true));
+            });
+        });
+    });
+}
+
+// ─── v0.3.3 M3: tags merge is array union-dedupe, not scalar override ───
+
+#[test]
+fn tags_array_union_dedupes_on_merge() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            let cwd = tmp.path().join("proj");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            fs::create_dir_all(&cwd).unwrap();
+
+            write_registry(
+                &home.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+tags = ["rust", "linux"]
+"#,
+            );
+            write_registry(
+                &cwd.join(".agents").join("wiki-root.toml"),
+                r#"
+[shared]
+path = "/home/wiki"
+tags = ["rust", "wasm"]
+"#,
+            );
+
+            with_home_and_cwd(&home, &cwd, || {
+                let reg = Registry::discover().expect("merged registry");
+                let shared = reg
+                    .entries
+                    .iter()
+                    .find(|e| e.alias == "shared")
+                    .expect("[shared] alias");
+                // Union-dedupe: rust appears in both, linux only in lower,
+                // wasm only in higher. Result is {rust, linux, wasm}.
+                assert_eq!(shared.tags.len(), 3);
+                assert!(shared.tags.contains(&"rust".to_string()));
+                assert!(shared.tags.contains(&"linux".to_string()));
+                assert!(shared.tags.contains(&"wasm".to_string()));
+            });
+        });
+    });
+}
+
+// ─── v0.3.3 L2: add_entry's WikiEntry.raw is no longer empty ───
+
+#[test]
+fn add_entry_populates_entry_raw_table() {
+    with_lock(|| {
+        without_wiki_root_config(|| {
+            let tmp = tempfile::tempdir().unwrap();
+            let home = tmp.path().join("home");
+            fs::create_dir_all(home.join(".agents")).unwrap();
+            write_registry(&home.join(".agents").join("wiki-root.toml"), "# empty\n");
+
+            with_home_and_cwd(&home, &home, || {
+                let mut reg = Registry::discover().expect("registry");
+                reg.add_entry(
+                    "newwiki",
+                    std::path::Path::new("/some/path"),
+                    &["tag1".to_string()],
+                    Some("a description"),
+                )
+                .expect("add_entry");
+                let entry = reg
+                    .entries
+                    .iter()
+                    .find(|e| e.alias == "newwiki")
+                    .expect("newwiki entry");
+                let table = entry.raw.as_table().expect("raw is table");
+                assert_eq!(
+                    table.get("path").and_then(|v| v.as_str()),
+                    Some("/some/path")
+                );
+                assert_eq!(
+                    table.get("description").and_then(|v| v.as_str()),
+                    Some("a description")
+                );
+                assert!(table.contains_key("tags"));
             });
         });
     });

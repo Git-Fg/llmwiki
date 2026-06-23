@@ -555,12 +555,34 @@ impl Registry {
     pub fn unset_value(&mut self, key: &str, wiki_alias: &str) -> Result<(), WikiError> {
         let parts: Vec<&str> = key.split('.').collect();
 
+        // `raw_doc` is the highest-priority file. If `[wiki_alias]` is not in
+        // it, the alias was loaded from a lower-priority source and a delete
+        // here would silently no-op. Error per git-config / npm convention.
+        let alias_in_active_scope = self
+            .raw_doc
+            .as_table()
+            .map(|t| t.contains_key(wiki_alias))
+            .unwrap_or(false);
+        if !alias_in_active_scope {
+            return Err(WikiError::Other(anyhow::anyhow!(
+                "[{}] is loaded from a lower-priority wiki-root.toml and cannot be modified from the active write target ({}). Set WIKI_ROOT_CONFIG to the file that owns this alias, or edit it directly.",
+                wiki_alias,
+                self.root_path.display()
+            )));
+        }
+
         if let toml::Value::Table(root) = &mut self.raw_doc {
             if let Some(toml::Value::Table(section)) = root.get_mut(wiki_alias) {
                 let mut current = section;
                 for (i, part) in parts.iter().enumerate() {
                     if i == parts.len() - 1 {
-                        current.remove(*part);
+                        if current.remove(*part).is_none() {
+                            return Err(WikiError::Other(anyhow::anyhow!(
+                                "key '{}' not found in [{}]",
+                                key,
+                                wiki_alias
+                            )));
+                        }
                         return Ok(());
                     } else {
                         match current.get_mut(*part) {
@@ -619,7 +641,7 @@ impl Registry {
         }
 
         if let toml::Value::Table(root) = &mut self.raw_doc {
-            root.insert(alias.to_string(), toml::Value::Table(table));
+            root.insert(alias.to_string(), toml::Value::Table(table.clone()));
         }
 
         self.entries.push(WikiEntry {
@@ -629,7 +651,7 @@ impl Registry {
             description: description.unwrap_or("").to_string(),
             what_to_read: vec![],
             qmd_slug: None,
-            raw: toml::Value::Table(toml::value::Table::new()),
+            raw: toml::Value::Table(table),
         });
         Ok(())
     }
@@ -646,6 +668,24 @@ impl Registry {
                     .collect::<Vec<_>>()
                     .join(", "),
             });
+        }
+        // The alias is visible in the merged `entries`, but `raw_doc` only
+        // contains the highest-priority file. If the alias came from a
+        // lower-priority source, removing from `raw_doc` is a silent no-op
+        // and the alias resurrects on the next `discover()`. Following the
+        // git-config / npm-config convention, we error and tell the user to
+        // point WIKI_ROOT_CONFIG at the file that owns the alias.
+        let in_active_scope = self
+            .raw_doc
+            .as_table()
+            .map(|t| t.contains_key(alias))
+            .unwrap_or(false);
+        if !in_active_scope {
+            return Err(WikiError::Other(anyhow::anyhow!(
+                "alias '{}' is loaded from a lower-priority wiki-root.toml and cannot be removed from the active write target ({}). Set WIKI_ROOT_CONFIG to the file that owns this alias, or edit it directly.",
+                alias,
+                self.root_path.display()
+            )));
         }
         if let toml::Value::Table(root) = &mut self.raw_doc {
             root.remove(alias);
@@ -670,7 +710,7 @@ fn parse_toml_value(s: &str) -> toml::Value {
 }
 
 /// Resolve the user's home directory from $HOME (Unix) or $USERPROFILE (Windows).
-fn home_dir() -> Option<PathBuf> {
+pub(crate) fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)

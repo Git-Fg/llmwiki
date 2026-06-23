@@ -265,9 +265,7 @@ pub fn validate_or_error(cfg: &Config) -> Result<(), crate::error::WikiError> {
         .map_err(|errs| crate::error::WikiError::Other(anyhow::anyhow!(errs.join("\n  - "))))
 }
 
-fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
-}
+use crate::core::registry::home_dir;
 
 /// Resolve the NIM API key, trying (in order):
 /// 1. The configured env var (e.g. `NVIDIA_NIM_API_KEY`)

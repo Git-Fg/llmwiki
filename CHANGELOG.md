@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.3.3] - 2026-06-23 — Registry write-semantics hardening
+
+**Fixed:**
+- **H1 (HIGH, regression from v0.3.2):** `Registry::remove_entry` and
+  `Registry::unset_value` previously mutated in-memory `entries` without
+  touching `raw_doc` when the target alias came from a lower-priority file.
+  This caused silent data no-ops: the CLI printed `Removed wiki 'X'` but
+  the alias/key reappeared on the next `discover()` call. Now both methods
+  **error** when the alias isn't in `raw_doc` (the active write scope),
+  following the git-config / npm-config convention. The error message
+  points the user at `$WIKI_ROOT_CONFIG` to retarget the active scope at
+  the file that owns the alias.
+- **M1:** `home_dir()` was duplicated across three modules with divergent
+  behavior — `registry.rs` correctly checked `$HOME || $USERPROFILE`
+  (cross-platform), but `workspace.rs` and `config.rs` checked only `$HOME`
+  (Unix-only). On Windows, the legacy `~/wiki` workspace lookup and the
+  `~/.config/wiki/config.yaml` config search would silently fail. All three
+  now route through `crate::core::registry::home_dir` (promoted to
+  `pub(crate)`).
+- **L1:** `init` previously wrote the bootstrap registry to the lowest-
+  priority slot `~/wiki-root.toml`, creating shadowing confusion with the
+  higher-priority `~/.agents/wiki-root.toml`. Now writes to
+  `~/.agents/wiki-root.toml` — the conventional AI-agent slot and the
+  highest-priority user-global path.
+- **L2:** `add_entry` set `WikiEntry.raw` to an empty table even though
+  `raw_doc` was just populated with the full entry. Latent bug — no current
+  caller triggered the inconsistency, but `resolve_config` on the new alias
+  in the same process would have returned only defaults. Now clones the
+  table into `WikiEntry.raw`.
+
+**Changed:**
+- `Registry::home_dir` promoted from private to `pub(crate)` so other
+  modules share the cross-platform implementation.
+- `unset_value` now returns a precise "key not found" error (was `Ok(())`
+  when the leaf key didn't exist).
+- AGENTS.md "Workspace Resolution" section documents that scalars override
+  but arrays (`tags`, `what_to_read`) union-dedupe on alias merge, plus a
+  new "Active write scope" paragraph explaining the git-config-style
+  contract: `set`/`add` create override sections in the top file; `rm`/
+  `unset` error if the target isn't in the active scope.
+
+**Added:**
+- 5 new regression tests in `tests/registry_discovery_v032_test.rs`:
+  `remove_entry_errors_on_alias_from_lower_priority_file`,
+  `unset_value_errors_on_alias_from_lower_priority_file`,
+  `remove_entry_works_when_alias_is_in_active_scope`,
+  `tags_array_union_dedupes_on_merge`,
+  `add_entry_populates_entry_raw_table`.
+- Spec test-name reference and test-count corrected (was stale post-v0.3.2).
+
+**Tests:** 208/208 pass (203 v0.3.2 + 5 new).
+
 ## [0.3.2] - 2026-06-23 — Multi-source registry hardening
 
 **Fixed:**

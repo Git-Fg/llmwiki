@@ -61,10 +61,13 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         .unwrap_or_else(|| "wiki".to_string());
 
     let reg = Registry::discover().or_else(|_| {
-        // No registry exists; create one at the primary candidate path
-        let default_path = Registry::candidate_paths()
-            .into_iter()
-            .next()
+        // No registry exists; create one at the conventional user-global slot.
+        // `~/.agents/wiki-root.toml` is the highest-priority user-global
+        // path and the conventional location for AI agent config (parallel
+        // to `~/.agents/skills/wiki/`). Picking the lowest-priority
+        // `~/wiki-root.toml` would create shadowing confusion later.
+        let default_path = crate::core::registry::home_dir()
+            .map(|h| h.join(".agents").join("wiki-root.toml"))
             .ok_or_else(|| WikiError::Other(anyhow::anyhow!("no home dir")))?;
         if let Some(parent) = default_path.parent() {
             let _ = std::fs::create_dir_all(parent);

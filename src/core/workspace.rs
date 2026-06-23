@@ -78,6 +78,4 @@ fn walk_up_for_dot_wiki(start: &Path) -> Option<PathBuf> {
     }
 }
 
-fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
-}
+use crate::core::registry::home_dir;

@@ -54,8 +54,8 @@ the lower-priority `[shared.nim]` block.
 remove duplicates by canonical path. Prevents `~/.agents/wiki-root.toml`
 from being added twice when HOME is an ancestor of CWD.
 
-Test coverage: `candidate_paths_dedupes_when_home_is_cwd_ancestor` in
-`tests/registry_discovery_test.rs`.
+Test coverage: `candidate_paths_dedupes_when_cwd_walks_into_home_agents` in
+`tests/registry_discovery_v032_test.rs`.
 
 ### M2 fix: WIKI_ROOT_CONFIG error differentiation
 
@@ -117,7 +117,7 @@ Then `Registry::load_all(paths)`:
 
 ## Acceptance Criteria
 
-- 190+ tests pass (188 baseline + H1 repro + M1 dedupe + M2 error branches).
+- 203+ tests pass (188 v0.3.1 baseline + 13 v0.3.2 tests + 5 v0.3.3 regression tests).
 - All 6 CI gates green: build, test, clippy, fmt, validator, e2e.
 - `cargo clippy --all-targets -- -D warnings` clean.
 - `cargo fmt --check` clean.
