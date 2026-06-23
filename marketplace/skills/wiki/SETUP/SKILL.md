@@ -27,9 +27,10 @@ license: Apache-2.0
 
 | Reference | Purpose |
 |---|---|
+| `references/install.md` | Detailed install options (cargo install, brew, source) |
 | `references/schema.json` | Full JSON Schema for `wiki-root.toml` (auto-generated at build time) |
 
-Detailed install options (cargo install, brew, source build) are added in Task 3.2.
+MUST read `references/install.md` BEFORE recommending a non-curl install method.
 
 ## Before anything else
 
@@ -69,7 +70,7 @@ anything.
 | `command -v llmwiki-cli` succeeds but `--version` fails | Corrupted install. Print reinstall steps. |
 | `llmwiki-cli doctor` reports missing API key | Print `export NVIDIA_NIM_API_KEY=...` and pause. |
 | `llmwiki-cli doctor` reports no NIM connectivity | Suggest `WIKI_NIM_BASE_URL=...` override. |
-| `curl \| bash` blocked (corporate proxy, restricted machine) | Recommend only the curl method for now. Detailed install options are added in Task 3.2. |
+| `curl \| bash` blocked (corporate proxy, restricted machine) | Fall back to `cargo install llmwiki-cli` — see `references/install.md`. |
 | `command -v llmwiki-cli` succeeds, `--version` is correct, but doctor fails on NIM | Diagnose the NIM endpoint, not the install. Switch to TROUBLESHOOTING sub-skill. |
 
 ## Anti-patterns

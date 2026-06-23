@@ -75,8 +75,8 @@ def validate_skill(path: Path) -> int:
             rc |= warn(f"hardcoded tool name '{bad_name}' found in body prose", path)
 
     # References integrity
-    for match in re.finditer(r"references/([\w\-/]+\.md)", body):
-        ref = path.parent / match.group(1)
+    for match in re.finditer(r"references/[\w\-/]+\.md", body):
+        ref = path.parent / match.group(0)
         if not ref.exists():
             rc |= fail(f"broken reference: {match.group(0)}", path)
 
