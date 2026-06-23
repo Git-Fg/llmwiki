@@ -5,34 +5,12 @@ use crate::core::registry::{home_dir, Registry};
 use crate::core::workspace::discover_workspace;
 use crate::error::WikiError;
 
+include!("doctor_report.rs");
+
 pub struct DoctorArgs {
     pub workspace: Option<PathBuf>,
     pub wiki: Option<String>,
     pub json: bool,
-}
-
-#[derive(serde::Serialize)]
-#[serde(deny_unknown_fields)] // documents the contract: no extra fields in doctor --json output
-struct DoctorReport {
-    workspace: String,
-    active_alias: Option<String>,
-    wiki_root_path: String,
-    registry_entries: usize,
-    config_loaded: bool,
-    embed_model: String,
-    nim_base_url: String,
-    api_key_length: usize,
-    api_key_env: String,
-    nim_reachable: bool,
-    nim_status: Option<u16>,
-    nim_error: Option<String>,
-    embed_model_available: bool,
-    /// Full reflective config dump as `key → value` pairs (dotted keys).
-    config: std::collections::BTreeMap<String, String>,
-    /// Per-key source attribution: `key → file-it-came-from` (or `<default>`).
-    /// Mirrors `wiki config show-effective`. Lets users audit which file
-    /// overrode which key without running a separate command.
-    config_sources: std::collections::BTreeMap<String, String>,
 }
 
 pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
