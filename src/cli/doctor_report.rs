@@ -1,7 +1,3 @@
-use schemars::JsonSchema;
-use serde::Serialize;
-use std::collections::BTreeMap;
-
 /// JSON Schema for the output of `wiki doctor --json`. Auto-generated
 /// from this struct (included via `include!` from `src/cli/doctor.rs`
 /// and from `build.rs`). This file is the single source of truth —
@@ -11,7 +7,10 @@ use std::collections::BTreeMap;
 /// sentinel pre-v0.3.17). **v0.3.23**: `nim_status` bounded to HTTP
 /// range [100, 599]. **v0.3.22**: `config` / `config_sources` are
 /// reflective dotted-key maps.
-#[derive(Serialize, JsonSchema)]
+///
+/// Type imports are intentionally written as full paths on the derive
+/// attributes (see `src/core/config_types.rs` for rationale).
+#[derive(serde::Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)] // → schema root `additionalProperties: false`
 pub struct DoctorReport {
     /// Resolved workspace directory (canonical absolute path).
@@ -47,8 +46,8 @@ pub struct DoctorReport {
     #[schemars(
         description = "dotted-key to value map (same shape as `wiki config show-effective`)"
     )]
-    pub config: BTreeMap<String, String>,
+    pub config: std::collections::BTreeMap<String, String>,
     /// Per-key source attribution: dotted-key → file-it-came-from (`<default>` for built-in defaults).
     #[schemars(description = "dotted-key to source file path map (v0.3.12+)")]
-    pub config_sources: BTreeMap<String, String>,
+    pub config_sources: std::collections::BTreeMap<String, String>,
 }
