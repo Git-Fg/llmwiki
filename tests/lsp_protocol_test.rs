@@ -26,11 +26,12 @@ fn lsp_initializes_and_reports_capabilities() {
         }
     });
     writeln!(stdin, "{}", init).unwrap();
-    writeln!(stdin, "").unwrap(); // LSP uses Content-Length headers in real wire; for a smoke test, a newline-delimited message works for some servers.
+    stdin.flush().unwrap(); // LSP uses Content-Length headers in real wire; for a smoke test, a newline-delimited message works for some servers.
 
     // Give the server 1 second to respond, then kill it.
     std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = child.kill();
+    let _ = child.wait(); // reap the zombie — clippy::zombie_processes
 
     // A full LSP test would parse the response and assert capabilities.
     // This smoke test just confirms the binary doesn't panic on initialize.
