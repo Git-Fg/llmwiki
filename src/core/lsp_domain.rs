@@ -1,5 +1,6 @@
 //! Shared LSP/MCP domain logic. Stateless per request.
 
+use crate::core::config::validate;
 use crate::core::config::Config;
 use serde::Serialize;
 
@@ -73,6 +74,22 @@ fn line_col_from_span(text: &str, byte_offset: usize) -> (u32, u32) {
     (line, col)
 }
 
+pub fn validate_config(cfg: &Config) -> Vec<DomainDiagnostic> {
+    validate(cfg)
+        .err()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|msg| DomainDiagnostic {
+            line: 0,
+            character: 0,
+            end_line: 0,
+            end_character: 0,
+            severity: 1,
+            message: msg,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,5 +117,18 @@ mod tests {
     #[test]
     fn line_col_from_span_works_after_newline() {
         assert_eq!(line_col_from_span("hello\nworld", 6), (1, 0));
+    }
+
+    #[test]
+    fn validate_config_emits_diagnostic_for_bad_model() {
+        let cfg = Config::default();
+        let diags = validate_config(&cfg);
+        assert!(diags.is_empty());
+
+        let mut bad = Config::default();
+        bad.nim.embed_model = "nvidia/bogus".into();
+        let diags = validate_config(&bad);
+        assert_eq!(diags.len(), 1);
+        assert!(diags[0].message.contains("unsupported embed_model"));
     }
 }
