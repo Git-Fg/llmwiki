@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.3.25] - 2026-06-23 — single-source-of-truth schema generation + drop serde-toml-merge
+
+**Refactor:**
+- `build.rs` no longer carries struct duplicates. Two new self-contained
+  files (`src/core/config_types.rs` and `src/cli/doctor_report.rs`) hold
+  the type definitions and their `default_*` helpers; both `src/core/config.rs`,
+  `src/cli/doctor.rs`, and `build.rs` embed them via `include!`. Adding a
+  field to `Config` or `DoctorReport` automatically updates the generated
+  JSON Schema files. Net: build.rs shrinks from 187 lines to 81 lines;
+  schema drift risk eliminated at compile time rather than caught by
+  post-hoc tests.
+- Type imports in `config_types.rs` and `doctor_report.rs` are written as
+  full paths on the derive attributes (`schemars::JsonSchema`,
+  `serde::Serialize`, etc.) so the files carry no `use` statements. This
+  avoids duplicate `JsonSchema` name collisions when `build.rs` includes
+  both files, and keeps the files self-contained in any `include!` scope.
+- `Cargo.toml`: added `serde = { version = "1", features = ["derive"] }`
+  to `[build-dependencies]` so the include!d struct derives resolve when
+  `build.rs` compiles.
+- Bonus schema improvement: the new `schema.json` now includes
+  `"default"` keyword entries populated from the real `default_*`
+  functions (via the moved-into-types-file helpers) and a top-level
+  `"required"` field list. The previous schema (from build.rs duplicates)
+  only had descriptions. Downstream consumers (agents reading
+  `schema.json`) now see actual default values.
+
+**Dependency hygiene:**
+- Removed `serde-toml-merge = "0.2"` from `Cargo.toml`. Added in v0.3.10
+  as a TOML merge helper; replaced by `registry::deep_merge_into` in
+  v0.3.15 (zero call sites since). Drops 2 packages from `Cargo.lock`:
+  `serde-toml-merge 0.2.0` and its transitive `toml 0.5.11`. `Cargo.lock`
+  also renames the remaining `toml 0.8.23` entry to `toml` (no version
+  discriminator needed once `0.5.11` is gone).
+
+**Tests:**
+- Deleted `config_schema_has_canonical_keys` (became tautological —
+  the schema is generated from the same struct the runtime uses).
+- Simplified `doctor_json_output_validates_against_schema` →
+  `doctor_json_validates_against_schema`: removed the structural-keys
+  and per-field annotation checks (both became tautological). Kept
+  the end-to-end `jsonschema::is_valid` check, which still catches
+  schemars emit bugs and `serde(skip)` regressions.
+- 253/253 pass (was 254 in v0.3.24; −1 from the deleted
+  `config_schema_has_canonical_keys` test); clippy `-D warnings`
+  clean (stable + MSRV 1.88 with `--locked`); fmt clean.
+
 ## [0.3.24] - 2026-06-23 — self-critic follow-ups: doc/code drift + Config drift test
 
 **Documentation / contracts (cross-release self-critic findings):**
