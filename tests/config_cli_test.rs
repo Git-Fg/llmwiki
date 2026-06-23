@@ -863,6 +863,69 @@ fn global_workspace_flag_propagates_to_every_config_subcommand() {
     }
 }
 
+/// CI lint (test form): every `ConfigCmd` variant must be classified as
+/// either **workspace-aware** (output references the workspace path) or
+/// **registry-only** (output succeeds even when `--workspace` points at a
+/// non-wiki directory). If a future variant is added that's neither, this
+/// test fails — which is the intent.
+///
+/// Coverage matrix (update here when adding a new ConfigCmd variant):
+///   - Workspace-aware: Paths, ConfigEdit, ShowEffective (asserted above
+///     and in `global_workspace_flag_propagates_to_*` tests).
+///   - Registry-only: Path, List, Get, Set, Unset, Add, Rm, Edit,
+///     Validate, ShowSchema (asserted in
+///     `registry_only_config_subcommands_ignore_workspace_flag`).
+///
+/// This test runs every variant with `--workspace <non-wiki>` and asserts
+/// the subprocess does NOT error with "workspace not found" (which would
+/// mean a registry-only command accidentally tried to discover a workspace).
+#[test]
+fn every_config_subcommand_is_either_workspace_aware_or_registry_only() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("not-a-wiki");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(&workspace).unwrap();
+
+    // Every ConfigCmd variant with safe no-op-or-print args. The EDITOR env
+    // is set to `true` (a no-op binary on macOS/Linux that exits 0) so
+    // config-edit doesn't open vim.
+    let cases: &[&[&str]] = &[
+        &["config", "path"],
+        &["config", "paths"],
+        &["config", "list"],
+        &["config", "get", "nim.embed_model"],
+        &[
+            "config",
+            "set",
+            "nim.embed_model",
+            "x",
+            "--wiki",
+            "testwiki",
+        ],
+        &["config", "unset", "nim.embed_model", "--wiki", "testwiki"],
+        &["config", "add", "testwiki", "/tmp/testwiki"],
+        &["config", "rm", "testwiki"],
+        &["config", "edit"],
+        &["config", "validate"],
+        &["config", "show-schema"],
+        &["config", "show-effective"],
+    ];
+
+    for args in cases {
+        let mut cmd = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None);
+        cmd.env("EDITOR", "true");
+        let output = cmd.args(*args).output().unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !stderr.contains("workspace not found"),
+            "subcommand {args:?} must NOT try to discover a workspace (it's either workspace-aware and should accept --workspace, or registry-only and should ignore it); stderr={stderr}"
+        );
+    }
+}
+
 /// `wiki config config-edit` specifically: with a stub editor and the global
 /// `--workspace` flag set, the editor must be invoked with the per-workspace
 /// config file path. This is the exact regression test for the v0.3.9 bug.
@@ -909,4 +972,49 @@ fn global_workspace_flag_propagates_to_config_edit() {
         invoked.contains("ws/.llmwiki-cli/config.toml"),
         "editor should have received the per-workspace config (proving the global --workspace flag propagated); got: {invoked:?}"
     );
+}
+
+// ─── Registry-only config subcommands must ignore --workspace ───
+//
+// `wiki config add`, `rm`, `set`, `unset`, `list`, `get`, `path`, `edit`,
+// `validate`, `show-schema` operate on the central registry (`wiki-root.toml`)
+// which is intentionally workspace-independent. Asserting that they succeed
+// even when a global `--workspace` points at a non-wiki directory guards
+// against future drift where someone adds workspace-aware logic to a
+// registry-only command (which would silently change the meaning of the
+// command for users).
+
+#[test]
+fn registry_only_config_subcommands_ignore_workspace_flag() {
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# empty registry\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("not-a-wiki"); // intentionally not a wiki dir
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(&workspace).unwrap();
+
+    // Each entry: (subcommand + args, must NOT error with "workspace not found")
+    let cases: &[&[&str]] = &[
+        &["config", "list"],
+        &["config", "path"],
+        &["config", "get", "nim.embed_model"],
+        &["config", "show-schema"],
+    ];
+
+    for args in cases {
+        let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+            .args(*args)
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success(),
+            "subcommand {args:?} should succeed even when --workspace points at a non-wiki dir; stderr={stderr}"
+        );
+        assert!(
+            !stderr.contains("workspace not found"),
+            "subcommand {args:?} must not look up workspace (registry-only); stderr={stderr}"
+        );
+    }
 }

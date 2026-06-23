@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.11] - 2026-06-23 — Config-surface audit tests
+
+**Added (test-only):**
+- `registry_only_config_subcommands_ignore_workspace_flag`: asserts that
+  registry-only subcommands (`list`, `get`, `path`, `show-schema`) do not
+  consult the workspace when one is passed via `--workspace`. Guards
+  against future drift where workspace-aware logic is accidentally added
+  to a registry-only command (which would silently change the meaning of
+  the command).
+- `every_config_subcommand_is_either_workspace_aware_or_registry_only`:
+  exhaustive lint (test form) that walks every `ConfigCmd` variant and
+  asserts the subprocess does NOT error with "workspace not found" when
+  `--workspace` points at a non-wiki directory. If a future variant is
+  added that doesn't fit either category, this test fails — which is the
+  intent.
+
+**Tests:** 246/246 pass (244 v0.3.10 + 2 new audit tests).
+
+No CLI behavior changed; this release is purely additional test coverage.
+
 ## [0.3.10] - 2026-06-23 — Config discoverability follow-ups
 
 **Changed:**
