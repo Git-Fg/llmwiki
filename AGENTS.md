@@ -111,23 +111,34 @@ llmwiki-cli --wiki minimax config show-effective
 # Expected: ~14 `<default>`-sourced dotted-key entries (no per-workspace overrides
 # in the flat-layout wikis; that's expected)
 
-# 6. Page discovery (KNOWN ISSUE — see below)
+# 6. Page discovery — works on both layouts since v0.3.25
 llmwiki-cli --wiki minimax ls --pages
 llmwiki-cli --wiki minimax tree
-# Expected for `wiki/`-layout wikis (e.g. an init'd example-wiki): non-empty listing.
-# Expected for FLAT-layout wikis (all 5 real ones on this machine): empty listing.
-# This is the documented design-vs-reality gap. Do NOT ship a release that
-# regresses page discovery on flat-layout wikis further. Filing or fixing the
-# gap is tracked separately — see "Known issues" below.
+# Expected: non-empty listing for both `wiki/`-layout and flat-layout wikis.
+# v0.3.25 added `wiki.pages_dir` (default `"wiki"`, empty string = flat).
+# Set `wiki.pages_dir = ""` in `<wiki>/.llmwiki-cli/config.toml` for
+# flat-layout wikis; see "Flat-layout wikis" below.
 ```
 
 ### Why this is mandatory
 
 A test suite that uses `wiremock` and `tempfile`-isolated workspaces cannot detect: registry resolution failures against the user's real `wiki-root.toml`, alias conflicts when multiple real wikis share a path, NIM connectivity with the user's actual API key, or layout assumptions that don't hold for the user's real wikis. The five real wikis in this registry collectively represent ~50 MB of curated content over months of edits — if the CLI can't read them, the CLI is broken regardless of what `cargo test` says.
 
-### Known issues surfaced by this check
+### Flat-layout wikis (all 5 real wikis on this machine)
 
-- **Flat-layout page discovery is broken (pre-existing, predates v0.3.25)**. `ls --pages`, `tree`, `embed`, `lint --scope wiki`, and `status` all hardcode `ws.join("wiki")` (six call sites: `src/cli/ls.rs:148,332`, `src/cli/embed.rs:48`, `src/cli/lint.rs:32`, `src/cli/status.rs:24`, `src/cli/tree.rs:35`). None of the five real wikis on this machine have a `wiki/` subdirectory — pages live at the workspace root (`comparisons/...`, `queries/...`, `index.md`, etc.). v0.3.25 does not fix this; tracked for v0.3.26. Until fixed, step 6 above returns empty results against real wikis — this is the documented limitation, not a release-blocker for the SSoT schema refactor itself.
+The user's real wikis use the Karpathy pattern with pages at the workspace root (no `wiki/` subdirectory). v0.3.25 added `wiki.pages_dir` to `Config`:
+
+- **Default** `wiki.pages_dir = "wiki"` — backward-compatible with `wiki init`-created wikis (pages in `wiki/`).
+- **Flat layout** `wiki.pages_dir = ""` — pages live at workspace root (`comparisons/foo.md`, `queries/bar.md`, `index.md`).
+
+To switch a real wiki to flat layout, create `<wiki>/.llmwiki-cli/config.toml`:
+
+```toml
+[wiki]
+pages_dir = ""
+```
+
+Without this per-workspace config, the CLI defaults to `wiki/` and reports `Pages (0):` against flat-layout wikis — same pre-v0.3.25 symptom, but now opt-in rather than baked-in. The new helper `core::workspace::pages_dir(workspace, pages_dir_config)` returns `workspace` for `""` and `workspace.join(dir)` otherwise.
 
 ## NIM API Conventions (do not change without updating the wiremock tests)
 

@@ -32,6 +32,7 @@
         "chunk_overlap_tokens": 128,
         "default_chunk_tokens": 512,
         "min_chunk_tokens": 32,
+        "pages_dir": "wiki",
         "require_frontmatter": true,
         "require_wikilinks_min": 2
       }
@@ -124,6 +125,11 @@
           "format": "uint",
           "default": 32,
           "minimum": 0
+        },
+        "pages_dir": {
+          "description": "Directory (relative to workspace root) containing wiki pages.\nDefault `\"wiki\"` keeps backward compatibility with `wiki init`-created\nwikis (which create a `wiki/` subdirectory). Set to `\"\"` (empty\nstring) for **flat-layout** Karpathy-style wikis where pages live at\nthe workspace root (e.g. `comparisons/foo.md`, `queries/bar.md`,\n`index.md`). v0.3.25+ — surfaced by the pre-release real-wiki smoke\ntest (see `AGENTS.md` \"Pre-release real-wiki smoke test\").",
+          "type": "string",
+          "default": "wiki"
         },
         "require_frontmatter": {
           "type": "boolean",

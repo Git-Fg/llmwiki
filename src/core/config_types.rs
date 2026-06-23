@@ -51,6 +51,15 @@ pub struct RetryConfig {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct WikiConfig {
+    /// Directory (relative to workspace root) containing wiki pages.
+    /// Default `"wiki"` keeps backward compatibility with `wiki init`-created
+    /// wikis (which create a `wiki/` subdirectory). Set to `""` (empty
+    /// string) for **flat-layout** Karpathy-style wikis where pages live at
+    /// the workspace root (e.g. `comparisons/foo.md`, `queries/bar.md`,
+    /// `index.md`). v0.3.25+ — surfaced by the pre-release real-wiki smoke
+    /// test (see `AGENTS.md` "Pre-release real-wiki smoke test").
+    #[serde(default = "default_pages_dir")]
+    pub pages_dir: String,
     #[serde(default = "default_chunk_tokens")]
     pub default_chunk_tokens: usize,
     #[serde(default = "default_chunk_overlap")]
@@ -89,6 +98,7 @@ fn default_nim() -> NimConfig {
 
 fn default_wiki() -> WikiConfig {
     WikiConfig {
+        pages_dir: default_pages_dir(),
         default_chunk_tokens: default_chunk_tokens(),
         chunk_overlap_tokens: default_chunk_overlap(),
         min_chunk_tokens: default_min_chunk(),
@@ -143,4 +153,8 @@ fn default_wikilinks_min() -> usize {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_pages_dir() -> String {
+    "wiki".into()
 }

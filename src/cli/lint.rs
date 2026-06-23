@@ -2,8 +2,9 @@ use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use crate::core::config::resolve_config;
 use crate::core::markdown::{extract_wikilinks, parse_frontmatter};
-use crate::core::workspace::discover_workspace;
+use crate::core::workspace::{discover_workspace, pages_dir};
 use crate::error::WikiError;
 use crate::lint::frontmatter::check_frontmatter;
 use crate::lint::wikilinks::check_wikilinks;
@@ -25,11 +26,17 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
         std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
+    let cfg = resolve_config(&ws)?;
 
     let mut all_issues: Vec<LintIssue> = vec![];
 
     if args.scope == "wiki" || args.scope == "all" {
-        let wiki_dir = ws.join("wiki");
+        let wiki_dir = pages_dir(&ws, &cfg.wiki.pages_dir);
+        let pages_dir_prefix = if cfg.wiki.pages_dir.is_empty() {
+            String::new()
+        } else {
+            format!("{}/", cfg.wiki.pages_dir)
+        };
         if wiki_dir.exists() {
             let mut all_pages: Vec<String> = vec![];
             for entry in walkdir::WalkDir::new(&wiki_dir) {
@@ -54,7 +61,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     let path_start = start + 2;
                     if let Some(end) = line[path_start..].find(')') {
                         let path = &line[path_start..path_start + end];
-                        if path.starts_with("wiki/") {
+                        if pages_dir_prefix.is_empty() || path.starts_with(&pages_dir_prefix) {
                             *index_paths_seen.entry(path.to_string()).or_insert(0) += 1;
                         }
                     }
@@ -78,7 +85,21 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                 let line_count = content.lines().count();
                 all_issues.extend(check_frontmatter(page_path, &content));
 
-                let parsed = parse_frontmatter(&content)?;
+                // Report unparseable frontmatter as a lint error rather than
+                // failing the whole `wiki lint` run. This makes the command
+                // resilient to individual bad pages in large wikis.
+                let parsed = match parse_frontmatter(&content) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        all_issues.push(LintIssue {
+                            severity: "error".into(),
+                            code: "frontmatter-parse".into(),
+                            path: page_path.clone(),
+                            message: format!("could not parse YAML frontmatter: {e}"),
+                        });
+                        continue;
+                    }
+                };
                 let inbound_count = inbound.get(page_path).copied().unwrap_or(0);
                 all_issues.extend(check_wikilinks(
                     page_path,
@@ -262,7 +283,20 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     .to_string_lossy()
                     .replace('\\', "/");
                 let content = std::fs::read_to_string(entry.path())?;
-                let parsed = parse_frontmatter(&content)?;
+                // Same: report unparseable frontmatter as a lint issue
+                // instead of failing the whole lint run.
+                let parsed = match parse_frontmatter(&content) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        all_issues.push(LintIssue {
+                            severity: "error".into(),
+                            code: "frontmatter-parse".into(),
+                            path: rel.clone(),
+                            message: format!("could not parse YAML frontmatter: {e}"),
+                        });
+                        continue;
+                    }
+                };
 
                 if parsed.frontmatter.as_mapping().is_none() {
                     all_issues.push(LintIssue {

@@ -108,7 +108,7 @@ pub fn run(args: LsArgs) -> Result<(), WikiError> {
 
     // --- links ---
     let links = if args.links {
-        Some(build_link_entries(&ws)?)
+        Some(build_link_entries(&ws, &cfg)?)
     } else {
         None
     };
@@ -139,13 +139,13 @@ pub fn run(args: LsArgs) -> Result<(), WikiError> {
 
 fn build_page_entries(
     ws: &Path,
-    _cfg: &crate::core::config::Config,
+    cfg: &crate::core::config::Config,
 ) -> Result<Vec<PageEntry>, WikiError> {
     let emb = EmbeddingsFile::read_from(&ws.join("embeddings.jsonl"))?;
     let embedded_pages: HashMap<String, &crate::core::embeddings::PageEmbedding> =
         emb.pages.iter().map(|p| (p.path.clone(), p)).collect();
 
-    let wiki_dir = ws.join("wiki");
+    let wiki_dir = crate::core::workspace::pages_dir(ws, &cfg.wiki.pages_dir);
     if !wiki_dir.exists() {
         return Ok(vec![]);
     }
@@ -208,7 +208,14 @@ fn build_page_entries(
             .to_string_lossy()
             .replace('\\', "/");
         let content = std::fs::read_to_string(path).unwrap_or_default();
-        let parsed = parse_frontmatter(&content)?;
+        // Skip pages with unparseable frontmatter (e.g. duplicate YAML keys).
+        // Pre-v0.3.25 this never triggered because the hardcoded `wiki/`
+        // path missed flat-layout wikis entirely; v0.3.25+ exposes the
+        // pre-existing fragility, so we make the listing command resilient
+        // rather than crashing the whole `wiki ls` on a single bad page.
+        let Ok(parsed) = parse_frontmatter(&content) else {
+            continue;
+        };
         let outbound = extract_wikilinks(&parsed.body).len();
         let inbound_count = inbound.get(&rel).copied().unwrap_or(0);
         let lines = content.lines().count();
@@ -269,7 +276,11 @@ fn build_raw_entries(ws: &Path) -> Result<Vec<RawEntry>, WikiError> {
             .to_string_lossy()
             .replace('\\', "/");
         let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-        let parsed = parse_frontmatter(&content)?;
+        // Same resilience: skip raw files with unparseable frontmatter
+        // rather than failing the whole `wiki ls`.
+        let Ok(parsed) = parse_frontmatter(&content) else {
+            continue;
+        };
         let fm_ok = parsed.frontmatter.as_mapping().is_some();
 
         let file_type = entry
@@ -328,8 +339,11 @@ fn build_embed_entries(ws: &Path) -> Result<Vec<EmbedEntry>, WikiError> {
     Ok(entries)
 }
 
-fn build_link_entries(ws: &Path) -> Result<Vec<LinkEntry>, WikiError> {
-    let wiki_dir = ws.join("wiki");
+fn build_link_entries(
+    ws: &Path,
+    cfg: &crate::core::config::Config,
+) -> Result<Vec<LinkEntry>, WikiError> {
+    let wiki_dir = crate::core::workspace::pages_dir(ws, &cfg.wiki.pages_dir);
     if !wiki_dir.exists() {
         return Ok(vec![]);
     }
@@ -347,7 +361,12 @@ fn build_link_entries(ws: &Path) -> Result<Vec<LinkEntry>, WikiError> {
             .unwrap_or("")
             .to_string();
         let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-        let parsed = parse_frontmatter(&content)?;
+        // Same resilience as build_page_entries: skip links from pages
+        // with unparseable frontmatter instead of failing the whole
+        // `wiki ls --links` invocation.
+        let Ok(parsed) = parse_frontmatter(&content) else {
+            continue;
+        };
         let links = extract_wikilinks(&parsed.body);
         for link in &links {
             let to = link.split('/').next_back().unwrap_or(link).to_string();

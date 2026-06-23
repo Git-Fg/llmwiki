@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use crate::core::workspace::discover_workspace;
+use crate::core::config::resolve_config;
+use crate::core::workspace::{discover_workspace, pages_dir};
 use crate::error::WikiError;
 
 pub struct TreeArgs {
@@ -31,8 +32,9 @@ pub fn run(args: TreeArgs) -> Result<(), WikiError> {
         std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
+    let cfg = resolve_config(&ws)?;
 
-    let wiki_dir = ws.join("wiki");
+    let wiki_dir = pages_dir(&ws, &cfg.wiki.pages_dir);
     if !wiki_dir.exists() {
         if args.json {
             println!(
@@ -65,7 +67,11 @@ pub fn run(args: TreeArgs) -> Result<(), WikiError> {
                 .to_string();
 
             let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-            let parsed = crate::core::markdown::parse_frontmatter(&content)?;
+            // Resilience: skip pages with unparseable frontmatter rather
+            // than failing the whole `wiki tree` listing.
+            let Ok(parsed) = crate::core::markdown::parse_frontmatter(&content) else {
+                continue;
+            };
             let title = parsed
                 .frontmatter
                 .as_mapping()
