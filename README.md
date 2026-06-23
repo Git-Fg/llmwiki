@@ -4,15 +4,30 @@ A markdown-based personal knowledge base, built on Andrej Karpathy's LLM Wiki pa
 
 ## Install
 
-```bash
-# 1. Install the CLI
-curl -LsSf https://github.com/<owner>/llmwiki/raw/main/install.sh | bash
+Choose your platform:
 
-# 2. Install the agent skill
+```bash
+# Linux, macOS, Windows-with-Git-for-Windows
+curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh
+```
+
+```powershell
+# Windows PowerShell 7+
+irm https://github.com/fg/llmwiki/releases/latest/download/install.ps1 | iex
+```
+
+```bash
+# Or any platform with the Rust toolchain installed
+cargo install llmwiki-cli --locked
+```
+
+Then install the agent skill:
+
+```bash
 llmwiki-cli install-skill --global
 ```
 
-This installs `llmwiki-cli` to `~/.cargo/bin/llmwiki-cli` and the skill to `~/.agents/skills/wiki/`. Add `~/.cargo/bin` to your shell PATH if not already there.
+This installs `llmwiki-cli` to `~/.local/bin/llmwiki-cli` (or `%LOCALAPPDATA%\llmwiki-cli\bin\llmwiki-cli.exe` on Windows). Add `~/.local/bin` to your shell PATH if not already there.
 
 ### Alternative: Workspace-local skill
 
