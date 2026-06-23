@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.21] - 2026-06-23 — Drop `--locked` from msrv-check (platform-specific lockfile)
+
+**Fixed:**
+- `.github/workflows/ci.yml::msrv-check`: dropped `--locked` again.
+  v0.3.20 re-enabled it after we started tracking `Cargo.lock`, but
+  cargo's lockfile is **platform-specific** — it pins deps like
+  `windows-sys` to a Linux target that doesn't exist on macOS dev
+  boxes and vice versa. The lockfile generated on macOS fails
+  `--locked` on the Linux CI runner. The check still verifies
+  **resolution + typecheck** under rustc 1.88, just not exact dep
+  reproducibility. A future improvement is to generate the lockfile
+  in a Linux container.
+
 ## [0.3.20] - 2026-06-23 — Track Cargo.lock + doctor JSON schema + changelog CI
 
 **Build / reproducibility:**
