@@ -102,8 +102,7 @@ fn main() {
         }
     }
     let schema = schemars::schema_for!(Config);
-    let schema_json =
-        serde_json::to_string_pretty(&schema).expect("schema is always serializable");
+    let schema_json = serde_json::to_string_pretty(&schema).expect("schema is always serializable");
     if let Err(e) = fs::write(&schema_path, schema_json) {
         println!(
             "cargo:warning=failed to write schema.json {:?}: {}",

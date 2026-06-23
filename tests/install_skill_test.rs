@@ -35,7 +35,5 @@ fn install_skill_workspace_writes_local_bundle() {
         .success();
 
     assert!(exists().eval(&workspace.join(".agents/skills/wiki/SKILL.md")));
-    assert!(exists().eval(
-        &workspace.join(".agents/skills/wiki/SETUP/SKILL.md")
-    ));
+    assert!(exists().eval(&workspace.join(".agents/skills/wiki/SETUP/SKILL.md")));
 }
