@@ -151,8 +151,9 @@ impl LanguageServer for Backend {
             params.text_document_position.position.character,
         );
         let cfg = lsp_domain::parse_config(&text).unwrap_or_default();
+        let parent_refs: Vec<&str> = parent.iter().map(String::as_str).collect();
         Ok(Some(CompletionResponse::Array(
-            lsp_domain::completion_for(&parent, &cfg)
+            lsp_domain::completion_for(&parent_refs, &cfg)
                 .into_iter()
                 .map(to_lsp_completion_item)
                 .collect(),

@@ -216,6 +216,92 @@ pub fn symbols_for(text: &str) -> Vec<DomainSymbol> {
         .collect()
 }
 
+/// Returns the full dotted key path at the given cursor position.
+/// For cursor on a table header `[nim.retry]`, returns `Some("nim.retry")`.
+/// For cursor on a key `embed_model = "..."` inside `[nim]`, returns `Some("nim.embed_model")`.
+pub fn key_at_position(text: &str, line: u32, _character: u32) -> Option<String> {
+    let lines: Vec<&str> = text.lines().collect();
+    let line_idx = line as usize;
+    if line_idx >= lines.len() {
+        return None;
+    }
+    let target = lines[line_idx];
+
+    // Cursor on a table header: return the table name (possibly dotted).
+    if let Some(name) = parse_table_header(target) {
+        return Some(name);
+    }
+
+    // Cursor on a key=value line: walk backward to find the enclosing table.
+    if let Some(key) = parse_key(target) {
+        let mut path = vec![key];
+        for i in (0..line_idx).rev() {
+            let prev = lines[i];
+            if let Some(table) = parse_table_header(prev) {
+                path.insert(0, table);
+                // Continue walking: a table inside a table (rare but valid in TOML).
+            } else if prev.trim().is_empty() || prev.trim_start().starts_with('#') {
+                continue;
+            } else {
+                break;
+            }
+        }
+        return Some(path.join("."));
+    }
+    None
+}
+
+/// Returns the path components of the scope at the cursor (everything
+/// except the leaf key). For cursor on `[nim.retry]` header, returns
+/// `vec!["nim", "retry"]`. For cursor on `embed_model = "x"` inside
+/// `[nim]`, returns `vec!["nim"]`.
+pub fn parent_path_at_position(text: &str, line: u32, _character: u32) -> Vec<String> {
+    let lines: Vec<&str> = text.lines().collect();
+    let line_idx = line as usize;
+    if line_idx >= lines.len() {
+        return vec![];
+    }
+    let target = lines[line_idx];
+
+    // Cursor on a table header: scope IS the table.
+    if let Some(name) = parse_table_header(target) {
+        return name.split('.').map(String::from).collect();
+    }
+
+    // Cursor on a key: scope is the enclosing table.
+    if parse_key(target).is_some() {
+        for i in (0..line_idx).rev() {
+            if let Some(table) = parse_table_header(lines[i]) {
+                return table.split('.').map(String::from).collect();
+            }
+        }
+    }
+    vec![]
+}
+
+fn parse_table_header(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.starts_with('[') && trimmed.ends_with(']') && !trimmed.starts_with("[[") {
+        Some(trimmed[1..trimmed.len() - 1].trim().to_string())
+    } else {
+        None
+    }
+}
+
+fn parse_key(line: &str) -> Option<String> {
+    let trimmed = line.trim_start();
+    if let Some(eq) = trimmed.find('=') {
+        let key = trimmed[..eq].trim();
+        if key.is_empty() || key.contains(' ') {
+            None
+        } else {
+            Some(key.to_string())
+        }
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,5 +378,26 @@ mod tests {
         let syms = symbols_for(text);
         assert!(syms.iter().any(|s| s.name == "nim"));
         assert!(syms.iter().any(|s| s.name == "wiki"));
+    }
+
+    #[test]
+    fn key_at_position_finds_top_level() {
+        let text = "[nim]\nembed_model = \"x\"\n";
+        let key = key_at_position(text, 1, 0);
+        assert_eq!(key.as_deref(), Some("nim.embed_model"));
+    }
+
+    #[test]
+    fn key_at_position_finds_table_header() {
+        let text = "[nim]\nfoo = 1\n";
+        let key = key_at_position(text, 0, 1);
+        assert_eq!(key.as_deref(), Some("nim"));
+    }
+
+    #[test]
+    fn parent_path_at_position_for_nested() {
+        let text = "[nim.retry]\nmax_attempts = 3\n";
+        let path = parent_path_at_position(text, 0, 1);
+        assert_eq!(path, vec!["nim".to_string(), "retry".to_string()]);
     }
 }
