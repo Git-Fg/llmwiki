@@ -1,59 +1,8 @@
 use crate::core::registry::Registry;
 use crate::error::WikiError;
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct Config {
-    #[serde(default = "default_nim")]
-    pub nim: NimConfig,
-    #[serde(default = "default_wiki")]
-    pub wiki: WikiConfig,
-    #[serde(default)]
-    pub config_version: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct NimConfig {
-    #[serde(default = "default_nim_base_url")]
-    pub base_url: String,
-    #[serde(default = "default_embed_model")]
-    pub embed_model: String,
-    #[serde(default)]
-    pub rerank_model: String,
-    #[serde(default)]
-    pub embed_dim_override: Option<usize>,
-    #[serde(default = "default_api_key_env")]
-    pub api_key_env: String,
-    #[serde(default = "default_batch_size")]
-    pub batch_size: usize,
-    #[serde(default = "default_timeout")]
-    pub request_timeout_secs: u64,
-    #[serde(default)]
-    pub retry: RetryConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, schemars::JsonSchema)]
-pub struct RetryConfig {
-    #[serde(default = "default_max_attempts")]
-    pub max_attempts: u32,
-    #[serde(default = "default_backoff")]
-    pub backoff_ms: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct WikiConfig {
-    #[serde(default = "default_chunk_tokens")]
-    pub default_chunk_tokens: usize,
-    #[serde(default = "default_chunk_overlap")]
-    pub chunk_overlap_tokens: usize,
-    #[serde(default = "default_min_chunk")]
-    pub min_chunk_tokens: usize,
-    #[serde(default = "default_true")]
-    pub require_frontmatter: bool,
-    #[serde(default = "default_wikilinks_min")]
-    pub require_wikilinks_min: usize,
-}
+include!("config_types.rs");
 
 fn default_nim() -> NimConfig {
     NimConfig {
