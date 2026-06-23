@@ -35,12 +35,18 @@ jobs:
       - name: Package
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../llmwiki-cli-${{ matrix.target }}.tar.gz llmwiki-cli
-          sha256sum llmwiki-cli-${{ matrix.target }}.tar.gz > llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
+          if [[ "${{ matrix.target }}" == *-pc-windows-msvc ]]; then
+            sudo apt-get install -y zip
+            zip ../../../llmwiki-cli-${{ matrix.target }}.zip llmwiki-cli.exe
+            sha256sum llmwiki-cli-${{ matrix.target }}.zip > llmwiki-cli-${{ matrix.target }}.zip.sha256
+          else
+            tar czf ../../../llmwiki-cli-${{ matrix.target }}.tar.gz llmwiki-cli
+            sha256sum llmwiki-cli-${{ matrix.target }}.tar.gz > llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
+          fi
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            llmwiki-cli-${{ matrix.target }}.tar.gz
-            llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
+            llmwiki-cli-${{ matrix.target }}.${{ matrix.target == 'x86_64-pc-windows-msvc' && 'zip' || 'tar.gz' }}
+            llmwiki-cli-${{ matrix.target }}.${{ matrix.target == 'x86_64-pc-windows-msvc' && 'zip' || 'tar.gz' }}.sha256
             install.sh.rendered
             install.ps1.rendered
