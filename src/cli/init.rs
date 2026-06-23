@@ -20,6 +20,7 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
 
     std::fs::create_dir_all(target.join("wiki")).context("create wiki/")?;
     std::fs::create_dir_all(target.join("raw/articles")).context("create raw/articles/")?;
+    std::fs::create_dir_all(target.join(".llmwiki-cli")).context("create .llmwiki-cli/")?;
 
     let today = std::process::Command::new("date")
         .arg("+%Y-%m-%d")
@@ -43,6 +44,27 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         &target.join(".gitignore"),
         "embeddings.jsonl\n.env\n.env.local\n",
     )?;
+
+    // Per-workspace config (v0.3.7). Safe to commit to the wiki repo so
+    // team members share the same NIM/wiki settings for this workspace.
+    // Keys default to `~/.llmwiki-cli/config.toml`; uncomment here to
+    // override per-workspace.
+    let workspace_config = "\
+# Per-workspace llmwiki-cli config.
+# Edit values here to override the per-computer ~/.llmwiki-cli/config.toml.
+# Safe to commit to the wiki repo for team sharing.
+
+[nim]
+# base_url = \"https://integrate.api.nvidia.com\"
+# embed_model = \"nvidia/nv-embedqa-e5-v5\"
+# batch_size = 8
+
+[wiki]
+# default_chunk_tokens = 512
+# chunk_overlap_tokens = 128
+# min_chunk_tokens = 32
+";
+    write_if_absent(&target.join(".llmwiki-cli/config.toml"), workspace_config)?;
 
     // Initialize git repo if not already one
     if !target.join(".git").exists() {

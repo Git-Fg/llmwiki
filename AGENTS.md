@@ -129,8 +129,8 @@ The CLI locates the active wiki (or the registry of wikis) in this order:
 3. `$WIKI_WORKSPACE` env var
 4. `$WIKI_ACTIVE` env var (looks up alias in the registry)
 5. Registry CWD prefix match against registered wiki paths
-6. Walk up from CWD looking for `.wiki/`
-7. `~/llmwiki-cli/` if it has `.wiki/` (user-global workspace)
+6. Walk up from CWD looking for `.llmwiki-cli/` directory (skip HOME so `~/.llmwiki-cli/` is treated as user-global config, not a workspace marker)
+7. Single-wiki shortcut (registry has exactly one entry) — defaults to it without requiring `--wiki`
 
 Registry file lookup (used by `--wiki`, `$WIKI_ACTIVE`, and the CWD prefix match) — **all sources are concatenated, with later (higher-priority) entries winning on alias conflict**:
 
@@ -153,14 +153,19 @@ When no registry is found, `WikiRootNotFound` error distinguishes `$WIKI_ROOT_CO
 
 ## Config File Resolution
 
-The standalone config file (used when no wiki-root.toml registry entry matches the workspace) is searched in this order:
+Config files are searched in this order (highest priority first; later files deep-merge on top):
 
 1. `$LLMWIKI_CONFIG` env var — exact file path, no merging
-2. `~/llmwiki-cli/config.toml` — user-global, TOML format (matches `wiki-root.toml`)
+2. `<workspace>/.llmwiki-cli/config.toml` — per-workspace, found by walking up from the resolved workspace looking for the closest `.llmwiki-cli/` ancestor (HOME is skipped so `~/.llmwiki-cli/` is not mistaken for a workspace). Git-committable so a team can share settings per-wiki.
+3. `~/.llmwiki-cli/config.toml` — per-computer, hidden dotfile directory
+4. Built-in `Config::default()` — applied when no files exist
 
-TOML only. YAML and the legacy `~/.config/wiki/config.yaml` path are removed in v0.3.6 — the project is still alpha, so no backward compatibility shims. To customize:
+When the registry has a matching `[alias]` entry for the workspace, `Registry::resolve_config()` deep-merges `[defaults]` + `[alias]` first, then deep-merges `<workspace>/.llmwiki-cli/config.toml` on top. Per-workspace config wins per-key over registry entries; per-computer config is folded into `Config::default()` upstream.
+
+TOML only — matches `wiki-root.toml` format. YAML and legacy `~/.config/wiki/config.yaml` paths were removed in v0.3.6; `.wiki/` walk-up and the `~/llmwiki-cli/.wiki/` workspace fallback were removed in v0.3.7. The project is still alpha, so no backward compatibility shims. To customize:
 
 ```bash
 export LLMWIKI_CONFIG=/etc/llmwiki-cli.toml   # full override
-# or edit ~/llmwiki-cli/config.toml directly
+# or edit ~/.llmwiki-cli/config.toml directly
+# or commit a per-workspace override to <workspace>/.llmwiki-cli/config.toml
 ```

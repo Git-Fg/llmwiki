@@ -56,7 +56,7 @@ brew install llmwiki-cli
 ## Verifying the install
 
 ```bash
-llmwiki-cli --version          # Should print "llmwiki-cli 0.3.4"
+llmwiki-cli --version          # Should print "llmwiki-cli 0.3.7"
 llmwiki-cli doctor             # Should report "OK" or surface specific issues
 llmwiki-cli --help             # Should list all subcommands
 ```

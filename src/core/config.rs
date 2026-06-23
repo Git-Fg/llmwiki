@@ -140,15 +140,20 @@ use crate::core::registry::home_dir;
 
 /// Ordered list of config file paths searched at startup.
 ///
-/// Highest priority first. Each entry is tried in order; the first existing
-/// file is loaded. Both `resolve_config()` (CLI/LSP/MCP startup) and the
+/// Highest priority first. Each entry is tried in order; missing files are
+/// skipped silently. Both `resolve_config()` (CLI/LSP/MCP startup) and the
 /// `doctor` command call this so the search order is defined in one place.
 ///
 /// Search order:
 /// 1. `$LLMWIKI_CONFIG` env var (primary override, matches binary-name prefix
 ///    already used in `install.sh` as `LLMWIKI_BIN_DIR`)
-/// 2. `~/llmwiki-cli/config.toml` (user-global, TOML to match `wiki-root.toml`)
-pub fn config_paths() -> Vec<PathBuf> {
+/// 2. `<workspace>/.llmwiki-cli/config.toml` — per-workspace, found by
+///    walking up from `workspace` looking for the closest `.llmwiki-cli/`
+///    ancestor (skipping HOME so `~/.llmwiki-cli/` is not mistaken for a
+///    workspace marker).
+/// 3. `~/.llmwiki-cli/config.toml` — per-computer, hidden dotfile directory
+///    (matches the `.llmwiki-cli/` convention used for per-workspace config).
+pub fn config_paths(workspace: &Path) -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
     // 1. Hard override via env var — exact file, no merging.
@@ -158,12 +163,42 @@ pub fn config_paths() -> Vec<PathBuf> {
         }
     }
 
-    // 2. User-global default.
+    // 2. Per-workspace: walk up from `workspace` looking for `.llmwiki-cli/config.toml`.
+    if let Some(p) = walk_up_for_llmwiki_cli_config(workspace) {
+        paths.push(p);
+    }
+
+    // 3. User-global default.
     if let Some(home) = home_dir() {
-        paths.push(home.join("llmwiki-cli").join("config.toml"));
+        paths.push(home.join(".llmwiki-cli").join("config.toml"));
     }
 
     paths
+}
+
+/// Walk up from `start` collecting the closest `.llmwiki-cli/config.toml`.
+/// Skips the user's HOME directory so `~/.llmwiki-cli/` is treated as the
+/// per-computer config location, not as a workspace marker.
+fn walk_up_for_llmwiki_cli_config(start: &Path) -> Option<PathBuf> {
+    let canonical = start.canonicalize().ok()?;
+    let home_canon = home_dir().and_then(|h| h.canonicalize().ok());
+    let mut current: Option<PathBuf> = Some(canonical);
+    while let Some(dir) = current {
+        // Skip HOME — `~/.llmwiki-cli/` is the per-computer config and must
+        // not be promoted to a workspace marker.
+        if let Some(ref h) = home_canon {
+            if dir == *h {
+                current = dir.parent().map(PathBuf::from);
+                continue;
+            }
+        }
+        let candidate = dir.join(".llmwiki-cli").join("config.toml");
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        current = dir.parent().map(PathBuf::from);
+    }
+    None
 }
 
 /// Load and merge every config file in `paths` (later wins per scalar key).
@@ -230,7 +265,7 @@ pub fn resolve_config(workspace: &Path) -> Result<Config, WikiError> {
         }
     }
 
-    load_config(&config_paths())
+    load_config(&config_paths(workspace))
 }
 
 /// Field-level validation independent of `load_config`. Used by `wiki config

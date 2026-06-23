@@ -1,4 +1,4 @@
-use crate::core::registry::Registry;
+use crate::core::registry::{home_dir, Registry};
 use crate::error::WikiError;
 use std::path::{Path, PathBuf};
 
@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 /// 3. `WIKI_WORKSPACE` env var
 /// 4. `WIKI_ACTIVE` env var (looks up path in registry)
 /// 5. wiki-root.toml registry (CWD match against registered paths)
-/// 6. Walk up from CWD looking for `.wiki/` directory
-/// 7. `~/llmwiki-cli/` if it has `.wiki/` (user-global workspace)
+/// 6. Walk up from CWD looking for `.llmwiki-cli/` directory (skip HOME)
+/// 7. Single-wiki shortcut (registry has exactly one entry)
 pub fn discover_workspace(
     flag: Option<PathBuf>,
     wiki_alias: Option<&str>,
@@ -54,30 +54,42 @@ pub fn discover_workspace(
         }
     }
 
-    if let Some(p) = walk_up_for_dot_wiki(&cwd) {
+    // Walk up from CWD looking for `.llmwiki-cli/` (skip HOME so
+    // `~/.llmwiki-cli/` is treated as per-computer config, not a workspace).
+    if let Some(p) = walk_up_for_llmwiki_cli_dir(&cwd) {
         return Ok(p);
     }
-    if let Some(home) = home_dir() {
-        // User-global workspace at `~/llmwiki-cli/.wiki/` — mirrors the
-        // `~/llmwiki-cli/config.toml` path used by `config_paths()`.
-        let candidate = home.join("llmwiki-cli");
-        if candidate.join(".wiki").exists() {
-            return Ok(candidate.canonicalize().unwrap_or(candidate));
+
+    // Single-wiki shortcut: if the registry has exactly one entry and we
+    // haven't matched anything else, default to it. Avoids forcing the user
+    // to pass `--wiki` for a single-wiki install.
+    if let Ok(reg) = Registry::discover() {
+        if reg.entries.len() == 1 {
+            return Ok(reg.entries[0].path.clone());
         }
     }
+
     Err(WikiError::WorkspaceNotFound)
 }
 
-fn walk_up_for_dot_wiki(start: &Path) -> Option<PathBuf> {
-    let mut current = start.canonicalize().ok()?;
-    loop {
-        if current.join(".wiki").exists() {
-            return Some(current);
+/// Walk up from `start` collecting the closest ancestor containing a
+/// `.llmwiki-cli/` directory. Skips the user's HOME so `~/.llmwiki-cli/`
+/// is treated as the per-computer config location, not as a workspace marker.
+fn walk_up_for_llmwiki_cli_dir(start: &Path) -> Option<PathBuf> {
+    let canonical = start.canonicalize().ok()?;
+    let home_canon = home_dir().and_then(|h| h.canonicalize().ok());
+    let mut current: Option<PathBuf> = Some(canonical);
+    while let Some(dir) = current {
+        if let Some(ref h) = home_canon {
+            if dir == *h {
+                current = dir.parent().map(PathBuf::from);
+                continue;
+            }
         }
-        if !current.pop() {
-            return None;
+        if dir.join(".llmwiki-cli").is_dir() {
+            return Some(dir);
         }
+        current = dir.parent().map(PathBuf::from);
     }
+    None
 }
-
-use crate::core::registry::home_dir;

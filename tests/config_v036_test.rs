@@ -1,6 +1,12 @@
-//! v0.3.6 — Config discovery simplified to `~/llmwiki-cli/config.toml` with
+//! v0.3.6 — Config discovery simplified to `~/.llmwiki-cli/config.toml` with
 //! `$LLMWIKI_CONFIG` override. Legacy `~/.config/wiki/config.yaml` removed.
 //! YAML parsing removed — TOML only, matching `wiki-root.toml` format.
+//!
+//! v0.3.7 — User-global config moved from `~/llmwiki-cli/config.toml` to
+//! `~/.llmwiki-cli/config.toml` (hidden dotfile). New per-workspace config
+//! `<workspace>/.llmwiki-cli/config.toml` walked up from CWD. Signature of
+//! `config_paths()` changed from `()` to `(workspace: &Path)` so it can
+//! resolve the per-workspace config path.
 
 use llmwiki_cli::core::config::{config_paths, load_config};
 use std::path::PathBuf;
@@ -37,7 +43,7 @@ where
     result
 }
 
-// ─── config_paths() helper ───
+// ─── config_paths(workspace) helper ───
 
 #[test]
 fn config_paths_env_var_takes_priority() {
@@ -46,7 +52,7 @@ fn config_paths_env_var_takes_priority() {
             let tmp = tempfile::tempdir().unwrap();
             let custom = tmp.path().join("my-config.toml");
             with_llmwiki_config(&custom, || {
-                let paths = config_paths();
+                let paths = config_paths(tmp.path());
                 assert_eq!(paths[0], custom);
             });
         });
@@ -54,17 +60,18 @@ fn config_paths_env_var_takes_priority() {
 }
 
 #[test]
-fn config_paths_falls_back_to_home_llmwiki_cli() {
+fn config_paths_falls_back_to_home_dot_llmwiki_cli() {
+    // v0.3.7: user-global config moved to hidden directory `~/.llmwiki-cli/config.toml`.
     with_lock(|| {
         without_llmwiki_config(|| {
             let tmp = tempfile::tempdir().unwrap();
             let home = tmp.path().join("home");
             std::fs::create_dir_all(&home).unwrap();
             with_home_and_cwd(&home, &home, || {
-                let paths = config_paths();
+                let paths = config_paths(&home);
                 assert_eq!(
                     paths.last().unwrap(),
-                    &home.join("llmwiki-cli").join("config.toml")
+                    &home.join(".llmwiki-cli").join("config.toml")
                 );
             });
         });
@@ -81,7 +88,7 @@ fn config_paths_ignores_empty_env_var() {
             with_home_and_cwd(&home, &home, || {
                 let prev = std::env::var_os("LLMWIKI_CONFIG");
                 std::env::set_var("LLMWIKI_CONFIG", "");
-                let paths = config_paths();
+                let paths = config_paths(&home);
                 // Empty env var should NOT be added to the list.
                 assert!(!paths.iter().any(|p| p.to_string_lossy().is_empty()));
                 if let Some(p) = prev {
@@ -108,7 +115,7 @@ fn load_config_reads_toml_from_env_var() {
             )
             .unwrap();
             with_llmwiki_config(&custom, || {
-                let cfg = load_config(&config_paths()).unwrap();
+                let cfg = load_config(&config_paths(tmp.path())).unwrap();
                 assert_eq!(cfg.nim.embed_model, "nvidia/nv-embedqa-e5-v5");
             });
         });
@@ -116,20 +123,21 @@ fn load_config_reads_toml_from_env_var() {
 }
 
 #[test]
-fn load_config_reads_toml_from_home_llmwiki_cli() {
+fn load_config_reads_toml_from_home_dot_llmwiki_cli() {
+    // v0.3.7: user-global config lives at `~/.llmwiki-cli/config.toml`.
     with_lock(|| {
         without_wiki_root_config(|| {
             without_llmwiki_config(|| {
                 let tmp = tempfile::tempdir().unwrap();
                 let home = tmp.path().join("home");
-                std::fs::create_dir_all(home.join("llmwiki-cli")).unwrap();
+                std::fs::create_dir_all(home.join(".llmwiki-cli")).unwrap();
                 std::fs::write(
-                    home.join("llmwiki-cli").join("config.toml"),
+                    home.join(".llmwiki-cli").join("config.toml"),
                     "[nim]\nembed_model = \"nvidia/nv-embedcode-7b-v1\"\n",
                 )
                 .unwrap();
                 with_home_and_cwd(&home, &home, || {
-                    let cfg = load_config(&config_paths()).unwrap();
+                    let cfg = load_config(&config_paths(&home)).unwrap();
                     assert_eq!(cfg.nim.embed_model, "nvidia/nv-embedcode-7b-v1");
                 });
             });
@@ -146,7 +154,7 @@ fn load_config_returns_default_when_no_files_exist() {
                 let home = tmp.path().join("home");
                 std::fs::create_dir_all(&home).unwrap();
                 with_home_and_cwd(&home, &home, || {
-                    let cfg = load_config(&config_paths()).unwrap();
+                    let cfg = load_config(&config_paths(&home)).unwrap();
                     assert_eq!(cfg.nim.embed_model, "nvidia/nv-embed-v1");
                 });
             });
@@ -191,7 +199,7 @@ fn config_paths_does_not_include_legacy_dot_config_wiki() {
             )
             .unwrap();
             with_home_and_cwd(&home, &home, || {
-                let paths = config_paths();
+                let paths = config_paths(&home);
                 assert!(
                     !paths
                         .iter()
@@ -204,8 +212,9 @@ fn config_paths_does_not_include_legacy_dot_config_wiki() {
 }
 
 #[test]
-fn config_paths_does_not_include_workspace_local_yaml() {
-    // Legacy `<workspace>/.wiki/config.yaml` is removed in v0.3.6.
+fn config_paths_does_not_include_legacy_dot_wiki() {
+    // v0.3.7: legacy `<workspace>/.wiki/config.yaml` and the
+    // `~/llmwiki-cli/.wiki/` fallback are both removed.
     with_lock(|| {
         without_llmwiki_config(|| {
             let tmp = tempfile::tempdir().unwrap();
@@ -219,7 +228,7 @@ fn config_paths_does_not_include_workspace_local_yaml() {
             )
             .unwrap();
             with_home_and_cwd(&home, &workspace, || {
-                let paths = config_paths();
+                let paths = config_paths(&workspace);
                 assert!(
                     !paths
                         .iter()

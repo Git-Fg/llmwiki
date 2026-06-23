@@ -9,7 +9,7 @@ async fn doctor_uses_correct_models_endpoint() {
     // Regression: ensure doctor hits /models not /v1/models
     // since base_url already ends in /v1.
     let tmp = tempfile::tempdir().unwrap();
-    std::fs::create_dir(tmp.path().join(".wiki")).unwrap();
+    std::fs::create_dir(tmp.path().join(".llmwiki-cli")).unwrap();
 
     let mock_server = MockServer::start().await;
 
@@ -51,7 +51,7 @@ async fn doctor_uses_correct_models_endpoint() {
 async fn doctor_json_output() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
-    std::fs::create_dir(wiki.join(".wiki")).unwrap();
+    std::fs::create_dir(wiki.join(".llmwiki-cli")).unwrap();
 
     let mock_server = MockServer::start().await;
 
@@ -88,7 +88,7 @@ async fn doctor_json_output() {
 async fn doctor_reports_missing_api_key() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
-    std::fs::create_dir(wiki.join(".wiki")).unwrap();
+    std::fs::create_dir(wiki.join(".llmwiki-cli")).unwrap();
 
     let mock_server = MockServer::start().await;
 

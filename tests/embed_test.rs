@@ -6,9 +6,13 @@ fn setup_wiki_with_page() -> tempfile::TempDir {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
     std::fs::create_dir_all(wiki.join("wiki")).unwrap();
-    std::fs::create_dir_all(wiki.join(".wiki")).unwrap();
+    std::fs::create_dir_all(wiki.join(".llmwiki-cli")).unwrap();
     std::fs::write(wiki.join("wiki/a.md"), "---\ntitle: A\n---\n\nBody of A.\n").unwrap();
-    std::fs::write(wiki.join(".wiki/config.toml"), "config_version = 1\n").unwrap();
+    std::fs::write(
+        wiki.join(".llmwiki-cli/config.toml"),
+        "config_version = 1\n",
+    )
+    .unwrap();
     tmp
 }
 

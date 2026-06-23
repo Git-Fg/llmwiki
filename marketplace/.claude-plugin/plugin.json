@@ -1,6 +1,6 @@
 {
   "name": "wiki",
-  "version": "0.3.4",
+  "version": "0.3.7",
   "description": "Karpathy-style LLM Wiki — manage multiple wikis, embed, search, lint",
   "author": { "name": "Git-Fg" },
   "license": "Apache-2.0",

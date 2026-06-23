@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 fn ingest_adds_file_to_raw() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
-    std::fs::create_dir_all(wiki.join(".wiki")).unwrap();
+    std::fs::create_dir_all(wiki.join(".llmwiki-cli")).unwrap();
     std::fs::create_dir_all(wiki.join("raw/articles")).unwrap();
 
     let source = tmp.path().join("source.md");
@@ -37,7 +37,7 @@ fn ingest_adds_file_to_raw() {
 fn ingest_updates_log() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
-    std::fs::create_dir_all(wiki.join(".wiki")).unwrap();
+    std::fs::create_dir_all(wiki.join(".llmwiki-cli")).unwrap();
     std::fs::create_dir_all(wiki.join("raw/articles")).unwrap();
     std::fs::write(wiki.join("log.md"), "# Log\n").unwrap();
 

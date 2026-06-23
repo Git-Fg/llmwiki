@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.3.7] - 2026-06-23 — `.llmwiki-cli/` config centralization
+
+**Changed (BREAKING):**
+- **Per-computer config** moved from `~/llmwiki-cli/config.toml` to
+  `~/.llmwiki-cli/config.toml` (hidden dotfile directory).
+- **New per-workspace config**: `<workspace>/.llmwiki-cli/config.toml`
+  (hidden dotfile directory inside the workspace, git-committable so
+  teams can share NIM/wiki settings per-wiki). Found by walking up
+  from the resolved workspace looking for the closest `.llmwiki-cli/`
+  ancestor.
+- **Workspace marker** changed from `.wiki/` to `.llmwiki-cli/`. The
+  marker directory is now the same directory that holds the per-workspace
+  config — a single convention.
+- **Walk-up algorithm** skips HOME so `~/.llmwiki-cli/` is treated as
+  the per-computer config location, not as a workspace marker.
+- **`config_paths()` signature** changed from `()` to `(workspace: &Path)`
+  so it can resolve the per-workspace config path.
+- **Single-wiki shortcut** added to workspace discovery: if the registry
+  has exactly one entry and nothing else matched, default to it without
+  requiring `--wiki`.
+
+**Removed:**
+- `.wiki/` walk-up workspace discovery (replaced by `.llmwiki-cli/`).
+- `~/llmwiki-cli/.wiki/` user-global workspace fallback. Registry +
+  per-workspace config cover the use cases.
+
+**Added:**
+- `wiki init` now scaffolds an empty `.llmwiki-cli/config.toml` template
+  alongside `wiki/`, `raw/`, `index.md`, `.gitignore`.
+- `Registry::resolve_config(alias)` deep-merges the per-workspace
+  `.llmwiki-cli/config.toml` on top of the `[defaults]`+`[alias]` result
+  (per-workspace wins per-key, partial overrides preserved).
+- 10 new regression tests in `tests/config_v037_test.rs` covering
+  per-workspace walk-up, HOME skip, registry deep-merge, partial
+  overrides, no-config noop, init template, and `.wiki/` removal.
+
+**Tests:** 231/231 pass (221 v0.3.6 + 10 new).
+
+**Migration:** Move `~/llmwiki-cli/config.toml` to
+`~/.llmwiki-cli/config.toml`. If you want team-shared per-workspace
+settings, add `.llmwiki-cli/config.toml` inside the wiki repo and commit
+it.
+
 ## [0.3.6] - 2026-06-23 — Config discovery simplified to `~/llmwiki-cli/config.toml`
 
 **Changed (BREAKING for users with custom config paths):**

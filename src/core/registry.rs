@@ -387,7 +387,11 @@ impl Registry {
     }
 
     /// Resolve the merged Config for a given alias.
-    /// Deep-merges [defaults] with [alias] overrides.
+    /// Deep-merges [defaults] with [alias] overrides, then deep-merges
+    /// `<workspace>/.llmwiki-cli/config.toml` on top of the result.
+    /// Per-workspace config wins over registry entries; per-computer
+    /// config (`~/.llmwiki-cli/config.toml`) is applied earlier in
+    /// `crate::core::config::resolve_config` via `Config::default()`.
     pub fn resolve_config(&self, alias: &str) -> Result<Config, WikiError> {
         let entry = self
             .entries
@@ -431,7 +435,29 @@ impl Registry {
             }
         }
 
-        let merged_value = toml::Value::Table(merged);
+        let mut merged_value = toml::Value::Table(merged);
+
+        // Deep-merge per-workspace `<entry.path>/.llmwiki-cli/config.toml`
+        // on top of the registry result. Errors reading or parsing the file
+        // surface as `ConfigInvalid` so users see a clear pointer to the
+        // offending file path. Use the entry's stored path verbatim —
+        // canonicalizing could rewrite paths under /tmp to /private/tmp on
+        // macOS and break the lookup for a freshly-initialized wiki.
+        let ws_config = entry.path.join(".llmwiki-cli").join("config.toml");
+        if ws_config.is_file() {
+            let text =
+                std::fs::read_to_string(&ws_config).map_err(|e| WikiError::ConfigInvalid {
+                    path: ws_config.display().to_string(),
+                    line: 0,
+                    message: format!("read failed: {}", e),
+                })?;
+            let ws_toml: toml::Value = text.parse().map_err(|e| WikiError::ConfigInvalid {
+                path: ws_config.display().to_string(),
+                line: 0,
+                message: format!("TOML parse error: {}", e),
+            })?;
+            deep_merge_into(&mut merged_value, ws_toml);
+        }
 
         // Deserialize into Config
         let cfg: Config =

@@ -27,12 +27,12 @@ fn discover_from_env_var() {
 }
 
 #[test]
-fn discover_walks_up_to_find_dot_wiki() {
+fn discover_walks_up_to_find_dot_llmwiki_cli() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki_root = tmp.path();
     let nested = wiki_root.join("a/b/c");
     std::fs::create_dir_all(&nested).unwrap();
-    std::fs::create_dir(wiki_root.join(".wiki")).unwrap();
+    std::fs::create_dir(wiki_root.join(".llmwiki-cli")).unwrap();
 
     let result = discover_workspace(None, None, None, None, nested);
     assert_eq!(result.unwrap(), wiki_root.canonicalize().unwrap());

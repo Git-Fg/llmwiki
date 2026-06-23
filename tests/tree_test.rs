@@ -7,7 +7,7 @@ use tempfile::tempdir;
 fn make_wiki() -> tempfile::TempDir {
     let tmp = tempdir().unwrap();
     let ws = tmp.path();
-    fs::create_dir_all(ws.join(".wiki")).unwrap();
+    fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
     fs::create_dir_all(ws.join("wiki")).unwrap();
     fs::write(
         ws.join("wiki/overview.md"),
@@ -84,7 +84,7 @@ fn tree_json_entries_have_expected_fields() {
 #[test]
 fn tree_empty_workspace() {
     let tmp = tempdir().unwrap();
-    fs::create_dir_all(tmp.path().join(".wiki")).unwrap();
+    fs::create_dir_all(tmp.path().join(".llmwiki-cli")).unwrap();
     fs::create_dir_all(tmp.path().join("wiki")).unwrap();
     Command::cargo_bin("llmwiki-cli")
         .unwrap()
@@ -99,7 +99,7 @@ fn tree_empty_workspace() {
 #[test]
 fn tree_empty_workspace_json() {
     let tmp = tempdir().unwrap();
-    fs::create_dir_all(tmp.path().join(".wiki")).unwrap();
+    fs::create_dir_all(tmp.path().join(".llmwiki-cli")).unwrap();
     fs::create_dir_all(tmp.path().join("wiki")).unwrap();
     let output = Command::cargo_bin("llmwiki-cli")
         .unwrap()

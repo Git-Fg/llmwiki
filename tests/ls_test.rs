@@ -7,7 +7,7 @@ use tempfile::tempdir;
 fn make_workspace() -> tempfile::TempDir {
     let tmp = tempdir().unwrap();
     let ws = tmp.path();
-    fs::create_dir_all(ws.join(".wiki")).unwrap();
+    fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
     fs::create_dir_all(ws.join("wiki")).unwrap();
     fs::create_dir_all(ws.join("raw")).unwrap();
     fs::write(
@@ -195,7 +195,7 @@ fn ls_json_pages_only() {
 #[test]
 fn ls_empty_workspace() {
     let tmp = tempdir().unwrap();
-    fs::create_dir_all(tmp.path().join(".wiki")).unwrap();
+    fs::create_dir_all(tmp.path().join(".llmwiki-cli")).unwrap();
     Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
