@@ -95,7 +95,7 @@ fn main() {
     }
     let schema = schemars::schema_for!(Config);
     let schema_json = serde_json::to_string_pretty(&schema).expect("schema is always serializable");
-    if let Err(e) = fs::write(&schema_path, schema_json) {
+    if let Err(e) = fs::write(&schema_path, format!("{schema_json}\n")) {
         println!("cargo:warning=failed to write schema.json {schema_path:?}: {e}");
     }
 
@@ -117,7 +117,10 @@ fn main() {
     // post-processing is needed.
     let doctor_schema_json =
         serde_json::to_string_pretty(&doctor_schema).expect("doctor schema is always serializable");
-    if let Err(e) = fs::write(&doctor_schema_path, doctor_schema_json) {
+    // POSIX-text-file convention: end with a trailing newline. Many
+    // editors (Vim with `:set fixendoffile`, GitHub's web diff view)
+    // expect one. v0.3.23 polish.
+    if let Err(e) = fs::write(&doctor_schema_path, format!("{doctor_schema_json}\n")) {
         println!("cargo:warning=failed to write doctor.schema.json {doctor_schema_path:?}: {e}");
     }
 }
@@ -130,7 +133,6 @@ struct DoctorReport {
     workspace: String,
     /// Active wiki-root.toml alias for this workspace, if any is registered. `None`
     /// means no alias resolves to this workspace. v0.3.17+: was `""` sentinel pre-v0.3.17.
-    #[schemars(description = "string or null (v0.3.17+: was empty-string sentinel pre-v0.3.17)")]
     active_alias: Option<String>,
     /// Path to the resolved `wiki-root.toml`, or empty string if no registry entry matched.
     wiki_root_path: String,
@@ -148,8 +150,9 @@ struct DoctorReport {
     api_key_env: String,
     /// Whether `GET {nim_base_url}/v1/models` returned 2xx during this run.
     nim_reachable: bool,
-    /// HTTP status from the NIM probe, or `None` on network error.
-    #[schemars(description = "HTTP status 100-599, or null on network error")]
+    /// HTTP status from the NIM probe, or `None` on network error. v0.3.23+:
+    /// bounded to HTTP range [100, 599] (was the u16 range [0, 65535] before).
+    #[schemars(range(min = 100, max = 599))]
     nim_status: Option<u16>,
     /// Human-readable error string from the NIM probe, or `None` on success.
     nim_error: Option<String>,

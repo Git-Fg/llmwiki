@@ -64,7 +64,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-targets
+      # `--locked` re-enabled in v0.3.23. The v0.3.22 lockfile-update
+      # workflow (run #28054735840) confirmed that regenerating
+      # Cargo.lock on a Linux runner produces a lockfile byte-identical
+      # to the macOS-committed one (`git rev-list --right-only --count`
+      # returned 0), so the platform-specific lockfile divergence the
+      # v0.3.21 workaround addressed does not actually apply to the
+      # current dep graph. If a future Dependabot PR introduces a dep
+      # with genuine platform-specific entries, `--locked` will break
+      # again and we'll fall back to the no-`--locked` workaround.
+      - run: cargo check --all-targets --locked
 
   # Asserts CHANGELOG.md has a `## [X.Y.Z] - YYYY-MM-DD` heading matching
   # Cargo.toml's current `version`. Prevents the v0.3.18-class mistake

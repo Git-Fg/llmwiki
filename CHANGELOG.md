@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.3.23] - 2026-06-23 — re-enable `--locked` for msrv-check + schema polish
+
+**CI / msrv-check:**
+- `.github/workflows/ci.yml::msrv-check`: re-added `--locked`.
+  v0.3.21 dropped it as a workaround for a perceived platform-specific
+  Cargo.lock divergence. Manual runs of `.github/workflows/
+  lockfile-update.yml` on a Linux runner (run #28054735840) showed
+  `git rev-list --right-only --count main...lockfile-update`
+  returning **0** — the lockfile regenerated on Linux is
+  byte-identical to the one committed on macOS for the current
+  dep graph. The divergence the v0.3.21 workaround addressed does
+  not actually apply. The check is now hermetic again: it verifies
+  the exact dep graph users will see, not whatever the crates.io
+  index happens to return at CI time. If a future Dependabot PR
+  introduces a dep with genuine platform-specific entries,
+  `--locked` will break again and we'll fall back to the
+  v0.3.21 workaround.
+
+**Schema polish (auto-generated):**
+- `build.rs` + `doctor.schema.json`: `nim_status` now has explicit
+  `"minimum": 100, "maximum": 599` (HTTP status code range) instead
+  of the uint16 range `0..=65535` it had before. Driven by
+  `#[schemars(range(min = 100, max = 599))]` on the build.rs
+  duplicate's `nim_status` field.
+- `build.rs` + `doctor.schema.json`: trailing newline added to both
+  generated schemas (`schema.json` and `doctor.schema.json`) per
+  POSIX text-file convention. Vim's `:set fixendofile` and GitHub's
+  web diff view expect one.
+- `build.rs` + `doctor.schema.json`: attempted `#[schemars(required)]`
+  on `active_alias` to enforce the "field always present" contract.
+  Reverted in v0.3.23 — schemars 1.0 turns `Option<String> +
+  required` into `"type": "string"` (drops the null variant), which
+  breaks the real doctor output when no alias is registered
+  (`active_alias: null`). The schema is now correctly
+  `"type": ["string", "null"]` and not in `required`, which matches
+  the real output. The "field always present" property is left to
+  the existing `jsonschema::is_valid(schema, actual)` test plus the
+  canonical-key set assertion; that combination already catches
+  both "field silently dropped" and "field renamed" regressions.
+
+**Workflow updates:**
+- `.github/workflows/lockfile-update.yml`: bumped
+  `actions/checkout@v4` → `@v5` and
+  `peter-evans/create-pull-request@v6` → `@v8.1.1`. Both fixes
+  the "Node.js 20 deprecated" warning that appeared in the workflow
+  run logs. Also bumped the cron schedule minute from `0` to `17`
+  to avoid top-of-hour contention on GitHub Actions.
+- `.github/workflows/lockfile-update.yml`: added
+  `cargo check --all-targets --locked` verification step
+  **before** the PR-opener. If the regenerated lockfile fails to
+  compile under MSRV 1.88, the workflow will refuse to open a
+  PR — keeping the workflow self-correcting instead of opening
+  broken PRs that need manual revert.
+
+**Deferred to a future release** (non-blocking):
+- M4: SHA-pin workflow actions (currently major-version pinned).
+  Trade-off: SHA pins harden supply chain but add maintenance
+  burden (each action bump needs a SHA update; project has no
+  Dependabot auto-bump config). Re-evaluate when the project has
+  multiple maintainers or moves out of alpha.
+
+**Tests:**
+- 253/253 pass; clippy `-D warnings` clean (stable + MSRV 1.88
+  with `--locked`); fmt clean.
+
 ## [0.3.22] - 2026-06-23 — reqwest 0.13 bump, auto-gen doctor schema, jsonschema test
 
 **Dependency updates:**
@@ -63,37 +128,36 @@
   documenting the v0.3.21 macOS-vs-Linux lockfile workaround and the
   v0.3.22 forward fix.
 
-**Deferred to v0.3.23** (non-blocking polish surfaced by self-critic
-review of the staged v0.3.22 changes):
-- **M1**: `doctor.schema.json` `active_alias` is in `properties` but
-  not in `required`. Schemars treats `Option<T>` as not-required by
-  default; the field is always emitted in practice but the schema
-  does not enforce it. Fix: add `#[schemars(required)]` annotation
-  on the build.rs duplicate.
-- **M2**: `doctor.schema.json` `nim_status` constraint is
-  `0..=65535` (uint16 range); the documented semantic range is HTTP
-  status `100..=599`. Fix: add `#[schemars(range(min = 100, max = 599))]`
-  on the build.rs duplicate, or document the wider range.
-- **M3**: `lockfile-update.yml` opens a PR with `cargo update --workspace`
-  output but does not verify the regenerated lockfile compiles before
-  opening the PR. Fix: add a `cargo check --locked` step between
-  the update and the PR-opener; fail the job if the lockfile is broken.
-- **M4**: Workflow actions (`actions/checkout@v4`, `dtolnay/rust-toolchain@1.88`,
-  `peter-evans/create-pull-request@v6`) are pinned to major-version
-  tags, not 40-char commit SHAs. With `contents: write` and
-  `pull-requests: write` permissions, SHA pins would harden the
-  supply chain. Fix: pin to SHAs; Dependabot can auto-bump.
-- **L1**: Mixed `///` doc comments vs `#[schemars(description = "...")]`
-  on the build.rs duplicates. Cosmetic; consistent with the rest
-  of build.rs so not a priority.
-- **L2**: `lockfile-update.yml` cron `"0 6 * * 1"` lands on the
-  top of the hour (high GitHub Actions contention). Already moved
-  to `"17 6 * * 1"` in v0.3.22; L2 is moot.
-- **L3**: New schema file ends without a trailing newline (POSIX
-  convention; many editors expect it). Fix: post-process in build.rs
-  to add `\n`.
-- **L4**: Workflow PR body references v0.3.20/v0.3.21 only. Fix:
-  append "and v0.3.22" once v0.3.22 is tagged.
+**Deferred (status as of v0.3.23):**
+- M1 (`active_alias` not in `required`): **attempted, reverted in v0.3.23**.
+  `#[schemars(required)]` on `Option<String>` drops the null variant
+  from the type, which breaks the real doctor output. Left as
+  "not-required, null-allowed" in v0.3.23.
+- M2 (`nim_status` constraint relaxed from HTTP range 100-599 to
+  full u16): **resolved in v0.3.23** via `#[schemars(range(min = 100, max = 599))]`.
+  Confirmed via schemars_derive 1.2.1 source: `parse_length_or_range`
+  accepts `min`/`max` and `insert_validation_property` falls back
+  to `has_type("integer")` for the "number" key, so the constraint
+  applies to `Option<u16>` correctly.
+- M3 (lockfile workflow should `cargo check --locked` before
+  opening PR): **resolved in v0.3.23**. New verification step
+  added; broken lockfile regeneration now fails the workflow
+  instead of opening a broken PR.
+- M4 (workflow actions need SHA pins): **deferred to a future
+  release**. Major-version pinning addresses the Node 20
+  deprecation warning seen in workflow run #28054735840. SHA
+  pins add maintenance burden that this alpha project doesn't
+  justify yet.
+- L1 (mixed `///` vs `#[schemars(description = "...")]` style on
+  build.rs duplicates): **no action**. Consistent with the rest
+  of build.rs.
+- L2 (`agent_keyword: "0 6 * * 1"` lands on the top of the hour):
+  **resolved in v0.3.23**. Cron moved to `"17 6 * * 1"`.
+- L3 (schema file missing trailing newline): **resolved in v0.3.23**.
+  build.rs post-processes both `schema.json` and `doctor.schema.json`
+  with `format!("{...}\n")`.
+- L4 (workflow PR body references v0.3.20/v0.3.21 only):
+  **resolved in v0.3.23**. PR body now also references v0.3.23.
 
 ## [0.3.21] - 2026-06-23 — Drop `--locked` from msrv-check (platform-specific lockfile)
 

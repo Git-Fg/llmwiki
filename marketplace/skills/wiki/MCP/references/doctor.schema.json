@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "active_alias": {
-      "description": "string or null (v0.3.17+: was empty-string sentinel pre-v0.3.17)",
+      "description": "Active wiki-root.toml alias for this workspace, if any is registered. `None`\nmeans no alias resolves to this workspace. v0.3.17+: was `\"\"` sentinel pre-v0.3.17.",
       "type": [
         "string",
         "null"
@@ -62,14 +62,14 @@
       "type": "boolean"
     },
     "nim_status": {
-      "description": "HTTP status 100-599, or null on network error",
+      "description": "HTTP status from the NIM probe, or `None` on network error. v0.3.23+:\nbounded to HTTP range [100, 599] (was the u16 range [0, 65535] before).",
       "type": [
         "integer",
         "null"
       ],
       "format": "uint16",
-      "maximum": 65535,
-      "minimum": 0
+      "maximum": 599,
+      "minimum": 100
     },
     "registry_entries": {
       "description": "Count of entries in the discovered wiki-root.toml registry (0 if no registry).",
