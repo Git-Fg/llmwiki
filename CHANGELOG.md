@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.19] - 2026-06-23 — Critic follow-ups: panic-safety + CHANGELOG accuracy
+
+**Fixed:**
+- `tests/common/mod.rs`: extended the `EnvGuard` RAII pattern
+  (introduced in v0.3.16 for `with_home_and_cwd`) to `with_wiki_root_config`
+  and `without_wiki_root_config`. Both previously saved/restored
+  `$WIKI_ROOT_CONFIG` only on the happy path — a panic inside the inner
+  closure would leak the env var into every later test in the same
+  binary. The new pattern restores unconditionally via Drop. Duplicate
+  legacy definitions of these helpers were removed during the refactor.
+
+**Documentation:**
+- `CHANGELOG.md`: corrected v0.3.17 CI section to reflect the actual
+  job definition (no `--locked`) and added a "(revised in v0.3.18)"
+  note. Also marked the `active_alias` JSON shape change as
+  `[BREAKING — JSON shape]` so downstream consumers (incl.
+  `src/cli/mcp.rs::doctor_tool` which returns the raw JSON) get a
+  heads-up about the `null` vs `""` change. The local MSRV verification
+  note was also corrected to drop the `--locked` reference.
+
+**Tests:** 252/252 pass; clippy `-D warnings` clean; fmt clean.
+
 ## [0.3.18] - 2026-06-23 — Fix `msrv-check` CI: drop `--locked`
 
 **Fixed:**
@@ -22,25 +44,27 @@
 ## [0.3.17] - 2026-06-23 — Defensive cleanup + MSRV CI gate
 
 **Changed:**
-- `src/cli/doctor.rs`: changed `DoctorReport.active_alias` from
-  `String` (empty-string-as-sentinel) to `Option<String>`. The previous
-  pattern leaked empty strings into the JSON output when no alias was
-  active, requiring downstream consumers to distinguish `""` from
-  `"default"`. The new shape serializes as `null` and matches the
-  semantic ("no active alias" vs "active alias named X").
+- **`[BREAKING — JSON shape]`** `src/cli/doctor.rs`: `DoctorReport.active_alias`
+  changed from `String` (empty-string-as-sentinel) to `Option<String>`.
+  Empty strings no longer leak into the JSON output — `null` is the
+  unambiguous "no active alias" marker. Consumers of `wiki doctor --json`
+  (including `src/cli/mcp.rs::doctor_tool` which returns the raw JSON)
+  must now handle `null` instead of `""`.
 - `src/cli/doctor.rs::run`: simplified `active_alias` construction
   with the new `Option<String>` type; replaced `if !active_alias.is_empty()`
   with `if let Some(alias) = &active_alias`.
 
 **CI:**
 - New `msrv-check` job in `.github/workflows/ci.yml`: runs
-  `cargo check --locked --all-targets` with `dtolnay/rust-toolchain@1.88`
+  `cargo check --all-targets` with `dtolnay/rust-toolchain@1.88`
   (the declared MSRV in `Cargo.toml` post-v0.3.16). This catches the
   exact failure mode that blocked every push from v0.3.12 → v0.3.13:
   a Dependabot dep bump raising the required rust-version above the
   project's pinned toolchain. Without this gate, `fmt-clippy-test`
   runs on `stable` (currently 1.96) and would silently miss any future
-  MSRV regression. Now required by branch protection.
+  MSRV regression. Now required by branch protection. **Revised in
+  v0.3.18**: dropped `--locked` from the cargo invocation, because
+  `Cargo.lock` is `.gitignore`d for this binary project.
 
 **Branch protection:**
 - Added `msrv-check` to `.github/branch-protection.json` required
@@ -55,8 +79,9 @@
   (no `#[ignore]`), not "ignored by default" as previously stated.
 
 **Tests:** 252/252 pass (incl. e2e); clippy `-D warnings` clean; fmt clean.
-**MSRV:** verified locally with `cargo check --locked --all-targets` against
-rustc 1.88.
+**MSRV:** verified locally with `cargo check --all-targets` against
+rustc 1.88. (Local lockfile may differ from CI's freshly-generated one;
+both verify MSRV independently — see v0.3.18 for the rationale.)
 
 ## [0.3.16] - 2026-06-23 — Test safety + MSRV pin + docs
 
