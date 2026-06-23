@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.3.17] - 2026-06-23 — Defensive cleanup + MSRV CI gate
+
+**Changed:**
+- `src/cli/doctor.rs`: changed `DoctorReport.active_alias` from
+  `String` (empty-string-as-sentinel) to `Option<String>`. The previous
+  pattern leaked empty strings into the JSON output when no alias was
+  active, requiring downstream consumers to distinguish `""` from
+  `"default"`. The new shape serializes as `null` and matches the
+  semantic ("no active alias" vs "active alias named X").
+- `src/cli/doctor.rs::run`: simplified `active_alias` construction
+  with the new `Option<String>` type; replaced `if !active_alias.is_empty()`
+  with `if let Some(alias) = &active_alias`.
+
+**CI:**
+- New `msrv-check` job in `.github/workflows/ci.yml`: runs
+  `cargo check --locked --all-targets` with `dtolnay/rust-toolchain@1.88`
+  (the declared MSRV in `Cargo.toml` post-v0.3.16). This catches the
+  exact failure mode that blocked every push from v0.3.12 → v0.3.13:
+  a Dependabot dep bump raising the required rust-version above the
+  project's pinned toolchain. Without this gate, `fmt-clippy-test`
+  runs on `stable` (currently 1.96) and would silently miss any future
+  MSRV regression. Now required by branch protection.
+
+**Branch protection:**
+- Added `msrv-check` to `.github/branch-protection.json` required
+  status checks. All four checks (`fmt-clippy-test`, `marketplace-validate`,
+  `skill-smoke`, `msrv-check`) are now required for merge.
+
+**Documentation:**
+- `AGENTS.md` Testing Strategy: documented the `EnvGuard` RAII pattern
+  in `tests/common/mod.rs` so future test-helper authors don't
+  reintroduce the panic-safety bug. Also fixed an inaccuracy about
+  `tests/e2e_test.rs`: it actually runs in CI via `cargo test`
+  (no `#[ignore]`), not "ignored by default" as previously stated.
+
+**Tests:** 252/252 pass (incl. e2e); clippy `-D warnings` clean; fmt clean.
+**MSRV:** verified locally with `cargo check --locked --all-targets` against
+rustc 1.88.
+
 ## [0.3.16] - 2026-06-23 — Test safety + MSRV pin + docs
 
 **Fixed:**

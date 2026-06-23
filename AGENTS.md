@@ -53,9 +53,11 @@ build.rs                   # generates marketplace/skills/wiki/SKILL.md hub stub
 
 - Unit tests: in `core/`, `lint/`, `markdown/`, etc.
 - Integration tests: in `tests/`, one file per CLI command.
-- E2E test: `tests/e2e_test.rs` runs the full pipeline and is ignored by default.
+- E2E test: `tests/e2e_test.rs` exercises the full pipeline (init → embed → search → status → lint) against a wiremock-stubbed NIM endpoint. Runs in CI via `cargo test` (no `#[ignore]`).
 - Skill smoke test: `tests/skill_smoke.sh`.
 - Mock NIM with `wiremock` for any test that hits the network.
+
+**Test isolation with env vars / CWD**: tests that mutate `$HOME`, `$USERPROFILE`, `$WIKI_ROOT_CONFIG`, or CWD MUST go through the helpers in `tests/common/mod.rs`: `with_lock` (serializes across all test binaries), `with_home_and_cwd`, `with_wiki_root_config`, `without_wiki_root_config`, `isolated_tempdir`. The `with_home_and_cwd` helper uses an `EnvGuard` RAII struct (post-v0.3.16) so the captured env state is restored on Drop, including during unwinding from a panic. **Do not write a fresh env-modifying helper** without the same Drop-guard pattern — a panic in the inner closure would otherwise leak `$HOME`/`CWD` into every later test in the same binary, producing flaky NotFound failures that are very hard to reproduce.
 
 ## NIM API Conventions (do not change without updating the wiremock tests)
 

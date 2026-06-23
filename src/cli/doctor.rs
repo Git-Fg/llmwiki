@@ -14,7 +14,7 @@ pub struct DoctorArgs {
 #[derive(serde::Serialize)]
 struct DoctorReport {
     workspace: String,
-    active_alias: String,
+    active_alias: Option<String>,
     wiki_root_path: String,
     registry_entries: usize,
     config_loaded: bool,
@@ -59,15 +59,14 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
 
     // Determine active alias
     let active_alias = if let Some(w) = &args.wiki {
-        w.clone()
+        Some(w.clone())
     } else if let Ok(reg) = Registry::discover() {
         reg.entries
             .iter()
             .find(|e| e.path == ws)
             .map(|e| e.alias.clone())
-            .unwrap_or_default()
     } else {
-        String::new()
+        None
     };
 
     let cfg_result = resolve_config(&ws);
@@ -219,8 +218,8 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
         } else {
             println!("✗ Wiki registry: not found");
         }
-        if !active_alias.is_empty() {
-            println!("✓ Active alias: {active_alias}");
+        if let Some(alias) = &active_alias {
+            println!("✓ Active alias: {alias}");
         }
         println!("✓ Config loaded");
         println!("  Embed model: {}", cfg.nim.embed_model);

@@ -39,3 +39,18 @@ jobs:
       - run: cargo build --release
       - name: Run skill smoke test
         run: bash tests/skill_smoke.sh
+
+  # Verify the lockfile builds with the declared MSRV. Catches the
+  # scenario where a transitive dep bump (e.g. via Dependabot) raises
+  # its required rust-version above our Cargo.toml `rust-version` /
+  # `rust-toolchain.toml` channel, which would silently break every
+  # downstream user on the documented MSRV. The bump of `rust-version`
+  # to 1.88 in v0.3.16 was triggered by exactly this scenario
+  # (`darling@0.23.0` requires rustc 1.88).
+  msrv-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --locked --all-targets
