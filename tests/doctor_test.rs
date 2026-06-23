@@ -201,3 +201,119 @@ async fn doctor_json_includes_config_sources_attribution() {
         "wiki.require_frontmatter should come from per-workspace; got: {fm_src}"
     );
 }
+
+// ─── v0.3.22: doctor --json output validates against the auto-generated schema ───
+
+#[tokio::test]
+async fn doctor_json_output_validates_against_schema() {
+    // Regression guard: ensures the `DoctorReport` struct in
+    // `src/cli/doctor.rs` and the duplicate in `build.rs` (which
+    // generates `marketplace/skills/wiki/MCP/references/doctor.schema.json`)
+    // stay in sync. If either adds/removes/renames a field, this test
+    // fails before the build.rs drifts.
+    let schema_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("marketplace/skills/wiki/MCP/references/doctor.schema.json");
+    let schema_text = std::fs::read_to_string(&schema_path).expect("schema file exists");
+    let schema_value: serde_json::Value =
+        serde_json::from_str(&schema_text).expect("schema file is valid JSON");
+
+    // The real DoctorReport in src/cli/doctor.rs has exactly these 15
+    // fields. If a future contributor adds/removes/renames a field there
+    // OR in the build.rs duplicate (which generates the schema), this
+    // set stops matching the schema's `properties` keys and the test
+    // fails — catching the drift the jsonschema-validates-actual
+    // assertion alone would miss.
+    let expected_keys: std::collections::BTreeSet<&str> = [
+        "workspace",
+        "active_alias",
+        "wiki_root_path",
+        "registry_entries",
+        "config_loaded",
+        "embed_model",
+        "nim_base_url",
+        "api_key_length",
+        "api_key_env",
+        "nim_reachable",
+        "nim_status",
+        "nim_error",
+        "embed_model_available",
+        "config",
+        "config_sources",
+    ]
+    .into_iter()
+    .collect();
+    let schema_keys: std::collections::BTreeSet<&str> = schema_value["properties"]
+        .as_object()
+        .expect("schema.properties is an object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        schema_keys, expected_keys,
+        "auto-gen doctor.schema.json properties keys do not match the canonical DoctorReport key set"
+    );
+
+    // Run `doctor --json` against a mocked NIM (success path — covers
+    // every field with a populated value).
+    let tmp = tempfile::tempdir().unwrap();
+    let wiki = tmp.path();
+    std::fs::create_dir(wiki.join(".llmwiki-cli")).unwrap();
+
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/models"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "object": "list", "data": []
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let output = Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace")
+        .arg(wiki)
+        .env("WIKI_NIM_BASE_URL", mock_server.uri())
+        .env("NVIDIA_NIM_API_KEY", "test-key")
+        .env_remove("LLMWIKI_CONFIG")
+        .arg("doctor")
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "doctor failed");
+    let actual: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        jsonschema::is_valid(&schema_value, &actual),
+        "doctor --json does not match schema.\nactual: {actual}\nschema: {schema_text}"
+    );
+
+    // Also verify the failure path: with no API key set, doctor exits
+    // non-zero. If it still emits JSON (it should, per the schema's
+    // contract), validate that JSON too. Non-JSON stdout is also
+    // acceptable (e.g. CLI help text).
+    let tmp2 = tempfile::tempdir().unwrap();
+    std::fs::create_dir(tmp2.path().join(".llmwiki-cli")).unwrap();
+    let output2 = Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace")
+        .arg(tmp2.path())
+        .env("WIKI_NIM_BASE_URL", mock_server.uri())
+        .env_remove("NVIDIA_NIM_API_KEY")
+        .env_remove("NVIDIA_API_KEY")
+        .env_remove("LLMWIKI_CONFIG")
+        .arg("doctor")
+        .arg("--json")
+        .output()
+        .unwrap();
+    if !output2.stdout.is_empty() {
+        if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&output2.stdout) {
+            assert!(
+                jsonschema::is_valid(&schema_value, &v),
+                "doctor --json (no-api-key path) does not match schema.\nactual: {v}"
+            );
+        }
+        // If stdout is non-empty but not JSON (e.g. human-readable
+        // error text), that is also acceptable — the schema only
+        // applies to `--json` output, and the doctor command is
+        // documented to print a plain-text error on connectivity failure.
+    }
+}

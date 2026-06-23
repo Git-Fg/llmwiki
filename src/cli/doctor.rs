@@ -12,6 +12,7 @@ pub struct DoctorArgs {
 }
 
 #[derive(serde::Serialize)]
+#[serde(deny_unknown_fields)] // documents the contract: no extra fields in doctor --json output
 struct DoctorReport {
     workspace: String,
     active_alias: Option<String>,

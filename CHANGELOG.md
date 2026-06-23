@@ -1,5 +1,100 @@
 # Changelog
 
+## [0.3.22] - 2026-06-23 — reqwest 0.13 bump, auto-gen doctor schema, jsonschema test
+
+**Dependency updates:**
+- `reqwest`: bumped `0.12.28` → `0.13.x` (via Dependabot PR #2).
+  Investigation finding (FU#50): the blocker was **not** a transitive
+  dep conflict as v0.3.20's "Deferred" section claimed — `rmcp` 1.8
+  has no `reqwest` dep at all. The actual blocker was the
+  `rustls-tls` feature being renamed to `rustls` in reqwest 0.13.
+  Once the feature name was updated, the bump went through cleanly.
+  The remaining `reqwest 0.12.28` entry in the lockfile is pulled
+  in by the new `jsonschema = "0.18"` dev-dep; cargo handles the
+  multi-major fine.
+- Dependabot PRs #2 (reqwest) and #3 (github-actions v7) closed
+  without merging; both superseded by manual work in this release.
+
+**Build / contracts:**
+- `build.rs`: `marketplace/skills/wiki/MCP/references/doctor.schema.json`
+  is now auto-generated from a `DoctorReport` struct duplicate
+  annotated with `#[derive(schemars::JsonSchema)]`. The hand-written
+  v0.3.20 schema is no longer the source of truth — `cargo build`
+  regenerates it on every change. Replaces the fragile hand-maintained
+  JSON with a single source of truth (modulo the build.rs duplicate,
+  see Tests below).
+- `build.rs` + `src/cli/doctor.rs`: the schema's
+  `additionalProperties: false` contract (from v0.3.20) is preserved
+  by annotating both the build.rs duplicate and the real struct with
+  `#[serde(deny_unknown_fields)]`. Schemars reads the serde attribute
+  and emits the JSON Schema field natively — no post-processing step
+  in build.rs is needed.
+- `build.rs`: added `cargo:rerun-if-changed=src/cli/doctor.rs` so
+  the schema regenerates when the real `DoctorReport` struct changes.
+
+**Tests:**
+- New dev-dep `jsonschema = "0.18"`.
+- New `tests/doctor_test.rs::doctor_json_output_validates_against_schema`:
+  reads the auto-generated schema, runs `wiki doctor --json` against
+  a mocked NIM, asserts the output validates against the schema AND
+  the schema's `properties` keys match a hard-coded canonical set.
+  The keys check is the important half — it catches drift in either
+  the build.rs duplicate or the real struct, not just divergence
+  between the real struct's output and the on-disk schema.
+- 253/253 pass; clippy `-D warnings` clean (both stable and MSRV 1.88);
+  fmt clean.
+
+**CI:**
+- New `.github/workflows/lockfile-update.yml`: weekly Monday 06:17 UTC
+  ubuntu-latest run of `cargo update --workspace`, opens a PR if
+  `Cargo.lock` changed. Goal is to produce a Linux-native lockfile so
+  `msrv-check` can re-enable `--locked` (currently disabled due to
+  the macOS-vs-Linux platform-specific lockfile divergence documented
+  in v0.3.21). Weekly cadence is conservative — Dependabot also runs
+  weekly on Tuesdays, so a fresh Linux lockfile lands within a day of
+  any dep change.
+
+**Documentation:**
+- `AGENTS.md`: added "JSON Schema generation (v0.3.22+)" section
+  documenting the `build.rs` duplicate-struct pattern,
+  `#[serde(deny_unknown_fields)]` idiom (drives the schema's
+  `additionalProperties: false`), and the drift test.
+- `AGENTS.md`: added "Cargo.lock and platform-specific locks" section
+  documenting the v0.3.21 macOS-vs-Linux lockfile workaround and the
+  v0.3.22 forward fix.
+
+**Deferred to v0.3.23** (non-blocking polish surfaced by self-critic
+review of the staged v0.3.22 changes):
+- **M1**: `doctor.schema.json` `active_alias` is in `properties` but
+  not in `required`. Schemars treats `Option<T>` as not-required by
+  default; the field is always emitted in practice but the schema
+  does not enforce it. Fix: add `#[schemars(required)]` annotation
+  on the build.rs duplicate.
+- **M2**: `doctor.schema.json` `nim_status` constraint is
+  `0..=65535` (uint16 range); the documented semantic range is HTTP
+  status `100..=599`. Fix: add `#[schemars(range(min = 100, max = 599))]`
+  on the build.rs duplicate, or document the wider range.
+- **M3**: `lockfile-update.yml` opens a PR with `cargo update --workspace`
+  output but does not verify the regenerated lockfile compiles before
+  opening the PR. Fix: add a `cargo check --locked` step between
+  the update and the PR-opener; fail the job if the lockfile is broken.
+- **M4**: Workflow actions (`actions/checkout@v4`, `dtolnay/rust-toolchain@1.88`,
+  `peter-evans/create-pull-request@v6`) are pinned to major-version
+  tags, not 40-char commit SHAs. With `contents: write` and
+  `pull-requests: write` permissions, SHA pins would harden the
+  supply chain. Fix: pin to SHAs; Dependabot can auto-bump.
+- **L1**: Mixed `///` doc comments vs `#[schemars(description = "...")]`
+  on the build.rs duplicates. Cosmetic; consistent with the rest
+  of build.rs so not a priority.
+- **L2**: `lockfile-update.yml` cron `"0 6 * * 1"` lands on the
+  top of the hour (high GitHub Actions contention). Already moved
+  to `"17 6 * * 1"` in v0.3.22; L2 is moot.
+- **L3**: New schema file ends without a trailing newline (POSIX
+  convention; many editors expect it). Fix: post-process in build.rs
+  to add `\n`.
+- **L4**: Workflow PR body references v0.3.20/v0.3.21 only. Fix:
+  append "and v0.3.22" once v0.3.22 is tagged.
+
 ## [0.3.21] - 2026-06-23 — Drop `--locked` from msrv-check (platform-specific lockfile)
 
 **Fixed:**
@@ -52,11 +147,12 @@
   three definitions that existed across the test suite).
 - 252/252 pass; clippy `-D warnings` clean; fmt clean.
 
-**Deferred:**
-- Dependabot PR #2 (reqwest 0.12 → 0.13) cannot merge: a transitive
-  dep (likely `rmcp`) still pins reqwest 0.12, so cargo reports
-  "failed to select a version for `reqwest` which could resolve this
-  conflict". Will re-evaluate when the upstream dep updates.
+**Deferred (resolved in v0.3.22):**
+- Dependabot PR #2 (reqwest 0.12 → 0.13) appeared blocked by a
+  transitive dep (initially blamed on `rmcp`), reporting
+  "failed to select a version for `reqwest`". v0.3.22's
+  investigation (FU#50) found the actual cause was the
+  `rustls-tls` → `rustls` feature rename in reqwest 0.13.
 
 ## [0.3.19] - 2026-06-23 — Critic follow-ups: panic-safety + CHANGELOG accuracy
 

@@ -1,6 +1,6 @@
 [package]
 name = "llmwiki-cli"
-version = "0.3.21"
+version = "0.3.22"
 description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
 license = "Apache-2.0"
 repository = "https://github.com/Git-Fg/llmwiki"
@@ -18,7 +18,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.13", features = ["json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1"
@@ -46,6 +46,7 @@ predicates = "3"
 tempfile = "3"
 insta = "1"
 wiremock = "0.6"
+jsonschema = "0.18"
 
 [build-dependencies]
 schemars = "1.0"

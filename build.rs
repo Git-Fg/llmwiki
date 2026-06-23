@@ -66,6 +66,7 @@ fn main() {
     println!("cargo:rerun-if-changed=marketplace/skills/wiki/LSP/SKILL.md");
     println!("cargo:rerun-if-changed=marketplace/skills/wiki/MCP/SKILL.md");
     println!("cargo:rerun-if-changed=src/core/config.rs");
+    println!("cargo:rerun-if-changed=src/cli/doctor.rs");
 
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let manifest_path = Path::new(&manifest_dir);
@@ -97,4 +98,69 @@ fn main() {
     if let Err(e) = fs::write(&schema_path, schema_json) {
         println!("cargo:warning=failed to write schema.json {schema_path:?}: {e}");
     }
+
+    // Write the JSON Schema for the DoctorReport type (output of
+    // `wiki doctor --json`) to MCP/references/doctor.schema.json. The
+    // schema is auto-generated from the `DoctorReport` struct below
+    // (kept in sync with `src/cli/doctor.rs::DoctorReport` — when
+    // either changes, the build will regenerate this file).
+    let doctor_schema_path =
+        manifest_path.join("marketplace/skills/wiki/MCP/references/doctor.schema.json");
+    if let Some(parent) = doctor_schema_path.parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            println!("cargo:warning=failed to create doctor schema dir {parent:?}: {e}");
+        }
+    }
+    let doctor_schema = schemars::schema_for!(DoctorReport);
+    // schemars reads `#[serde(deny_unknown_fields)]` on DoctorReport and
+    // emits `"additionalProperties": false` at the root natively, so no
+    // post-processing is needed.
+    let doctor_schema_json =
+        serde_json::to_string_pretty(&doctor_schema).expect("doctor schema is always serializable");
+    if let Err(e) = fs::write(&doctor_schema_path, doctor_schema_json) {
+        println!("cargo:warning=failed to write doctor.schema.json {doctor_schema_path:?}: {e}");
+    }
+}
+
+#[derive(schemars::JsonSchema)]
+#[allow(dead_code)] // consumed by schemars::schema_for!, not by Rust code
+#[serde(deny_unknown_fields)] // → schema root `additionalProperties: false`
+struct DoctorReport {
+    /// Resolved workspace directory (canonical absolute path).
+    workspace: String,
+    /// Active wiki-root.toml alias for this workspace, if any is registered. `None`
+    /// means no alias resolves to this workspace. v0.3.17+: was `""` sentinel pre-v0.3.17.
+    #[schemars(description = "string or null (v0.3.17+: was empty-string sentinel pre-v0.3.17)")]
+    active_alias: Option<String>,
+    /// Path to the resolved `wiki-root.toml`, or empty string if no registry entry matched.
+    wiki_root_path: String,
+    /// Count of entries in the discovered wiki-root.toml registry (0 if no registry).
+    registry_entries: usize,
+    /// Whether the per-workspace / per-computer config was loaded successfully.
+    config_loaded: bool,
+    /// Resolved NIM embedding model name from the merged effective config.
+    embed_model: String,
+    /// Resolved NIM base URL (host only, no `/v1` segment).
+    nim_base_url: String,
+    /// Resolved NIM API key length in bytes. 0 if the key env var is unset/empty.
+    api_key_length: usize,
+    /// Name of the env var that holds the NIM API key.
+    api_key_env: String,
+    /// Whether `GET {nim_base_url}/v1/models` returned 2xx during this run.
+    nim_reachable: bool,
+    /// HTTP status from the NIM probe, or `None` on network error.
+    #[schemars(description = "HTTP status 100-599, or null on network error")]
+    nim_status: Option<u16>,
+    /// Human-readable error string from the NIM probe, or `None` on success.
+    nim_error: Option<String>,
+    /// Whether the resolved `embed_model` appears in the live NIM `/v1/models` response.
+    embed_model_available: bool,
+    /// Reflective dump of the resolved effective config as dotted-key → value pairs.
+    #[schemars(
+        description = "dotted-key to value map (same shape as `wiki config show-effective`)"
+    )]
+    config: std::collections::BTreeMap<String, String>,
+    /// Per-key source attribution: dotted-key → file-it-came-from (`<default>` for built-in defaults).
+    #[schemars(description = "dotted-key to source file path map (v0.3.12+)")]
+    config_sources: std::collections::BTreeMap<String, String>,
 }
