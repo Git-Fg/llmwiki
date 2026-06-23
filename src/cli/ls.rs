@@ -152,7 +152,7 @@ fn build_page_entries(
 
     let mut all_slugs: Vec<String> = vec![];
     let mut page_files: Vec<PathBuf> = vec![];
-    for entry in walkdir::WalkDir::new(&wiki_dir) {
+    for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
         let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
         if entry.path().extension().and_then(|s| s.to_str()) == Some("md") {
             let rel = entry
@@ -349,7 +349,7 @@ fn build_link_entries(
     }
 
     let mut entries = vec![];
-    for entry in walkdir::WalkDir::new(&wiki_dir) {
+    for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
         let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
         if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
             continue;
