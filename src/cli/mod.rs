@@ -284,8 +284,10 @@ pub enum ConfigCmd {
     /// Print every effective config key, its merged value, and the file it
     /// came from. Mirrors `git config --list --show-origin` so users can see
     /// which file overrides which key. Use `[<prefix>]` to filter to keys
-    /// starting with that prefix, or `--source <path>` to filter to keys
-    /// set in a specific config file.
+    /// starting with that prefix, `--source <path>` to filter to keys
+    /// set in a specific config file, or `--overrides-only` to hide keys
+    /// whose value equals the built-in default (the most useful subset for
+    /// auditing "what did my config actually change?").
     ShowEffective {
         /// Override the workspace used as the walk-up start. `from_global`
         /// receives the value of the top-level `--workspace` flag so
@@ -303,6 +305,11 @@ pub enum ConfigCmd {
         /// "what did this specific file set?" audits.
         #[arg(long, value_name = "PATH")]
         source: Option<std::path::PathBuf>,
+        /// Only show keys whose value differs from the built-in default.
+        /// Surfaces the keys your config files actually changed instead of
+        /// dumping every key (most of which match defaults).
+        #[arg(long)]
+        overrides_only: bool,
     },
 }
 

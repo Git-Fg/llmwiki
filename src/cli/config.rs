@@ -26,7 +26,8 @@ pub async fn run(cmd: ConfigCmd) -> Result<(), WikiError> {
             json,
             key_prefix,
             source,
-        } => cmd_show_effective(workspace, json, key_prefix, source).await,
+            overrides_only,
+        } => cmd_show_effective(workspace, json, key_prefix, source, overrides_only).await,
     }
 }
 
@@ -320,6 +321,7 @@ async fn cmd_show_effective(
     json: bool,
     key_prefix: Option<String>,
     source: Option<PathBuf>,
+    overrides_only: bool,
 ) -> Result<(), WikiError> {
     use crate::core::config::{config_paths, load_config_unvalidated};
     use crate::core::workspace::discover_workspace;
@@ -373,6 +375,14 @@ async fn cmd_show_effective(
     let value_tree = config_to_value(&final_cfg);
     let all_keys: Vec<(String, String)> = collect_dotted(&value_tree, "").into_iter().collect();
 
+    // For `--overrides-only`: compute the default value for every key so we
+    // can exclude keys whose effective value equals the default. This is the
+    // single most useful audit filter — most keys match defaults and the
+    // user usually only cares about the ones that don't.
+    let default_tree = config_to_value(&crate::core::config::Config::default());
+    let default_keys: std::collections::BTreeMap<String, String> =
+        collect_dotted(&default_tree, "").into_iter().collect();
+
     // Apply the optional filters.
     let filtered: Vec<(String, String)> = all_keys
         .into_iter()
@@ -387,13 +397,28 @@ async fn cmd_show_effective(
             },
             None => true,
         })
+        // `--overrides-only`: hide keys whose value equals the built-in
+        // default. A key with no entry in `default_keys` is, by definition,
+        // an override (it isn't part of the default config), so it's kept.
+        .filter(|(key, val)| !overrides_only || !is_default_value(key, val, &default_keys))
         .collect();
 
-    let filter_note = match (&key_prefix, &source) {
-        (Some(p), Some(s)) => format!(" (filtered: key={p:?}, source={})", s.display()),
-        (Some(p), None) => format!(" (filtered: key={p:?})"),
-        (None, Some(s)) => format!(" (filtered: source={})", s.display()),
-        (None, None) => String::new(),
+    let filter_note = {
+        let mut parts: Vec<String> = Vec::new();
+        if let Some(p) = &key_prefix {
+            parts.push(format!("key={p:?}"));
+        }
+        if let Some(s) = &source {
+            parts.push(format!("source={}", s.display()));
+        }
+        if overrides_only {
+            parts.push("overrides-only".to_string());
+        }
+        if parts.is_empty() {
+            String::new()
+        } else {
+            format!(" (filtered: {})", parts.join(", "))
+        }
     };
 
     if json {
@@ -442,14 +467,31 @@ async fn cmd_show_effective(
 /// Compare a stored source-path string (as printed by `Path::display()`)
 /// against a user-supplied filter path. Handles the macOS `/tmp` ↔
 /// `/private/tmp` canonicalization asymmetry by comparing canonical paths
-/// when both succeed, and falling back to a string-prefix comparison when
-/// either side can't be canonicalized (e.g. the path no longer exists).
+/// when both succeed. Returns `false` (not a fallback prefix match) when
+/// either side can't be canonicalized — a literal prefix match could
+/// falsely equate `/home/u/.llmwiki-cli` with `/home/u/.llmwiki-cli-extra`,
+/// which is worse UX than a missed-but-precise match.
 fn source_path_matches(stored: &str, filter: &std::path::Path) -> bool {
     let stored_path = std::path::Path::new(stored);
-    if let (Some(a), Ok(b)) = (stored_path.canonicalize().ok(), filter.canonicalize()) {
-        return a == b;
+    match (stored_path.canonicalize().ok(), filter.canonicalize()) {
+        (Some(a), Ok(b)) => a == b,
+        _ => false,
     }
-    stored.starts_with(filter.to_string_lossy().as_ref())
+}
+
+/// For `--overrides-only`: is the given `(key, value)` pair equal to the
+/// built-in default for that key? A key absent from `default_keys` (e.g. an
+/// `Option<T>` field that defaults to `None` and isn't rendered in the TOML
+/// tree) is, by definition, an override relative to the default — kept.
+fn is_default_value(
+    key: &str,
+    value: &str,
+    default_keys: &std::collections::BTreeMap<String, String>,
+) -> bool {
+    match default_keys.get(key) {
+        Some(default_value) => default_value == value,
+        None => false,
+    }
 }
 
 /// Shorten a path for `wiki config show-effective` output. Replaces HOME

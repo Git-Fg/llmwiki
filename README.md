@@ -100,6 +100,25 @@ Beyond the multi-wiki registry, NIM and wiki settings can be split between a **p
 
 Use `wiki config paths` to see the resolved search order for the current workspace, `wiki config show-effective` to see which file overrode which key (mirrors `git config --list --show-origin`), and `wiki config config-edit` to open the highest-priority existing config file (or the per-workspace candidate if none exists) in `$EDITOR`.
 
+### `wiki config show-effective` filters
+
+Three orthogonal filters narrow the output for common audit workflows:
+
+- `[<prefix>]` (positional) — only show keys starting with the prefix.
+  Example: `wiki config show-effective nim.` shows only the `[nim]` table.
+- `--source <path>` — only show keys whose source file matches the path.
+  Example: `wiki config show-effective --source ~/.llmwiki-cli/config.toml`
+  answers "what did the per-computer fallback set?".
+- `--overrides-only` — hide keys whose value equals the built-in default.
+  Surfaces only the keys your config files actually changed (the most
+  useful subset for "what did my config do?").
+
+Filters can be combined and apply to both text and JSON output. Example combining all three:
+
+```bash
+wiki config show-effective nim. --source ./config.toml --overrides-only --json
+```
+
 ## Architecture
 
 - **Wiki content**: Markdown files in `wiki/`, sources in `raw/`, catalog in `index.md`, log in `log.md`. All committed to git.

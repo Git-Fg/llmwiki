@@ -1156,3 +1156,46 @@ fn show_effective_key_and_source_combine() {
     // nim.base_url excluded by source filter
     assert!(!stdout.contains("nim.base_url"));
 }
+
+#[test]
+fn show_effective_overrides_only_hides_default_matching_keys() {
+    // With no config files at all, every key matches its default → output
+    // is empty (or near-empty: keys not in the default config like
+    // `nim.embed_dim_override` are still shown). Adding a per-workspace
+    // override of `nim.embed_model` must surface that key as the only
+    // "override" in the output.
+    let tmp = tempfile::tempdir().unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(&reg_path, "# test\n").unwrap();
+    let home = tmp.path().join("home");
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[nim]\nembed_model = \"nvidia/nv-embedcode-7b-v1\"\n",
+    )
+    .unwrap();
+
+    let output = isolated_cmd_with_workspace_and_config(&reg_path, &home, &workspace, None)
+        .args(["config", "show-effective", "--overrides-only"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("nim.embed_model"),
+        "nim.embed_model should appear (it's overridden): {stdout}"
+    );
+    // Default-matching keys like wiki.default_chunk_tokens=512 should NOT
+    // appear in overrides-only output.
+    assert!(
+        !stdout.contains("wiki.default_chunk_tokens"),
+        "default-matching keys should be hidden: {stdout}"
+    );
+    // nim.batch_size=8 is the default, should be hidden.
+    assert!(
+        !stdout.contains("nim.batch_size"),
+        "default-matching keys should be hidden: {stdout}"
+    );
+}

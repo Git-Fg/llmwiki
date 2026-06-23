@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.13] - 2026-06-23 — `show-effective` filters + tighter path matching
+
+**Added:**
+- `wiki config show-effective --overrides-only` — hide keys whose value
+  equals the built-in default. Surfaces only the keys your config files
+  actually changed (the most useful subset for "what did my config do?").
+  The output includes the filter description in the header so pipe-driven
+  scripts can tell which filter was active.
+- Combined filter support: `[<prefix>]`, `--source <path>`, and
+  `--overrides-only` can now be combined freely. Example:
+  `wiki config show-effective nim. --source ./config.toml --overrides-only --json`.
+
+**Changed:**
+- `source_path_matches` no longer falls back to a string-prefix match
+  when canonicalization fails. A prefix match could falsely equate
+  `/home/u/.llmwiki-cli` with `/home/u/.llmwiki-cli-extra`. The new
+  behavior is exact-canonical-equality only; missed-but-precise is
+  preferable to false-positive in this audit context.
+
+**Documentation:**
+- README.md gained a "show-effective filters" subsection covering all
+  three filters and the combined-usage example.
+
+**Tests:** 251/251 pass (250 v0.3.12 + 1 new for `--overrides-only`).
+
 ## [0.3.12] - 2026-06-23 — `show-effective` filters + doctor source attribution
 
 **Added:**
