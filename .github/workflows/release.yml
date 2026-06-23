@@ -19,7 +19,7 @@ jobs:
           - aarch64-pc-windows-gnu
           - x86_64-pc-windows-gnu
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -57,7 +57,7 @@ jobs:
           esac
           sha256sum "llmwiki-cli-${{ matrix.target }}.${ASSET_EXT}" \
             > "llmwiki-cli-${{ matrix.target }}.${ASSET_EXT}.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: assets
           path: |
@@ -76,7 +76,7 @@ jobs:
           - aarch64-apple-darwin
           - x86_64-apple-darwin
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -90,7 +90,7 @@ jobs:
           tar czf ../../../llmwiki-cli-${{ matrix.target }}.tar.gz llmwiki-cli
           sha256sum llmwiki-cli-${{ matrix.target }}.tar.gz \
             > llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: assets
           path: |
@@ -106,13 +106,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: assets
           path: dist
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/*.tar.gz
