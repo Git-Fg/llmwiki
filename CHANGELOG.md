@@ -22,6 +22,25 @@
 - GitHub Actions release workflow building 6 targets: linux-musl (aarch64, x86_64), windows-gnu (aarch64, x86_64), apple-darwin (aarch64, x86_64)
 - crates.io publish workflow
 
+## [0.3.1] - 2026-06-23 — Multi-source wiki registry concatenation
+
+**Added:**
+- `wiki-root.toml` lookup now walks up from CWD for project-local
+  `.agents/wiki-root.toml`. All sources (user-global chain + ancestor
+  walk-up) are **concatenated**, with closer-to-CWD winning on alias
+  conflict. Every wiki alias from every source is visible to CLI, LSP,
+  and MCP — no shadowing, no silent fallbacks. Mirrors git (local +
+  global), hk (per-project + per-user), Atmos (CWD + parent search).
+- Improved error message: `WikiRootNotFound` now surfaces
+  `$WIKI_ROOT_CONFIG=<path>` explicitly when the env var is set,
+  saving users from guessing why their custom path was rejected.
+
+**Changed:**
+- `wiki config set/unset/add/rm` writes to the highest-priority
+  registry file in scope (project-local if present, otherwise
+  user-global). To edit a lower-priority file, set
+  `$WIKI_ROOT_CONFIG` to point at it directly.
+
 ## 2026-06-22 — NIM URL convention and API key env
 
 The CLI's NIM integration has been corrected so the default `base_url` is the

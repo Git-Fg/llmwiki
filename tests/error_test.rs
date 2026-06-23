@@ -27,10 +27,18 @@ fn wiki_root_not_found_lists_searched_paths() {
             std::path::PathBuf::from("/home/user/.agents/wiki-root.toml"),
             std::path::PathBuf::from("/home/user/.claude/wiki-root.toml"),
         ],
+        from_env: None,
     };
     let msg = format!("{}", err);
     assert!(msg.contains("wiki-root.toml"));
     assert!(msg.contains("not found"));
+    // When WIKI_ROOT_CONFIG is set, the message should surface it.
+    let err_env = WikiError::WikiRootNotFound {
+        searched: vec![std::path::PathBuf::from("/nope/wiki-root.toml")],
+        from_env: Some("/nope/wiki-root.toml".to_string()),
+    };
+    let msg_env = format!("{}", err_env);
+    assert!(msg_env.contains("WIKI_ROOT_CONFIG=/nope/wiki-root.toml"));
 }
 
 #[test]

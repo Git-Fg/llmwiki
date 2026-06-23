@@ -20,8 +20,11 @@ pub enum WikiError {
     )]
     WorkspaceNotFound,
 
-    #[error("wiki-root.toml not found in any of: {searched:?}")]
-    WikiRootNotFound { searched: Vec<std::path::PathBuf> },
+    #[error("wiki-root.toml not found in any of: {searched:?}{}", from_env.as_ref().map(|p| format!(" (WIKI_ROOT_CONFIG={} did not exist)", p)).unwrap_or_default())]
+    WikiRootNotFound {
+        searched: Vec<std::path::PathBuf>,
+        from_env: Option<String>,
+    },
 
     #[error("wiki alias '{alias}' not found in registry. Available: {available}")]
     AliasNotFound { alias: String, available: String },

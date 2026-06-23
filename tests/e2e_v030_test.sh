@@ -26,8 +26,12 @@ step() { printf "\n=== %s ===\n" "$*"; }
 # 1. Build + version
 step "build + version"
 cargo build --quiet --bin llmwiki-cli
+
+# Read the version from Cargo.toml so this smoke test stays in sync with
+# the source-of-truth version (works for 0.3.0, 0.3.1, 0.4.0, ...).
+EXPECTED_VERSION="$(awk -F'"' '/^version = / {print $2; exit}' Cargo.toml)"
 VERSION_OUT="$(cargo run --quiet -- --version)"
-echo "$VERSION_OUT" | grep -q "llmwiki-cli 0.3.0" || fail "version mismatch: $VERSION_OUT"
+echo "$VERSION_OUT" | grep -q "llmwiki-cli ${EXPECTED_VERSION}" || fail "version mismatch: $VERSION_OUT"
 echo "  ok: $VERSION_OUT"
 
 # 2. CLI surface

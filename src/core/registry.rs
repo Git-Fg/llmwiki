@@ -35,6 +35,7 @@ impl Registry {
     pub fn load_from(path: &Path) -> Result<Self, WikiError> {
         let content = std::fs::read_to_string(path).map_err(|_| WikiError::WikiRootNotFound {
             searched: vec![path.to_path_buf()],
+            from_env: std::env::var("WIKI_ROOT_CONFIG").ok(),
         })?;
 
         let raw_doc: toml::Value = content.parse().map_err(|e| WikiError::ConfigInvalid {
@@ -118,26 +119,85 @@ impl Registry {
 
     pub fn discover() -> Result<Self, WikiError> {
         let candidates = Self::candidate_paths();
-        for candidate in &candidates {
-            if candidate.exists() {
-                return Self::load_from(candidate);
+        Self::load_all(&candidates)
+    }
+
+    /// Load and concatenate every wiki-root.toml file in `paths`. Entries from
+    /// later paths (higher priority) override entries from earlier paths on
+    /// alias conflict. `[defaults]` are deep-merged (later wins on key
+    /// conflict). Returns `WikiRootNotFound` if no file in `paths` exists.
+    ///
+    /// The resulting `Registry.root_path` is the highest-priority file that
+    /// actually existed, so `save()` writes back to the most specific scope.
+    pub fn load_all(paths: &[PathBuf]) -> Result<Self, WikiError> {
+        let searched = paths.to_vec();
+        let mut merged: Option<Registry> = None;
+
+        for p in paths {
+            if !p.is_file() {
+                continue;
+            }
+            let r = Self::load_from(p)?;
+            merged = Some(match merged {
+                None => r,
+                Some(m) => m.merged_with(r),
+            });
+        }
+
+        merged.ok_or_else(|| WikiError::WikiRootNotFound {
+            searched,
+            from_env: std::env::var("WIKI_ROOT_CONFIG").ok(),
+        })
+    }
+
+    /// Merge a higher-priority registry into this one. Higher wins on alias
+    /// conflict. `[defaults]` deep-merge (higher wins per key).
+    /// `root_path` and `raw_doc` come from `higher` (most-specific scope).
+    fn merged_with(mut self, higher: Registry) -> Registry {
+        // Aliases: override or append.
+        let mut new_entries: Vec<WikiEntry> = self.entries.drain(..).collect();
+        for h in higher.entries {
+            if let Some(slot) = new_entries.iter_mut().find(|e| e.alias == h.alias) {
+                *slot = h;
+            } else {
+                new_entries.push(h);
             }
         }
-        Err(WikiError::WikiRootNotFound {
-            searched: candidates,
-        })
+        self.entries = new_entries;
+
+        // [defaults]: deep-merge higher into lower (higher wins per key).
+        self.defaults.raw = merge_defaults(self.defaults.raw.take(), higher.defaults.raw);
+
+        // Save back to the highest-priority file.
+        self.root_path = higher.root_path;
+        self.raw_doc = higher.raw_doc;
+
+        self
     }
 
     pub fn candidate_paths() -> Vec<PathBuf> {
         let mut paths = Vec::new();
+
+        // 1. Hard override via $WIKI_ROOT_CONFIG — exact file, no merging.
         if let Ok(p) = std::env::var("WIKI_ROOT_CONFIG") {
-            paths.push(PathBuf::from(p));
+            return vec![PathBuf::from(p)];
         }
+
+        // 2. User-global chain (lowest priority, loaded first).
         if let Some(home) = home_dir() {
-            paths.push(home.join(".agents").join("wiki-root.toml"));
-            paths.push(home.join(".claude").join("wiki-root.toml"));
             paths.push(home.join("wiki-root.toml"));
+            paths.push(home.join(".claude").join("wiki-root.toml"));
+            paths.push(home.join(".agents").join("wiki-root.toml"));
         }
+
+        // 3. Ancestor walk-up: project-local registries from closest-to-CWD
+        //    up to the filesystem root. Reverse so closest-to-CWD has the
+        //    highest priority (loaded last, wins on conflict).
+        if let Some(mut ancestors) = walk_up_for_project_registries() {
+            ancestors.reverse();
+            paths.extend(ancestors);
+        }
+
         paths
     }
 
@@ -557,4 +617,49 @@ fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)
+}
+
+/// Walk up from the current directory collecting every `.agents/wiki-root.toml`
+/// found at any ancestor level. Returns the list in closest-to-CWD-first order.
+/// Caller should reverse to get furthest-first (lowest priority).
+fn walk_up_for_project_registries() -> Option<Vec<PathBuf>> {
+    let cwd = std::env::current_dir().ok()?;
+    let canonical = cwd.canonicalize().ok()?;
+    let mut current: Option<PathBuf> = Some(canonical);
+    let mut found = Vec::new();
+    while let Some(dir) = current {
+        let candidate = dir.join(".agents").join("wiki-root.toml");
+        if candidate.is_file() {
+            found.push(candidate);
+        }
+        current = dir.parent().map(PathBuf::from);
+    }
+    if found.is_empty() {
+        None
+    } else {
+        Some(found)
+    }
+}
+
+/// Deep-merge two optional `[defaults]` tables. `higher` wins per key on
+/// conflict (matches git, hk, Atmos: more-specific scope wins).
+fn merge_defaults(lower: Option<toml::Value>, higher: Option<toml::Value>) -> Option<toml::Value> {
+    match (lower, higher) {
+        (None, h) => h,
+        (Some(l), None) => Some(l),
+        (Some(mut l), Some(h)) => {
+            if let toml::Value::Table(ref mut l_table) = l {
+                if let toml::Value::Table(h_table) = h {
+                    for (k, v) in h_table {
+                        if let Some(existing) = l_table.get_mut(&k) {
+                            deep_merge_into(existing, v);
+                        } else {
+                            l_table.insert(k, v);
+                        }
+                    }
+                }
+            }
+            Some(l)
+        }
+    }
 }

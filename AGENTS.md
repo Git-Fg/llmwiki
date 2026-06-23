@@ -119,3 +119,28 @@ llmwiki-cli tree [--json]
 
 Outputs one line per page: `slug  title [tags] ✓(if embedded)`. Designed for piping to `grep`, `fzf`, etc.
 With `--json`: structured array with `slug`, `path`, `title`, `tags`, `embedded`.
+
+## Workspace Resolution
+
+The CLI locates the active wiki (or the registry of wikis) in this order:
+
+1. `--workspace <path>` flag (hard override)
+2. `--wiki <alias>` flag (looks up alias in the registry)
+3. `$WIKI_WORKSPACE` env var
+4. `$WIKI_ACTIVE` env var (looks up alias in the registry)
+5. Registry CWD prefix match against registered wiki paths
+6. Walk up from CWD looking for `.wiki/` (legacy v0.1 convention)
+7. `~/wiki` if it has `.wiki/`
+
+Registry file lookup (used by `--wiki`, `$WIKI_ACTIVE`, and the CWD prefix match) — **all sources are concatenated, with later (higher-priority) entries winning on alias conflict**:
+
+1. `$WIKI_ROOT_CONFIG` — exact path, no merging, no fallback
+2. User-global chain (lowest priority, loaded first):
+   - `~/wiki-root.toml`
+   - `~/.claude/wiki-root.toml`
+   - `~/.agents/wiki-root.toml`
+3. Project-local chain (ancestor walk-up from CWD, loaded furthest-to-closest so closest wins on conflict):
+   - `<closest-ancestor>/.agents/wiki-root.toml`
+   - ... up to `<farthest-ancestor>/.agents/wiki-root.toml`
+
+**Every wiki alias from every source is visible** to all commands (CLI, LSP, MCP). This lets teams register shared knowledge in `~/.agents/wiki-root.toml` while individual projects add their own scoped wikis via project-local `.agents/wiki-root.toml` — no duplication, no precedence guessing. Convention mirrors git (local + global), hk (per-project + per-user), and Atmos (CWD + parent search + git root).
