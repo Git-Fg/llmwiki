@@ -2862,13 +2862,22 @@ git commit -m "feat(lsp): skill bundle for LSP sub-skill (LSP/SKILL.md + referen
 - [ ] **Step 1: Add the crate**
 
 ```toml
-rmcp = { version = "0.1", features = ["server", "macros", "transport-stdio"] }
+rmcp = { version = "0.2", features = ["server", "macros", "schemars", "transport-io"] }
 ```
+
+> **Feature flag correction:** the plan literal says `transport-stdio`; the
+> actual feature name in rmcp 0.2 is **`transport-io`** (verified via
+> docs.rs/rmcp feature table). Also bump from `0.1` to `0.2` — the 0.2 line is
+> the current stable; `0.1` is pre-1.0 and has breaking API differences.
+>
+> The `schemars` feature enables JSON Schema generation for tool input types,
+> which `llmwiki-cli` already pulls in for the config schema embed (Phase 0
+> Task 0.7). Re-using it avoids a second schemars version in Cargo.lock.
 
 - [ ] **Step 2: Verify build**
 
 Run: `cargo build 2>&1 | tail -10`
-Expected: builds. (rmcp 0.1 is pre-1.0; API may need adjustments.)
+Expected: builds. (rmcp 0.2 is pre-1.0; API may need adjustments.)
 
 - [ ] **Step 3: Commit**
 
@@ -2882,6 +2891,18 @@ git commit -m "feat(mcp): add rmcp dependency"
 **Files:**
 - Create: `src/cli/mcp.rs`
 - Modify: `src/cli/mod.rs` — add `Mcp` variant + dispatch
+
+> **rmcp 0.2 API correction:** the spec literal uses `#[rmcp::tool_handler]`
+> alone. In rmcp 0.2, the canonical pattern is:
+> 1. **`#[tool_router]` on the impl block** — generates a `_router` struct
+>    containing `list_tools` and `call_tool` dispatch.
+> 2. **`#[tool_handler(router = self.router)]`** — wires the router into the
+>    `ServerHandler` impl.
+> 3. Each tool method has its own `#[tool]` attribute.
+>
+> Without `#[tool_router]`, the tool methods are NOT registered with the
+> dispatcher and `list_tools` returns an empty list. This is the most common
+> mistake in rmcp 0.2 migrations.
 
 - [ ] **Step 1: Add `Mcp` variant to `Command`**
 
@@ -2904,6 +2925,14 @@ Some(Command::Mcp(args)) => crate::cli::mcp::run(args).await,
 ```
 
 - [ ] **Step 2: Write `src/cli/mcp.rs`**
+
+Apply the pattern below. The spec is structurally similar to the original
+plan literal but uses the correct rmcp 0.2 macros. The 5 tools are:
+1. `validate(config_text)` — parse + validate a wiki-root.toml string
+2. `hover(key)` — return hover docstring for a known config key
+3. `complete(parent_path)` — list completion items for a parent scope
+4. `symbols(config_text)` — return top-level table outline
+5. `list_topics()` — list sub-skills in the bundled wiki skill
 
 ```rust
 use crate::cli::McpArgs;
