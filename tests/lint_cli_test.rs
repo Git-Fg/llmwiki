@@ -46,6 +46,40 @@ fn lint_detects_orphan_page() {
 }
 
 #[test]
+fn lint_resilient_to_unparseable_frontmatter() {
+    // v0.3.25+: lint must not crash the whole run when one page has YAML
+    // that `serde_yaml` cannot parse (e.g. duplicate top-level keys like
+    // `type:` appearing twice). The bad page should be reported as a
+    // `frontmatter-parse` lint issue, the good page should still be checked
+    // normally, and the run should exit 2 (errors > 0) instead of panicking.
+    let tmp = tempfile::tempdir().unwrap();
+    let wiki = tmp.path();
+    std::fs::create_dir_all(wiki.join("wiki")).unwrap();
+
+    // Duplicate `type:` key — `serde_yaml::from_str` returns Err.
+    let bad = "---\nschema_version: 1\ntitle: Bad\ncreated: 2026-01-01\nupdated: 2026-01-01\ntype: concept\ntype: entity\ntags: [x]\nsources: []\n---\n\nBody\n";
+    std::fs::write(wiki.join("wiki/bad-page.md"), bad).unwrap();
+
+    // Good page with valid frontmatter but missing title — should be
+    // reported as `missing-title` independently of the bad page.
+    let ok_missing_title = "---\nschema_version: 1\ncreated: 2026-01-01\nupdated: 2026-01-01\ntype: concept\ntags: [x]\nsources: []\n---\n\nBody\n";
+    std::fs::write(wiki.join("wiki/good-but-no-title.md"), ok_missing_title).unwrap();
+
+    std::fs::write(wiki.join("index.md"), "# Index\n").unwrap();
+    std::fs::write(wiki.join("log.md"), "# Log\n").unwrap();
+
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace")
+        .arg(wiki)
+        .arg("lint")
+        .assert()
+        .code(2)
+        .stdout(str::contains("frontmatter-parse"))
+        .stdout(str::contains("missing-title"));
+}
+
+#[test]
 fn lint_passes_on_wellformed_wiki() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();

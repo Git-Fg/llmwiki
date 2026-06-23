@@ -64,6 +64,82 @@ build.rs                   # generates agents/skills/wiki/SKILL.md hub stub,
 
 **Test isolation with env vars / CWD**: tests that mutate `$HOME`, `$USERPROFILE`, `$WIKI_ROOT_CONFIG`, or CWD MUST go through the helpers in `tests/common/mod.rs`: `with_lock` (serializes across all test binaries), `with_home_and_cwd`, `with_wiki_root_config`, `without_wiki_root_config`, `isolated_tempdir`. The `with_home_and_cwd` helper uses an `EnvGuard` RAII struct (post-v0.3.16) so the captured env state is restored on Drop, including during unwinding from a panic. **Do not write a fresh env-modifying helper** without the same Drop-guard pattern — a panic in the inner closure would otherwise leak `$HOME`/`CWD` into every later test in the same binary, producing flaky NotFound failures that are very hard to reproduce.
 
+## Pre-release real-wiki smoke test (mandatory since v0.3.25)
+
+**This check is mandatory before any tagged release.** Wiremock-backed unit/integration tests confirm the CLI handles expected inputs — they cannot catch the case where the CLI silently does nothing because the workspace layout it expects doesn't match the user's reality. The five real wikis in `~/.agents/wiki-root.toml` are the canonical integration targets; their divergences from the spec'd `wiki/<page>.md` layout are themselves signal.
+
+### Real-wiki registry
+
+`~/.agents/wiki-root.toml` is the user-global registry (see Workspace Resolution below for the full lookup chain). After filtering out the `.tmp*` / `tmp.*` test-fixture entries that the CLI's own tests write, the real-wiki aliases on this machine are:
+
+| Alias | Path | Layout |
+|---|---|---|
+| `mevin` | `/Users/felix/Documents/Tauri2/mevin-tauri2/wiki` | **flat** (pages at workspace root) |
+| `minimax` | `/Users/felix/Documents/MinimaxCode/minimax-code-wiki` | **flat** (pages at workspace root) |
+| `mywiki` | (see registry) | **flat** |
+| `pharma` | (see registry) | **flat** |
+| `pharma.nim` | (see registry) | **flat** |
+
+Run `grep -E "^\[" ~/.agents/wiki-root.toml | grep -v "\.tmp\|\"tmp\."` to regenerate this list.
+
+### The check itself
+
+Run, in order, against at least ONE of the flat-layout wikis above (e.g. `--wiki minimax`):
+
+```bash
+# 1. Confirm the CLI under test is the one about to ship
+llmwiki-cli --version
+# Expected: prints "llmwiki-cli 0.3.XX" (the version you intend to release)
+
+# 2. Workspace + registry resolution
+llmwiki-cli --wiki minimax doctor
+# Expected: "✓ Workspace: ...", "✓ Wiki registry: ...", "✓ Active alias: minimax",
+# "✓ Config loaded", "✓ NIM endpoint reachable". Exit code 0.
+
+# 3. JSON shape of doctor output (catches schema drift between the live binary and
+# the bundled doctor.schema.json)
+llmwiki-cli --wiki minimax doctor --json | jq 'keys'
+# Expected: a 15-key array matching the canonical DoctorReport field set documented
+# in marketplace/skills/wiki/MCP/references/doctor.schema.json
+
+# 4. Config resolution path — verifies the priority chain works
+llmwiki-cli --wiki minimax config paths
+# Expected: lists per-computer + per-workspace candidates in priority order
+
+# 5. Effective config dump — verifies deep-merge + dotted-key reflection
+llmwiki-cli --wiki minimax config show-effective
+# Expected: ~14 `<default>`-sourced dotted-key entries (no per-workspace overrides
+# in the flat-layout wikis; that's expected)
+
+# 6. Page discovery — works on both layouts since v0.3.25
+llmwiki-cli --wiki minimax ls --pages
+llmwiki-cli --wiki minimax tree
+# Expected: non-empty listing for both `wiki/`-layout and flat-layout wikis.
+# v0.3.25 added `wiki.pages_dir` (default `"wiki"`, empty string = flat).
+# Set `wiki.pages_dir = ""` in `<wiki>/.llmwiki-cli/config.toml` for
+# flat-layout wikis; see "Flat-layout wikis" below.
+```
+
+### Why this is mandatory
+
+A test suite that uses `wiremock` and `tempfile`-isolated workspaces cannot detect: registry resolution failures against the user's real `wiki-root.toml`, alias conflicts when multiple real wikis share a path, NIM connectivity with the user's actual API key, or layout assumptions that don't hold for the user's real wikis. The five real wikis in this registry collectively represent ~50 MB of curated content over months of edits — if the CLI can't read them, the CLI is broken regardless of what `cargo test` says.
+
+### Flat-layout wikis (all 5 real wikis on this machine)
+
+The user's real wikis use the Karpathy pattern with pages at the workspace root (no `wiki/` subdirectory). v0.3.25 added `wiki.pages_dir` to `Config`:
+
+- **Default** `wiki.pages_dir = "wiki"` — backward-compatible with `wiki init`-created wikis (pages in `wiki/`).
+- **Flat layout** `wiki.pages_dir = ""` — pages live at workspace root (`comparisons/foo.md`, `queries/bar.md`, `index.md`).
+
+To switch a real wiki to flat layout, create `<wiki>/.llmwiki-cli/config.toml`:
+
+```toml
+[wiki]
+pages_dir = ""
+```
+
+Without this per-workspace config, the CLI defaults to `wiki/` and reports `Pages (0):` against flat-layout wikis — same pre-v0.3.25 symptom, but now opt-in rather than baked-in. The new helper `core::workspace::pages_dir(workspace, pages_dir_config)` returns `workspace` for `""` and `workspace.join(dir)` otherwise.
+
 ## NIM API Conventions (do not change without updating the wiremock tests)
 
 The CLI talks to an OpenAI-compatible endpoint hosted on NVIDIA NIM. Two invariants the code relies on — breaking either of these silently breaks every NIM call:
@@ -179,20 +255,20 @@ export LLMWIKI_CONFIG=/etc/llmwiki-cli.toml   # full override
 # or commit a per-workspace override to <workspace>/.llmwiki-cli/config.toml
 ```
 
-## JSON Schema generation (v0.3.22+)
+## JSON Schema generation (v0.3.22+, single-source-of-truth since v0.3.25)
 
-Two JSON Schema documents ship inside the skill bundle, both **auto-generated by `build.rs`** from a Rust struct (no hand-edited JSON):
+Two JSON Schema documents ship inside the skill bundle, both **auto-generated by `build.rs`** from the runtime Rust structs (no hand-edited JSON):
 
-1. `marketplace/skills/wiki/SETUP/references/schema.json` — for the `Config` type. The real struct lives in `src/core/config.rs`; `build.rs` has its own annotated duplicate with `#[derive(schemars::JsonSchema)]` + `#[allow(dead_code)]`. `cargo build` regenerates the JSON on every change.
-2. `marketplace/skills/wiki/MCP/references/doctor.schema.json` — for the `DoctorReport` type. Same pattern: the real struct lives in `src/cli/doctor.rs`; `build.rs` has its own annotated duplicate.
+1. `marketplace/skills/wiki/SETUP/references/schema.json` — for the `Config` type.
+2. `marketplace/skills/wiki/MCP/references/doctor.schema.json` — for the `DoctorReport` type.
 
-**Schema root contract — `additionalProperties: false`**: Only the `DoctorReport` duplicate carries `#[serde(deny_unknown_fields)]` (v0.3.22). Schemars reads the serde attribute and emits `"additionalProperties": false` at the schema root natively. The same attribute is added to `src/cli/doctor.rs::DoctorReport` for documentation of intent — harmless at runtime because the real struct only derives `Serialize`, never `Deserialize`. The `Config` schema intentionally does NOT set `additionalProperties: false` — extra keys are tolerated in the config layer because users may add their own keys under `[wiki]` or `[nim]` sections that the typed `Config` struct doesn't surface, and the deep-merge semantics in `src/core/registry.rs::deep_merge_into` need to see those keys.
+**Single source of truth (v0.3.25+)**: The struct definitions live in self-contained type files — `src/core/config_types.rs` for `Config`/`NimConfig`/`RetryConfig`/`WikiConfig` (plus their `default_*` helpers), and `src/cli/doctor_report.rs` for `DoctorReport`. Both `src/core/config.rs`/`src/cli/doctor.rs` (for runtime serialization) and `build.rs` (for schema generation) `include!` these files. Adding a field to either struct automatically updates the generated schema. No drift tests are needed because the equality is enforced at compile time (the `include!` macro literally pastes the same source into both compilation units).
 
-**Drift protection (DoctorReport side)**: `tests/doctor_test.rs::doctor_json_output_validates_against_schema` asserts three things every CI run: (1) the on-disk schema validates against a real `wiki doctor --json` run against a mocked NIM, (2) the schema's `properties` key set matches a hard-coded canonical 15-key set, and (3) the `nim_status` field's `"minimum": 100, "maximum": 599` HTTP-range constraint is present. The keys check is the load-bearing half — `jsonschema::is_valid` alone cannot catch drift between `src/cli/doctor.rs::DoctorReport` and the `build.rs` duplicate, because the real struct's output would still satisfy a schema that silently lost a field.
+These type files are intentionally self-contained — type imports are written as full paths on the derive attributes (`schemars::JsonSchema`, `serde::Serialize`, etc.) rather than `use` statements, so they don't introduce duplicate `JsonSchema` name collisions when build.rs includes both files. They also never use `use crate::*` paths, because `build.rs` runs as a separate compilation unit that cannot reference the package's own library (Cargo build-script circular-dependency restriction).
 
-**Drift protection (Config side)**: `tests/doctor_test.rs::config_schema_has_canonical_keys` asserts the on-disk `Config` schema's `properties` key set matches a hard-coded canonical set covering `nim`, `wiki`, and `config_version`. There is no `jsonschema::is_valid` end-to-end check on the Config schema (the runtime `Config` is deserialized from TOML, not the schema) — drift protection is keys-only.
+**Schema root contract — `additionalProperties: false`**: Only the `DoctorReport` type carries `#[serde(deny_unknown_fields)]`. Schemars reads the serde attribute and emits `"additionalProperties": false` at the schema root natively. The `Config` type intentionally does NOT set `additionalProperties: false` — extra keys are tolerated in the config layer because users may add their own keys under `[wiki]` or `[nim]` sections that the typed `Config` struct doesn't surface, and the deep-merge semantics in `src/core/registry.rs::deep_merge_into` need to see those keys.
 
-**Maintainer invariant**: When you change either `src/core/config.rs::Config` / `src/cli/doctor.rs::DoctorReport` or the corresponding build.rs duplicate, you MUST change both. The drift tests catch forgetting. Build also re-runs because `build.rs` declares `cargo:rerun-if-changed=src/cli/doctor.rs` and `cargo:rerun-if-changed=src/core/config.rs`.
+**End-to-end validation**: `tests/doctor_test.rs::doctor_json_validates_against_schema` runs `wiki doctor --json` against a mocked NIM and asserts the output validates against the on-disk `doctor.schema.json` via the `jsonschema` crate. This catches (a) `include!` silently failing to expand, (b) schemars emit bugs in future versions, (c) serialization drift (e.g., a field accidentally `serde(skip)`-ed). Pre-v0.3.25 also had a structural-keys assertion (`config_schema_has_canonical_keys` + a 15-key check inside the doctor test) but that became tautological once build.rs no longer carried struct duplicates — schema by construction equals struct.
 
 ## Cargo.lock (v0.3.20+, platform-specific question resolved in v0.3.23)
 

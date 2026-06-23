@@ -7,7 +7,7 @@ use crate::core::config::{resolve_api_key, resolve_config, validate_or_error};
 use crate::core::embeddings::{ChunkEmbed, EmbeddingsFile, PageEmbedding};
 use crate::core::models_registry::{load_registry, Role};
 use crate::core::nim::NimClient;
-use crate::core::workspace::discover_workspace;
+use crate::core::workspace::{discover_workspace, pages_dir};
 use crate::error::WikiError;
 
 pub struct EmbedArgs {
@@ -45,7 +45,7 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
         .with_max_attempts(cfg.nim.retry.max_attempts)
         .with_backoff_ms(cfg.nim.retry.backoff_ms);
 
-    let wiki_dir = ws.join("wiki");
+    let wiki_dir = pages_dir(&ws, &cfg.wiki.pages_dir);
     let jsonl_path = ws.join("embeddings.jsonl");
     let mut emb_file = EmbeddingsFile::read_from(&jsonl_path)?;
 

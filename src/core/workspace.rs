@@ -93,3 +93,56 @@ fn walk_up_for_llmwiki_cli_dir(start: &Path) -> Option<PathBuf> {
     }
     None
 }
+
+/// Resolve the wiki pages directory for a workspace.
+///
+/// Returns the workspace itself when `wiki.pages_dir` is empty
+/// (flat-layout Karpathy-style wikis where pages live at the workspace
+/// root), or `workspace.join(pages_dir)` otherwise. Used by `ls --pages`,
+/// `tree`, `embed`, `lint --scope wiki`, and `status` — six call sites
+/// that previously hardcoded `ws.join("wiki")` and broke on flat-layout
+/// wikis.
+///
+/// v0.3.25+: surfaced by the pre-release real-wiki smoke test
+/// (see `AGENTS.md` "Pre-release real-wiki smoke test").
+pub fn pages_dir(workspace: &Path, pages_dir_config: &str) -> PathBuf {
+    if pages_dir_config.is_empty() {
+        workspace.to_path_buf()
+    } else {
+        workspace.join(pages_dir_config)
+    }
+}
+
+#[cfg(test)]
+mod pages_dir_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn default_subdir_returns_workspace_join_wiki() {
+        let ws = PathBuf::from("/tmp/wiki");
+        let result = pages_dir(&ws, "wiki");
+        assert_eq!(result, PathBuf::from("/tmp/wiki/wiki"));
+    }
+
+    #[test]
+    fn empty_string_returns_workspace_root_for_flat_layout() {
+        let ws = PathBuf::from("/Users/felix/Documents/MinimaxCode/minimax-code-wiki");
+        let result = pages_dir(&ws, "");
+        assert_eq!(result, ws);
+    }
+
+    #[test]
+    fn custom_subdir_is_honored() {
+        let ws = PathBuf::from("/tmp/wiki");
+        let result = pages_dir(&ws, "pages");
+        assert_eq!(result, PathBuf::from("/tmp/wiki/pages"));
+    }
+
+    #[test]
+    fn nested_subdir_is_preserved() {
+        let ws = PathBuf::from("/tmp/wiki");
+        let result = pages_dir(&ws, "content/pages");
+        assert_eq!(result, PathBuf::from("/tmp/wiki/content/pages"));
+    }
+}

@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use crate::core::config::resolve_config;
 use crate::core::embeddings::EmbeddingsFile;
-use crate::core::workspace::discover_workspace;
+use crate::core::workspace::{discover_workspace, pages_dir};
 use crate::error::WikiError;
 
 pub struct StatusArgs {
@@ -19,9 +20,10 @@ pub fn run(args: StatusArgs) -> Result<(), WikiError> {
         std::env::var("WIKI_ACTIVE").ok().as_deref(),
         std::env::current_dir()?,
     )?;
+    let cfg = resolve_config(&ws)?;
 
     let mut page_count = 0;
-    let wiki_dir = ws.join("wiki");
+    let wiki_dir = pages_dir(&ws, &cfg.wiki.pages_dir);
     if wiki_dir.exists() {
         for entry in walkdir::WalkDir::new(&wiki_dir) {
             let entry = entry.map_err(|e| anyhow::anyhow!(e))?;

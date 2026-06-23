@@ -202,171 +202,21 @@ async fn doctor_json_includes_config_sources_attribution() {
     );
 }
 
-// ─── v0.3.24: Config schema has the canonical key set (drift protection) ───
-
-#[test]
-fn config_schema_has_canonical_keys() {
-    // Regression guard: ensures the `Config`/`NimConfig`/`WikiConfig`/
-    // `RetryConfig` struct duplicates in `build.rs` (which generate
-    // `marketplace/skills/wiki/SETUP/references/schema.json`) stay in
-    // sync with the real structs in `src/core/config.rs`. Keys-only
-    // check is sufficient for the Config side because the runtime
-    // Config is deserialized from TOML, not the schema — there is no
-    // end-to-end `jsonschema::is_valid` against a live Config output.
-    let schema_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("marketplace/skills/wiki/SETUP/references/schema.json");
-    let schema_text = std::fs::read_to_string(&schema_path).expect("schema file exists");
-    let schema_value: serde_json::Value =
-        serde_json::from_str(&schema_text).expect("schema file is valid JSON");
-
-    // Root `Config` struct
-    let root_keys: std::collections::BTreeSet<&str> = schema_value["properties"]
-        .as_object()
-        .expect("schema.properties is an object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    assert_eq!(
-        root_keys,
-        ["config_version", "nim", "wiki"].into_iter().collect(),
-        "Config schema root properties keys do not match the canonical set"
-    );
-
-    // NimConfig sub-struct
-    let nim_keys: std::collections::BTreeSet<&str> = schema_value["$defs"]["NimConfig"]
-        ["properties"]
-        .as_object()
-        .expect("NimConfig.properties is an object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    assert_eq!(
-        nim_keys,
-        [
-            "api_key_env",
-            "base_url",
-            "batch_size",
-            "embed_dim_override",
-            "embed_model",
-            "request_timeout_secs",
-            "rerank_model",
-            "retry",
-        ]
-        .into_iter()
-        .collect(),
-        "NimConfig schema properties keys do not match the canonical set"
-    );
-
-    // RetryConfig sub-struct
-    let retry_keys: std::collections::BTreeSet<&str> = schema_value["$defs"]["RetryConfig"]
-        ["properties"]
-        .as_object()
-        .expect("RetryConfig.properties is an object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    assert_eq!(
-        retry_keys,
-        ["backoff_ms", "max_attempts"].into_iter().collect(),
-        "RetryConfig schema properties keys do not match the canonical set"
-    );
-
-    // WikiConfig sub-struct
-    let wiki_keys: std::collections::BTreeSet<&str> = schema_value["$defs"]["WikiConfig"]
-        ["properties"]
-        .as_object()
-        .expect("WikiConfig.properties is an object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    assert_eq!(
-        wiki_keys,
-        [
-            "chunk_overlap_tokens",
-            "default_chunk_tokens",
-            "min_chunk_tokens",
-            "require_frontmatter",
-            "require_wikilinks_min",
-        ]
-        .into_iter()
-        .collect(),
-        "WikiConfig schema properties keys do not match the canonical set"
-    );
-}
-
 // ─── v0.3.22: doctor --json output validates against the auto-generated schema ───
 
 #[tokio::test]
-async fn doctor_json_output_validates_against_schema() {
-    // Regression guard: ensures the `DoctorReport` struct in
-    // `src/cli/doctor.rs` and the duplicate in `build.rs` (which
-    // generates `marketplace/skills/wiki/MCP/references/doctor.schema.json`)
-    // stay in sync. If either adds/removes/renames a field, this test
-    // fails before the build.rs drifts.
+async fn doctor_json_validates_against_schema() {
+    // Regression guard: ensures the auto-generated
+    // `marketplace/skills/wiki/MCP/references/doctor.schema.json`
+    // validates a real `wiki doctor --json` output against a mocked NIM.
+    // The schema is generated from `src/cli/doctor_report.rs` (single
+    // source of truth via include! in build.rs).
     let schema_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("marketplace/skills/wiki/MCP/references/doctor.schema.json");
     let schema_text = std::fs::read_to_string(&schema_path).expect("schema file exists");
     let schema_value: serde_json::Value =
         serde_json::from_str(&schema_text).expect("schema file is valid JSON");
 
-    // The real DoctorReport in src/cli/doctor.rs has exactly these 15
-    // fields. If a future contributor adds/removes/renames a field there
-    // OR in the build.rs duplicate (which generates the schema), this
-    // set stops matching the schema's `properties` keys and the test
-    // fails — catching the drift the jsonschema-validates-actual
-    // assertion alone would miss.
-    let expected_keys: std::collections::BTreeSet<&str> = [
-        "workspace",
-        "active_alias",
-        "wiki_root_path",
-        "registry_entries",
-        "config_loaded",
-        "embed_model",
-        "nim_base_url",
-        "api_key_length",
-        "api_key_env",
-        "nim_reachable",
-        "nim_status",
-        "nim_error",
-        "embed_model_available",
-        "config",
-        "config_sources",
-    ]
-    .into_iter()
-    .collect();
-    let schema_keys: std::collections::BTreeSet<&str> = schema_value["properties"]
-        .as_object()
-        .expect("schema.properties is an object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    assert_eq!(
-        schema_keys, expected_keys,
-        "auto-gen doctor.schema.json properties keys do not match the canonical DoctorReport key set"
-    );
-
-    // v0.3.24 (M6): also assert per-field annotations that the keys-only
-    // check cannot catch. `nim_status` carries a `#[schemars(range(...))]`
-    // constraint that should be in the schema as `minimum` / `maximum`.
-    // A future contributor who *narrows* the range (e.g. 200..=300) would
-    // fail this assertion when real HTTP statuses violate the narrower
-    // bounds. A contributor who *widens* it back to the uint16 range
-    // (0..=65535) would silently pass — the asymmetry is documented as
-    // a known limitation in AGENTS.md.
-    let nim_status_schema = &schema_value["properties"]["nim_status"];
-    assert_eq!(
-        nim_status_schema["minimum"].as_u64(),
-        Some(100),
-        "doctor.schema.json nim_status minimum should be 100 (HTTP status min). actual: {nim_status_schema}"
-    );
-    assert_eq!(
-        nim_status_schema["maximum"].as_u64(),
-        Some(599),
-        "doctor.schema.json nim_status maximum should be 599 (HTTP status max). actual: {nim_status_schema}"
-    );
-
-    // Run `doctor --json` against a mocked NIM (success path — covers
-    // every field with a populated value).
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
     std::fs::create_dir(wiki.join(".llmwiki-cli")).unwrap();

@@ -1,4 +1,6 @@
+use crate::core::config::Config;
 use crate::core::registry::Registry;
+use crate::core::workspace::pages_dir;
 use crate::error::WikiError;
 use anyhow::Context;
 use std::path::PathBuf;
@@ -18,7 +20,22 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         args.path.clone()
     };
 
-    std::fs::create_dir_all(target.join("wiki")).context("create wiki/")?;
+    // Read the user's global config to honor `wiki.pages_dir` if set.
+    // If unset, falls back to the default ("wiki") via Config::default().
+    // v0.3.25+: lets users with flat-layout wikis run `wiki init` against
+    // a workspace and get pages at the root instead of a `wiki/` subdir.
+    let cfg =
+        crate::core::config::load_config_unvalidated(&crate::core::config::config_paths(&target))
+            .unwrap_or_else(|_| Config::default());
+    let pages_dir_path = pages_dir(&target, &cfg.wiki.pages_dir);
+
+    // For the `wiki/`-layout default, create the subdirectory. For the
+    // flat layout (pages_dir == ""), pages_dir_path is the workspace root
+    // which already exists — no subdirectory to create.
+    if !cfg.wiki.pages_dir.is_empty() {
+        std::fs::create_dir_all(&pages_dir_path)
+            .with_context(|| format!("create {}", pages_dir_path.display()))?;
+    }
     std::fs::create_dir_all(target.join("raw/articles")).context("create raw/articles/")?;
     std::fs::create_dir_all(target.join(".llmwiki-cli")).context("create .llmwiki-cli/")?;
 
@@ -30,9 +47,9 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
 
     let template = include_str!("../../resources/page.template.md").replace("YYYY-MM-DD", &today);
 
-    write_if_absent(&target.join("wiki/overview.md"), &template)?;
+    write_if_absent(&pages_dir_path.join("overview.md"), &template)?;
     write_if_absent(
-        &target.join("wiki/log.md"),
+        &pages_dir_path.join("log.md"),
         "# Log\n\nChronological record of wiki operations.\n",
     )?;
     write_if_absent(&target.join("raw/articles/.gitkeep"), "")?;
@@ -60,6 +77,7 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
 # batch_size = 8
 
 [wiki]
+# pages_dir = \"wiki\"        # relative to workspace root; \"\" = flat layout (v0.3.25+)
 # default_chunk_tokens = 512
 # chunk_overlap_tokens = 128
 # min_chunk_tokens = 32

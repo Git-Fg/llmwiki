@@ -1,6 +1,6 @@
 [package]
 name = "llmwiki-cli"
-version = "0.3.24"
+version = "0.3.25"
 description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
 license = "Apache-2.0"
 repository = "https://github.com/Git-Fg/llmwiki"
@@ -33,7 +33,6 @@ indicatif = "0.17"
 schemars = "1.0"
 regex = "1.12.4"
 toml = "0.8"
-serde-toml-merge = "0.2"
 sha2 = "0.11.0"
 chrono = "0.4.45"
 hex = "0.4"
@@ -49,6 +48,7 @@ wiremock = "0.6"
 jsonschema = "0.18"
 
 [build-dependencies]
+serde = { version = "1", features = ["derive"] }
 schemars = "1.0"
 serde_json = "1"
 
