@@ -9,20 +9,31 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Run install.sh
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build local binary
+        run: cargo build --release
+      - name: Test install.sh (POSIX)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash install.sh --bin-dir "$HOME/.local/bin" --force
+      - name: Test install.ps1 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh -File install.ps1 -BinDir "$env:USERPROFILE\.local\bin" -Force
+      - name: Verify llmwiki-cli runs
+        shell: bash
         run: |
-          set -e
-          # Use the latest release tag; for workflow_dispatch, use main.
-          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
-            bash install.sh
+          if command -v llmwiki-cli >/dev/null 2>&1; then
+            llmwiki-cli --version
+            llmwiki-cli doctor || true
+          elif command -v llmwiki-cli.exe >/dev/null 2>&1; then
+            llmwiki-cli.exe --version
+            llmwiki-cli.exe doctor || true
           else
-            # For dev, install from main via raw URL.
-            curl -LsSf https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            echo "FAIL: llmwiki-cli not found on PATH"
+            exit 1
           fi
-      - name: Verify the install
-        run: |
-          "$HOME/.local/bin/llmwiki-cli" --version
-          "$HOME/.local/bin/llmwiki-cli" doctor --json || true
