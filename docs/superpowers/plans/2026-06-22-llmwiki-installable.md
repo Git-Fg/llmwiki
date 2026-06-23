@@ -1648,7 +1648,7 @@ whenToUse: |
   - First action in any new session before running ingest/search/query
 argument-hint: "[--check]"
 allowed-tools: Bash(llmwiki-cli:*), Bash(command -v:*), Bash(curl:*), Bash(cargo install:*)
-license: MIT
+license: Apache-2.0
 ---
 
 # Wiki — Setup
@@ -1665,7 +1665,7 @@ license: MIT
 
 | Reference | Purpose |
 |---|---|
-| `references/install.md` | Detailed install options (cargo install, brew, source) |
+| `references/install.md` | Detailed install options (cargo install, brew, source). Added in Task 3.2. |
 | `references/schema.json` | Full JSON Schema for `wiki-root.toml` (auto-generated at build time) |
 
 MUST read `references/install.md` BEFORE recommending a non-curl install method.
@@ -1708,7 +1708,7 @@ anything.
 | `command -v llmwiki-cli` succeeds but `--version` fails | Corrupted install. Print reinstall steps. |
 | `llmwiki-cli doctor` reports missing API key | Print `export NVIDIA_NIM_API_KEY=...` and pause. |
 | `llmwiki-cli doctor` reports no NIM connectivity | Suggest `WIKI_NIM_BASE_URL=...` override. |
-| `curl \| bash` blocked (corporate proxy, restricted machine) | Fall back to `cargo install llmwiki-cli` — see `references/install.md`. |
+| `curl \| bash` blocked (corporate proxy, restricted machine) | Fall back to `cargo install llmwiki-cli` — see `references/install.md` (added in Task 3.2). Until then, recommend only the curl method. |
 | `command -v llmwiki-cli` succeeds, `--version` is correct, but doctor fails on NIM | Diagnose the NIM endpoint, not the install. Switch to TROUBLESHOOTING sub-skill. |
 
 ## Anti-patterns
@@ -1747,6 +1747,31 @@ git commit -m "feat(skills/setup): verify-and-install pattern for llmwiki-cli"
 
 - [ ] **Step 1: Write `references/install.md`**
 
+Write the file per the spec below, then also restore the 3 cross-references
+that were removed from `marketplace/skills/wiki/SETUP/SKILL.md` in Task 3.1
+(validator's references-integrity check requires the file to exist before any
+`references/<file>.md` mention in skill bodies). The 3 restoration points:
+
+1. **Reference Index row** — replace the "Detailed install options are added
+   in Task 3.2." prose note with the original table row:
+   ```markdown
+   | `references/install.md` | Detailed install options (cargo install, brew, source) |
+   ```
+
+2. **"MUST read" instruction** — re-add the line:
+   ```markdown
+   MUST read `references/install.md` BEFORE recommending a non-curl install method.
+   ```
+   in the Reference Index section (after the table).
+
+3. **curl-blocked edge case row** — restore the original:
+   ```markdown
+   | `curl \| bash` blocked (corporate proxy, restricted machine) | Fall back to `cargo install llmwiki-cli` — see `references/install.md`. |
+   ```
+
+These 3 restorations make the SETUP/SKILL.md ↔ references/install.md wiring
+complete. The validator should now pass strict mode with no WARN or FAIL.
+
 ```markdown
 # Detailed install options for llmwiki-cli
 
@@ -1765,7 +1790,7 @@ SHA256 against the published `.sha256` file. Adds to PATH if needed.
 cargo install llmwiki-cli --locked
 ```
 
-Requires Rust 1.74+ installed. Use this when:
+Requires Rust 1.85+ installed (per `Cargo.toml`'s `rust-version`). Use this when:
 - No pre-built binary matches your platform (e.g. unusual Linux distro).
 - You need the absolute latest commit (`cargo install --git https://github.com/<owner>/llmwiki`).
 
@@ -1816,8 +1841,8 @@ cargo uninstall llmwiki-cli
 - [ ] **Step 2: Commit**
 
 ```bash
-git add marketplace/skills/wiki/SETUP/references/install.md
-git commit -m "docs(skills/setup): detailed install options reference"
+git add marketplace/skills/wiki/SETUP/references/install.md marketplace/skills/wiki/SETUP/SKILL.md
+git commit -m "docs(skills/setup): detailed install options reference + restore cross-refs"
 ```
 
 ## Task 3.3: End-to-end smoke test the SETUP skill behavior
@@ -1843,17 +1868,23 @@ grep -q 'command -v llmwiki-cli' "$SKILL" || { echo "FAIL: missing detect step";
 grep -q 'curl -LsSf' "$SKILL" || { echo "FAIL: missing install step"; exit 1; }
 grep -q 'llmwiki-cli doctor' "$SKILL" || { echo "FAIL: missing verify step"; exit 1; }
 
-# Must NOT auto-run install.sh.
-if grep -q '| bash$' "$SKILL" | grep -v 'curl.*install'; then
-  # OK — the curl|bash pattern is recommended, not run by the skill itself
-  :
+# Any `| bash` pattern must be in a curl context (not "run install.sh for the user").
+# `| bash` outside a `curl ... | bash` line would mean the skill is asking the
+# agent to pipe some other command into bash — anti-pattern.
+if grep -E '\| bash' "$SKILL" | grep -v 'curl.*\| bash' | grep -q .; then
+  echo "FAIL: non-curl '| bash' pattern found (auto-run risk)"
+  exit 1
 fi
 
 # Must have --check mode documented.
 grep -q -- '--check' "$SKILL" || { echo "FAIL: --check mode not documented"; exit 1; }
 
-# Must have anti-patterns section.
+# Must have anti-patterns section forbidding auto-run.
 grep -q '## Anti-patterns' "$SKILL" || { echo "FAIL: missing anti-patterns section"; exit 1; }
+grep -q 'Do NOT run .install.sh.' "$SKILL" || { echo "FAIL: anti-pattern about not running install.sh missing"; exit 1; }
+
+# Must cross-reference references/install.md (added in Task 3.2).
+grep -q 'references/install.md' "$SKILL" || { echo "FAIL: missing cross-reference to references/install.md"; exit 1; }
 
 echo "✓ SETUP skill passes smoke test"
 ```
