@@ -28,6 +28,10 @@ jobs:
         with:
           cache-on-failure: true
       - run: cargo build --release --locked --target ${{ matrix.target }} --bin llmwiki-cli
+      - name: Render owner placeholders in install scripts
+        run: |
+          sed "s|<owner>|${{ github.repository_owner }}|g" install.sh > install.sh.rendered
+          sed "s|<owner>|${{ github.repository_owner }}|g" install.ps1 > install.ps1.rendered
       - name: Package
         run: |
           cd target/${{ matrix.target }}/release
@@ -38,9 +42,5 @@ jobs:
           files: |
             llmwiki-cli-${{ matrix.target }}.tar.gz
             llmwiki-cli-${{ matrix.target }}.tar.gz.sha256
-            install.sh
-            # NOTE: `marketplace/install.sh` is added in Phase 2 Task 2.4
-            # (mirror of repo-root). Uncomment the line below once that
-            # task lands — until then this workflow uploads only the
-            # repo-root install.sh.
-            # marketplace/install.sh
+            install.sh.rendered
+            install.ps1.rendered
