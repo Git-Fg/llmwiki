@@ -9,6 +9,7 @@ pub const MODELS: &str = include_str!("../../marketplace/skills/wiki/MODELS/SKIL
 pub const SYNC: &str = include_str!("../../marketplace/skills/wiki/SYNC/SKILL.md");
 pub const TROUBLESHOOTING: &str =
     include_str!("../../marketplace/skills/wiki/TROUBLESHOOTING/SKILL.md");
+pub const LSP: &str = include_str!("../../marketplace/skills/wiki/LSP/SKILL.md");
 
 pub const TOPICS: &[(&str, &str)] = &[
     ("setup", SETUP),
@@ -19,6 +20,7 @@ pub const TOPICS: &[(&str, &str)] = &[
     ("models", MODELS),
     ("sync", SYNC),
     ("troubleshooting", TROUBLESHOOTING),
+    ("lsp", LSP),
 ];
 
 pub fn find_topic(name: &str) -> Option<&'static str> {

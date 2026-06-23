@@ -63,6 +63,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=marketplace/skills/wiki/SKILL.md");
     println!("cargo:rerun-if-changed=marketplace/skills/wiki/SETUP/SKILL.md");
+    println!("cargo:rerun-if-changed=marketplace/skills/wiki/LSP/SKILL.md");
     println!("cargo:rerun-if-changed=src/core/config.rs");
 
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
