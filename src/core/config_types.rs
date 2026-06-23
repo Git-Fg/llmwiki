@@ -189,9 +189,11 @@ fn default_pages_dir() -> String {
 ///
 /// Skipping is per-directory: when a match is found, walkdir does not
 /// descend into it (matches `walkdir::FilterEntry::filter_entry` semantics
-/// where `false` skips both the entry AND its children). Files directly
-/// under the wiki root whose basename matches (e.g. an oddly-named file
-/// `node_modules` at the root) are also skipped.
+/// where `false` skips both the entry AND its children). Root-level files
+/// whose basename matches are NOT skipped — `walk_pages` only filters
+/// directories, so a user file called `target.md` at the wiki root is
+/// still treated as a page. Skipping files would risk masking user content
+/// for any exclude pattern that overlaps with a plausible wiki filename.
 fn default_exclude_dirs() -> Vec<String> {
     vec![
         // Dev-project noise (qmd + Foam union; cargo-style excludes)

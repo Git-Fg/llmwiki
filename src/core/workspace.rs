@@ -113,6 +113,56 @@ pub fn pages_dir(workspace: &Path, pages_dir_config: &str) -> PathBuf {
     }
 }
 
+/// Walk a directory looking for wiki pages, skipping excluded directories.
+///
+/// `root` is typically the result of [`pages_dir`]. `exclude_dirs` is a
+/// list of bare directory basenames (not paths) to skip at any depth.
+/// Matching is case-sensitive against `entry.file_name()`. When an entry
+/// matches, `filter_entry` returns `false`, which causes walkdir to skip
+/// both the entry AND its descendants.
+///
+/// Only file entries are yielded (directories are walked for descent but
+/// not returned — callers want pages, not the directory tree).
+///
+/// Why a helper: v0.3.26+ replaces six call sites in `src/cli/{ls,tree,
+/// embed,lint,status}.rs` that previously used `walkdir::WalkDir::new(...)
+/// directly. Centralising the filter keeps the exclusion semantics in one
+/// place and matches the `walk_pages` semantics the AGENTS.md pre-release
+/// real-wiki smoke test asserts on (filter `node_modules/`, `.opencode/`,
+/// `.harness/`, etc.).
+///
+/// Returns an iterator of `walkdir::Result<walkdir::DirEntry>` — callers
+/// should `.filter_map(|e| e.ok())` exactly as they did with the raw
+/// `walkdir::WalkDir` to preserve current error-tolerance semantics.
+pub fn walk_pages<'a>(
+    root: &'a Path,
+    exclude_dirs: &'a [String],
+) -> impl Iterator<Item = walkdir::Result<walkdir::DirEntry>> + 'a {
+    walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_entry(move |entry| {
+            // Always allow the root entry itself (matches walkdir's expectation
+            // that filter_entry returns true for the root on first call).
+            if entry.path() == root {
+                return true;
+            }
+            // Skip excluded directory basenames at any depth. `entry.file_name()`
+            // returns the last component — for `node_modules` at
+            // `/tmp/ws/node_modules/foo`, it returns `OsStr("foo")`. For the
+            // directory itself at `/tmp/ws/node_modules`, it returns
+            // `OsStr("node_modules")`.
+            if entry.file_type().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if exclude_dirs.iter().any(|x| x == name) {
+                        return false;
+                    }
+                }
+            }
+            true
+        })
+        .filter(|e| e.as_ref().ok().is_some_and(|e| e.file_type().is_file()))
+}
+
 #[cfg(test)]
 mod pages_dir_tests {
     use super::*;
@@ -144,5 +194,52 @@ mod pages_dir_tests {
         let ws = PathBuf::from("/tmp/wiki");
         let result = pages_dir(&ws, "content/pages");
         assert_eq!(result, PathBuf::from("/tmp/wiki/content/pages"));
+    }
+
+    use std::fs;
+
+    #[test]
+    fn walk_pages_returns_all_md_files_when_no_excludes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ws = tmp.path();
+        fs::create_dir_all(ws.join("a/b")).unwrap();
+        fs::write(ws.join("a/x.md"), "x").unwrap();
+        fs::write(ws.join("a/b/y.md"), "y").unwrap();
+        let mut paths: Vec<String> = walk_pages(ws, &[])
+            .filter_map(|e| e.ok())
+            .map(|e| e.path().strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/"))
+            .collect();
+        paths.sort();
+        assert_eq!(paths, vec!["a/b/y.md".to_string(), "a/x.md".to_string()]);
+    }
+
+    #[test]
+    fn walk_pages_skips_excluded_dir_and_does_not_descend() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ws = tmp.path();
+        fs::create_dir_all(ws.join("node_modules/pkg")).unwrap();
+        fs::write(ws.join("node_modules/pkg/lib.md"), "noise").unwrap();
+        fs::write(ws.join("keep.md"), "real").unwrap();
+        let excludes = vec!["node_modules".to_string()];
+        let paths: Vec<String> = walk_pages(ws, &excludes)
+            .filter_map(|e| e.ok())
+            .map(|e| e.path().strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/"))
+            .collect();
+        assert_eq!(paths, vec!["keep.md".to_string()]);
+    }
+
+    #[test]
+    fn walk_pages_matches_dotted_dir_basename() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ws = tmp.path();
+        fs::create_dir_all(ws.join(".opencode/scratch")).unwrap();
+        fs::write(ws.join(".opencode/scratch/page.md"), "noise").unwrap();
+        fs::write(ws.join("real.md"), "ok").unwrap();
+        let excludes = vec![".opencode".to_string()];
+        let paths: Vec<String> = walk_pages(ws, &excludes)
+            .filter_map(|e| e.ok())
+            .map(|e| e.path().strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/"))
+            .collect();
+        assert_eq!(paths, vec!["real.md".to_string()]);
     }
 }
