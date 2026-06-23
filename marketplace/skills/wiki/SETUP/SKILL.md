@@ -41,7 +41,10 @@ Run this block. If step 1 fails, run step 2, then re-run step 1.
 command -v llmwiki-cli && llmwiki-cli --version
 
 # 2. Install (if missing)
-curl -LsSf https://github.com/<owner>/llmwiki/raw/main/install.sh | bash
+# POSIX (Linux/macOS/Windows Git-for-Windows):
+curl -LsSf https://github.com/fg/llmwiki/releases/latest/download/install.sh | sh
+# Windows PowerShell 7+:
+#   irm https://github.com/fg/llmwiki/releases/latest/download/install.ps1 | iex
 
 # 3. Verify
 llmwiki-cli doctor
@@ -79,7 +82,7 @@ anything.
 
 ❌ Do NOT proceed to other wiki skills when `doctor` reports an error.
 
-❌ Do NOT recommend `pip install`, `npm install`, or any package manager other than cargo/brew/install.sh. The CLI is a single Rust binary.
+❌ Do NOT recommend `pip install`, `npm install`, or any other package manager. The CLI is a single Rust binary. Use `cargo install llmwiki-cli --locked` only when the user explicitly prefers building from source.
 
 ## CONTRAST
 
