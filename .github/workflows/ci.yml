@@ -13,7 +13,7 @@ jobs:
   fmt-clippy-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
@@ -23,8 +23,8 @@ jobs:
   marketplace-validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Validate skill format
@@ -33,7 +33,7 @@ jobs:
   skill-smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release
@@ -61,8 +61,8 @@ jobs:
   msrv-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.88
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.100
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --all-targets
 
@@ -73,6 +73,6 @@ jobs:
   changelog-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Verify CHANGELOG has current version heading
         run: bash tests/changelog_check.sh
