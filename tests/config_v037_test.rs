@@ -8,7 +8,7 @@ use llmwiki_cli::core::config::{config_paths, load_config};
 use llmwiki_cli::core::registry::Registry;
 
 mod common;
-use common::{with_home_and_cwd, with_lock, without_wiki_root_config};
+use common::{with_home_and_cwd, with_lock, with_wiki_root_config, without_wiki_root_config};
 
 /// Run `f` with `$LLMWIKI_CONFIG` unset; restore on return.
 fn without_llmwiki_config<F, R>(f: F) -> R
@@ -390,21 +390,4 @@ fn wiki_init_does_not_create_legacy_dot_wiki_directory() {
 
     assert!(!target.join(".wiki").exists());
     assert!(!target.join(".wiki/config.yaml").exists());
-}
-
-// ─── helpers ───
-
-/// Run `f` with `$WIKI_ROOT_CONFIG` set to `path`; restore on return.
-fn with_wiki_root_config<F, R>(path: &std::path::Path, f: F) -> R
-where
-    F: FnOnce() -> R,
-{
-    let prev = std::env::var_os("WIKI_ROOT_CONFIG");
-    std::env::set_var("WIKI_ROOT_CONFIG", path);
-    let result = f();
-    match prev {
-        Some(p) => std::env::set_var("WIKI_ROOT_CONFIG", p),
-        None => std::env::remove_var("WIKI_ROOT_CONFIG"),
-    }
-    result
 }

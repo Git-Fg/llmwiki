@@ -47,13 +47,25 @@ jobs:
   # which would silently break every downstream user on the documented
   # MSRV. The bump of `rust-version` to 1.88 in v0.3.16 was triggered
   # by exactly this scenario (`darling@0.23.0` requires rustc 1.88).
-  # Note: Cargo.lock is gitignored (binary project), so we don't use
-  # `--locked` — cargo will generate a fresh lockfile from the current
-  # crates.io index, which still verifies the MSRV claim for new users.
+  # Post-v0.3.20: `Cargo.lock` is tracked (un-ignored) so we use
+  # `--locked` for hermetic verification — the freshly-resolved dep
+  # graph that CI tests is the same one users will see, not whatever
+  # the current crates.io index happens to return.
   msrv-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-targets
+      - run: cargo check --locked --all-targets
+
+  # Asserts CHANGELOG.md has a `## [X.Y.Z] - YYYY-MM-DD` heading matching
+  # Cargo.toml's current `version`. Prevents the v0.3.18-class mistake
+  # of shipping a release with a CHANGELOG that contradicts the actual
+  # job definition.
+  changelog-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify CHANGELOG has current version heading
+        run: bash tests/changelog_check.sh

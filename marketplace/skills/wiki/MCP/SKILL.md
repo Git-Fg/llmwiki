@@ -50,6 +50,7 @@ Rust structs via `schemars` so hosts can validate arguments before calling.
 | Reference | Purpose |
 |---|---|
 | `references/mcp.md` | Host config snippets: Claude Desktop, Claude Code, Cursor, Codex, Continue, generic stdio |
+| `references/doctor.schema.json` | JSON Schema (draft 2020-12) for the output of `llmwiki-cli doctor --json` (a `DoctorReport`). Use this to validate the `doctor` tool's response in host code that consumes it. The `active_alias` field is `string | null` (v0.3.17+ — previously `string` with `""` sentinel, which silently broke consumers using a strict schema). |
 
 ## Server setup
 

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DoctorReport",
+  "description": "Output of `llmwiki-cli doctor --json`. Reflects the resolved effective config plus live NIM reachability, so agents can audit a user's wiki installation without re-running `config show-effective`. Schema version is locked to the binary version (`CARGO_PKG_VERSION`); v0.3.17+ uses `active_alias: string | null` (previously `string` with an empty-string sentinel — that change is a BREAKING for old consumers, hence this schema).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workspace",
+    "active_alias",
+    "wiki_root_path",
+    "registry_entries",
+    "config_loaded",
+    "embed_model",
+    "nim_base_url",
+    "api_key_length",
+    "api_key_env",
+    "nim_reachable",
+    "embed_model_available",
+    "config",
+    "config_sources"
+  ],
+  "properties": {
+    "workspace": {
+      "description": "Resolved workspace directory (canonical absolute path).",
+      "type": "string"
+    },
+    "active_alias": {
+      "description": "Active wiki-root.toml alias for this workspace, if one is registered. `null` means no alias resolves to this workspace. v0.3.17: changed from `string` with `\"\"` sentinel to `string | null`.",
+      "type": ["string", "null"]
+    },
+    "wiki_root_path": {
+      "description": "Path to the resolved `wiki-root.toml`, or empty string if no registry entry matched.",
+      "type": "string"
+    },
+    "registry_entries": {
+      "description": "Count of entries in the discovered wiki-root.toml registry (0 if no registry was found).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "config_loaded": {
+      "description": "Whether the per-workspace / per-computer config was loaded successfully (false if the TOML is invalid).",
+      "type": "boolean"
+    },
+    "embed_model": {
+      "description": "Resolved NIM embedding model name from the merged effective config.",
+      "type": "string"
+    },
+    "nim_base_url": {
+      "description": "Resolved NIM base URL (host only, no `/v1` segment — code appends `/v1` per request).",
+      "type": "string"
+    },
+    "api_key_length": {
+      "description": "Resolved NIM API key length in bytes. 0 if the key env var is unset or empty. Never contains the key itself.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "api_key_env": {
+      "description": "Name of the env var that holds the NIM API key (`NVIDIA_NIM_API_KEY` or the override from `nim.api_key_env`).",
+      "type": "string"
+    },
+    "nim_reachable": {
+      "description": "Whether `GET {nim_base_url}/v1/models` returned 2xx during this run. False on network error, 4xx, 5xx, or when the key is missing.",
+      "type": "boolean"
+    },
+    "nim_status": {
+      "description": "HTTP status from the NIM `/v1/models` probe, or `null` if the request didn't complete (DNS failure, connect error, etc.).",
+      "type": ["integer", "null"],
+      "minimum": 100,
+      "maximum": 599
+    },
+    "nim_error": {
+      "description": "Human-readable error string from the NIM probe, or `null` on success.",
+      "type": ["string", "null"]
+    },
+    "embed_model_available": {
+      "description": "Whether the resolved `embed_model` appears in the live NIM `/v1/models` response. False when the model name is wrong, the NIM catalog doesn't list it, or `nim_reachable` is false.",
+      "type": "boolean"
+    },
+    "config": {
+      "description": "Reflective dump of the resolved effective config as dotted-key → value pairs (e.g. `\"nim.batch_size\": \"8\"`). Same shape as `wiki config show-effective` text output.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "config_sources": {
+      "description": "Per-key source attribution: dotted-key → file-it-came-from. Values are absolute file paths, or `<default>` for built-in defaults. Mirrors the `--source` field in `wiki config show-effective`. v0.3.12+.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}

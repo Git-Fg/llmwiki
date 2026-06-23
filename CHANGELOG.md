@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.3.20] - 2026-06-23 — Track Cargo.lock + doctor JSON schema + changelog CI
+
+**Build / reproducibility:**
+- `.gitignore`: removed `Cargo.lock` from the ignore list. Per the
+  Cargo Book guidance, **binary crates should track `Cargo.lock`** for
+  reproducible builds. The previous "gitignore for binary" convention
+  was inherited from a pre-binary period; this is a binary crate
+  (it has `src/main.rs`), so the lockfile now ships with the repo.
+- Fresh `Cargo.lock` generated via `cargo generate-lockfile` and
+  committed (79 KB, ~250 packages).
+
+**CI:**
+- `.github/workflows/ci.yml::msrv-check`: re-enabled `--locked` now
+  that `Cargo.lock` is tracked. The check is now hermetic: it
+  verifies the **exact** dep graph users will see, not whatever the
+  current crates.io index happens to return at CI time.
+- New `changelog-check` job runs `tests/changelog_check.sh`: asserts
+  that `CHANGELOG.md` has a `## [X.Y.Z] - YYYY-MM-DD` heading matching
+  the current `Cargo.toml` `version`. Prevents the v0.3.18-class
+  mistake of shipping a release with a CHANGELOG that contradicts
+  the actual state. Required by branch protection.
+
+**Documentation / contracts:**
+- New `marketplace/skills/wiki/MCP/references/doctor.schema.json`:
+  JSON Schema (draft 2020-12) for the output of `wiki doctor --json`.
+  Documents the v0.3.17 BREAKING change where `active_alias` is now
+  `string | null` (was `string` with `""` sentinel). 15 fields
+  enumerated with types, ranges, and required-marking.
+- `marketplace/skills/wiki/MCP/SKILL.md` Reference Index: now
+  references `doctor.schema.json` so hosts consuming the `doctor`
+  MCP tool can validate the response shape.
+
+**Tests:**
+- `tests/config_v037_test.rs`: removed inline duplicate of
+  `with_wiki_root_config`; now imports the canonical
+  panic-safe version from `tests/common/mod.rs` (consolidates the
+  three definitions that existed across the test suite).
+- 252/252 pass; clippy `-D warnings` clean; fmt clean.
+
+**Deferred:**
+- Dependabot PR #2 (reqwest 0.12 → 0.13) cannot merge: a transitive
+  dep (likely `rmcp`) still pins reqwest 0.12, so cargo reports
+  "failed to select a version for `reqwest` which could resolve this
+  conflict". Will re-evaluate when the upstream dep updates.
+
 ## [0.3.19] - 2026-06-23 — Critic follow-ups: panic-safety + CHANGELOG accuracy
 
 **Fixed:**
