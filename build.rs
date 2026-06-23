@@ -76,17 +76,11 @@ fn main() {
         let out_path = manifest_path.join("agents/skills/wiki/SKILL.md");
         if let Some(parent) = out_path.parent() {
             if let Err(e) = fs::create_dir_all(parent) {
-                println!(
-                    "cargo:warning=failed to create skill dir {:?}: {}",
-                    parent, e
-                );
+                println!("cargo:warning=failed to create skill dir {parent:?}: {e}");
             }
         }
         if let Err(e) = fs::write(&out_path, content) {
-            println!(
-                "cargo:warning=failed to write hub SKILL.md {:?}: {}",
-                out_path, e
-            );
+            println!("cargo:warning=failed to write hub SKILL.md {out_path:?}: {e}");
         }
     }
 
@@ -95,18 +89,12 @@ fn main() {
     let schema_path = manifest_path.join("marketplace/skills/wiki/SETUP/references/schema.json");
     if let Some(parent) = schema_path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
-            println!(
-                "cargo:warning=failed to create schema dir {:?}: {}",
-                parent, e
-            );
+            println!("cargo:warning=failed to create schema dir {parent:?}: {e}");
         }
     }
     let schema = schemars::schema_for!(Config);
     let schema_json = serde_json::to_string_pretty(&schema).expect("schema is always serializable");
     if let Err(e) = fs::write(&schema_path, schema_json) {
-        println!(
-            "cargo:warning=failed to write schema.json {:?}: {}",
-            schema_path, e
-        );
+        println!("cargo:warning=failed to write schema.json {schema_path:?}: {e}");
     }
 }
