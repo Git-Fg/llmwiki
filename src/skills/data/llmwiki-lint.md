@@ -20,14 +20,15 @@ unknown tags, stale references.
 llmwiki-cli lint                       # full wiki lint
 llmwiki-cli lint --scope wiki          # only the wiki/ pages
 llmwiki-cli lint --scope raw           # only the raw/ sources
-llmwiki-cli lint --fix                 # auto-repair where safe
+llmwiki-cli lint --json                # machine-readable output
+llmwiki-cli lint --strict              # exit 2 if any warnings present
 ```
 
 ## Workflow
 
 1. `llmwiki-cli lint` to surface all issues at once
 2. Fix by editing the offending page (use search/query to find the right one)
-3. Re-run `llmwiki-cli lint --fix` to clean up safe issues automatically
+3. Re-run `llmwiki-cli lint` to confirm the issues are gone
 
 ## Sibling skills
 

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::core::workspace::discover_workspace;
+use crate::core::workspace::{discover_workspace, rel_path};
 use crate::error::WikiError;
 
 pub struct BuildArgs {
@@ -46,7 +46,9 @@ pub fn run(args: BuildArgs) -> Result<(), WikiError> {
     if args.dry_run {
         println!("Would compile {} source(s):", pending.len());
         for p in pending {
-            println!("  - {}", p.strip_prefix(&ws).unwrap().display());
+            let rel = rel_path(&ws, &p)
+                .unwrap_or_else(|| p.display().to_string());
+            println!("  - {rel}");
         }
         return Ok(());
     }

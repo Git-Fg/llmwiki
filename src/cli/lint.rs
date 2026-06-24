@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::core::config::resolve_config;
 use crate::core::markdown::{extract_wikilinks, parse_frontmatter};
-use crate::core::workspace::{discover_workspace, pages_dir};
+use crate::core::workspace::{discover_workspace, pages_dir, rel_path};
 use crate::error::WikiError;
 use crate::lint::frontmatter::check_frontmatter;
 use crate::lint::wikilinks::check_wikilinks;
@@ -47,12 +47,8 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                 if !crate::core::workspace::is_wiki_page_entry(&ws, entry.path()) {
                     continue;
                 }
-                let rel = entry
-                    .path()
-                    .strip_prefix(&ws)
-                    .unwrap()
-                    .to_string_lossy()
-                    .replace('\\', "/");
+                let rel = rel_path(&ws, entry.path())
+                    .unwrap_or_else(|| entry.path().display().to_string());
                 all_pages.push(rel);
             }
 
@@ -250,12 +246,8 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     if ext != "md" {
                         continue;
                     }
-                    let rel = entry
-                        .path()
-                        .strip_prefix(&ws)
-                        .unwrap()
-                        .to_string_lossy()
-                        .replace('\\', "/");
+                    let rel = rel_path(&ws, entry.path())
+                        .unwrap_or_else(|| entry.path().display().to_string());
                     if !referenced_raws.contains(&rel) {
                         all_issues.push(LintIssue {
                             severity: "warn".into(),
@@ -294,12 +286,8 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                 if ext != "md" {
                     continue;
                 }
-                let rel = entry
-                    .path()
-                    .strip_prefix(&ws)
-                    .unwrap()
-                    .to_string_lossy()
-                    .replace('\\', "/");
+                let rel = rel_path(&ws, entry.path())
+                    .unwrap_or_else(|| entry.path().display().to_string());
                 let content = std::fs::read_to_string(entry.path())?;
                 // Same: report unparseable frontmatter as a lint issue
                 // instead of failing the whole lint run.

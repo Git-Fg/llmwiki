@@ -24,6 +24,92 @@
   search, citations, and no database."
 - README H1: `# wiki` → `# llmwiki`.
 
+**Multi-wiki ergonomics (from the v0.3.36 design brainstorm):**
+
+The hard rebrand uncovered that multi-wiki users had no clean way to
+ask "which wiki am I in right now, and how was it picked?". v0.3.36
+ships three new primitives that work together:
+
+- **`llmwiki-cli config current`** — prints the active alias,
+  workspace path, and the resolution step that matched (flag / env /
+  CWD / walk-up / registry / shortcut). JSON via `--json`. No
+  guessing about which workspace a command will touch.
+- **`llmwiki-cli use <alias>`** — switch the active wiki for the
+  current shell. Writes `active_alias = "<alias>"` to the
+  per-computer `~/.llmwiki-cli/config.toml` (or to the resolved
+  `--workspace`'s config with `--workspace`). Pairs naturally with
+  `--wiki <alias>`: use `--wiki` for one-off dispatch, `use` for
+  sticky session scope. `--unset` clears the override.
+- **`llmwiki-cli status --all`** — runs the full status sweep
+  (NIM reachability, embeddings freshness, page counts, per-wiki
+  lint summary) across every alias in the registry. Exit code 2 if
+  any wiki is unhealthy. Useful as a cron-friendly health check.
+- **New `ResolutionSource` enum** in `src/core/workspace.rs` — tags
+  every workspace discovery with where it came from (`Flag`,
+  `WikiFlag`, `EnvWorkspace`, `EnvActive`, `RegistryCwd`,
+  `WalkupMarker`, `SingleWikiShortcut`). `config current` exposes
+  this tag; agents can branch on it without re-implementing the
+  priority chain.
+
+**Shell completion + tighter CLI surface:**
+
+- **`llmwiki-cli completion <bash|zsh|fish|powershell|elvish>`** —
+  emits the shell's completion script to stdout. Agent/host one-liner:
+  `llmwiki-cli completion zsh > "${fpath[1]}/_llmwiki-cli"`. Locks
+  subcommand + flag completion against drift via clap's static
+  derive, so adding a new command lights up everywhere automatically.
+- **`llmwiki-cli use <alias>`** is also reachable via the new
+  `use` dispatcher (it was a top-level command, not a subcommand).
+- **`llmwiki-cli status --all`** surfaces wiki-level health that
+  plain `status` hides.
+
+**Bug fixes surfaced during the rename:**
+
+- `src/cli/skill.rs`: `normalize_for_install` now mirrors
+  `skills::normalize_topic` — accepts the new `llmwiki-X` prefix and
+  passes legacy `wiki-X` through unchanged. Previously it would
+  double-prefix `llmwiki-llmwiki-X` on bare names because both the
+  install path code and the embed code applied normalization
+  independently. The mirror restores single-source-of-truth semantics.
+- `src/error.rs`: user-facing errors now say `llmwiki-cli embed`
+  and `llmwiki-cli skill list` instead of `wiki embed` /
+  `wiki skill list`. Agents that copy-pasted error text into
+  follow-up commands were previously running commands that didn't
+  exist.
+- `src/core/registry.rs`: "alias already exists" error now points
+  the user at `llmwiki-cli config rm <alias>` (the actual command).
+- `src/cli/lint.rs` + `src/cli/build.rs`: replaced 4
+  `path.strip_prefix(&ws).unwrap()` panic sites with the
+  `core::workspace::rel_path` helper (already used in `ls.rs`,
+  `tree.rs`, `embed.rs`). The old code panicked if any wiki entry
+  resolved outside the workspace — e.g. via a relative symlink in
+  `raw/`. The fix matches the same risk class addressed in v0.3.33
+  for the read path.
+
+**`wiki init` template improvement:**
+
+- `init` now writes a `.gitignore` template alongside the
+  scaffolded pages (covers `embeddings.jsonl`, `raw/*.tmp*`,
+  `__pycache__/`, and the standard exclusions from
+  `wiki.exclude_dirs`). Previously users had to remember to gitignore
+  the embeddings file manually; otherwise every `git status` flooded
+  with diff noise from the binary vector data.
+
+**Doc fixes (no behavior change):**
+
+- `AGENTS.md`: corrected the `WIKI_NIM_BASE_URL` section — the env
+  override is honored by every NIM command (`doctor`, `embed`,
+  `models`, `status`), not just `doctor`. The previous wording
+  implied a special-case that didn't exist.
+- `AGENTS.md`: the `init` flat-default section now correctly
+  attributes the flat layout to v0.3.26 (the pages_dir default
+  flip), with v0.3.27 noted as the release that added the additive
+  `exclude_dirs` on top.
+- Sub-skill files (`llmwiki-ingest.md`, `llmwiki-lint.md`): removed
+  hallucinated `--batch` / `--fix` flags that don't exist in clap.
+  Replaced with the real flags + the `build` step (between `ingest`
+  and `embed` for raw sources that need LLM-driven compilation).
+
 **Not changed (avoids breaking `cargo install` + every external link):**
 
 - Binary name `llmwiki-cli`.
@@ -38,9 +124,22 @@
 - Re-run `llmwiki-cli install-skill --global` — it now installs to
   `~/.agents/skills/llmwiki/` (the old `wiki/` directory can be
   removed manually).
+- Multi-wiki users: try `llmwiki-cli config current` to see how
+  v0.3.36 picks your workspace; run `llmwiki-cli use <alias>` to
+  pin one for the session.
 
 **Tests:**
 
+- 324 pass, 0 fail, 1 ignored (was 301 in v0.3.35; +23 for the
+  rebrand guard tests, the new `config current` / `use` / `status --all`
+  / `completion` test coverage, and the symlink-panic regression
+  tests).
+- `cargo clippy --all-targets -- -D warnings` clean.
+- `cargo fmt --check` clean.
+- Pre-release real-wiki smoke test against the 5 wikis in
+  `~/.agents/wiki-root.toml` (`mevin`, `minimax`, `mywiki`,
+  `pharma`, `pharma.nim`) passes end-to-end on all four
+  flat-layout wikis.
 - New guard tests prevent accidental legacy-alias re-introduction:
   `find_skill_rejects_legacy_wiki_names`,
   `normalize_topic_rejects_legacy_wiki_prefix`,

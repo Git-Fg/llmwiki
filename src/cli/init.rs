@@ -22,8 +22,9 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         args.path.clone()
     };
 
-    // v0.3.27+: scaffold default is FLAT (matches read-path default).
+    // v0.3.26+: scaffold default is FLAT (matches read-path default).
     // Use --subdir to get the legacy wiki/ subdir layout.
+    // (v0.3.27 added additive wiki.exclude_dirs on top of this default.)
     let mut cfg =
         crate::core::config::load_config_unvalidated(&crate::core::config::config_paths(&target))
             .unwrap_or_else(|_| Config::default());
