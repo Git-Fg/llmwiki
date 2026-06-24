@@ -123,10 +123,16 @@ fn init_without_flags_creates_flat_layout() {
         .assert()
         .success();
 
-    assert!(!target.join("wiki").exists(), "wiki/ subdir should not exist by default");
+    assert!(
+        !target.join("wiki").exists(),
+        "wiki/ subdir should not exist by default"
+    );
     assert!(target.join("index.md").exists());
     assert!(target.join("overview.md").exists());
     assert!(target.join("log.md").exists());
     let cfg = fs::read_to_string(target.join(".llmwiki-cli/config.toml")).unwrap();
-    assert!(cfg.contains("pages_dir = \"\""), "config scaffold should reference flat default: {cfg}");
+    assert!(
+        cfg.contains("pages_dir = \"\""),
+        "config scaffold should reference flat default: {cfg}"
+    );
 }

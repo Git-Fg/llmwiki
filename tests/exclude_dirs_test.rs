@@ -250,8 +250,5 @@ fn exclude_dirs_skips_excluded_pages_from_embed() {
         !jsonl.contains("leaked"),
         "leaked.md embedded despite exclusion: {jsonl}"
     );
-    assert!(
-        jsonl.contains("keep"),
-        "keep.md not embedded: {jsonl}"
-    );
+    assert!(jsonl.contains("keep"), "keep.md not embedded: {jsonl}");
 }

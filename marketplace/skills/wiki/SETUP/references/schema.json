@@ -31,8 +31,31 @@
       "default": {
         "chunk_overlap_tokens": 128,
         "default_chunk_tokens": 512,
+        "exclude_dirs": [
+          "node_modules",
+          ".git",
+          "target",
+          "dist",
+          "build",
+          ".next",
+          ".cache",
+          ".turbo",
+          ".venv",
+          "venv",
+          "env",
+          "__pycache__",
+          ".idea",
+          ".vscode",
+          ".opencode",
+          ".claude",
+          ".mavis",
+          ".harness",
+          ".serena",
+          ".principled",
+          ".swe-bench"
+        ],
         "min_chunk_tokens": 32,
-        "pages_dir": "wiki",
+        "pages_dir": "",
         "require_frontmatter": true,
         "require_wikilinks_min": 2
       }
@@ -120,6 +143,36 @@
           "default": 512,
           "minimum": 0
         },
+        "exclude_dirs": {
+          "description": "Directory basenames to skip when walking the wiki for pages. Matched\nagainst the **basename** of each entry at any depth (NOT relative paths\n— this is intentionally simple so users can drop in `node_modules`,\n`.git`, `.opencode`, etc. without writing globs). Case-sensitive.\nDefault includes common dev-project noise + wiki-specific noise from\n`~/.agents/wiki-root.toml` real wikis — see `default_exclude_dirs()`\nfor the full list. v0.3.26+: surfaced by the pre-release real-wiki\nsmoke test (see `AGENTS.md` \"Pre-release real-wiki smoke test\").",
+          "type": "array",
+          "default": [
+            "node_modules",
+            ".git",
+            "target",
+            "dist",
+            "build",
+            ".next",
+            ".cache",
+            ".turbo",
+            ".venv",
+            "venv",
+            "env",
+            "__pycache__",
+            ".idea",
+            ".vscode",
+            ".opencode",
+            ".claude",
+            ".mavis",
+            ".harness",
+            ".serena",
+            ".principled",
+            ".swe-bench"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "min_chunk_tokens": {
           "type": "integer",
           "format": "uint",
@@ -127,9 +180,9 @@
           "minimum": 0
         },
         "pages_dir": {
-          "description": "Directory (relative to workspace root) containing wiki pages.\nDefault `\"wiki\"` keeps backward compatibility with `wiki init`-created\nwikis (which create a `wiki/` subdirectory). Set to `\"\"` (empty\nstring) for **flat-layout** Karpathy-style wikis where pages live at\nthe workspace root (e.g. `comparisons/foo.md`, `queries/bar.md`,\n`index.md`). v0.3.25+ — surfaced by the pre-release real-wiki smoke\ntest (see `AGENTS.md` \"Pre-release real-wiki smoke test\").",
+          "description": "Directory (relative to workspace root) containing wiki pages.\nDefault `\"\"` (empty string) selects **flat-layout** Karpathy-style\nwikis where pages live at the workspace root (e.g. `comparisons/foo.md`,\n`queries/bar.md`, `index.md`). v0.3.26+: flipped from `\"wiki\"` so\nnew users hit a working layout out-of-the-box. Set to `\"wiki\"` for the\nlegacy subdirectory layout. `wiki init --flat` selects flat; plain\n`wiki init` selects the value of `wiki.pages_dir` (default: flat).",
           "type": "string",
-          "default": "wiki"
+          "default": ""
         },
         "require_frontmatter": {
           "type": "boolean",

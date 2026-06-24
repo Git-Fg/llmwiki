@@ -22,7 +22,10 @@ fn wiki_init_creates_scaffold() {
     // v0.3.27+: default is flat layout (pages at workspace root)
     assert!(exists().eval(&target.join("overview.md")));
     assert!(exists().eval(&target.join("log.md")));
-    assert!(!exists().eval(&target.join("wiki/overview.md")), "wiki/ subdir should not exist by default");
+    assert!(
+        !exists().eval(&target.join("wiki/overview.md")),
+        "wiki/ subdir should not exist by default"
+    );
     assert!(exists().eval(&target.join("raw/articles/.gitkeep")));
     assert!(exists().eval(&target.join("index.md")));
     assert!(!exists().eval(&target.join(".wiki/config.yaml")));

@@ -37,7 +37,11 @@ The user has markdown notes. Use the `wiki` CLI when:
 - **Manage config** — switch embedding model, manage multiple wikis
 - **Setup on a new device** — install CLI, register wikis, install skill
 
-Otherwise: read, search, and match files directly in the wiki's `wiki/`, `raw/`, and `index.md` files.
+Otherwise: read, search, and match files directly in the wiki's pages (layout depends on `wiki.pages_dir` in `wiki config show-effective` — flat: at the workspace root like `index.md`, `comparisons/foo.md`; legacy subdir: under `wiki/`). Both layouts also use `raw/` for sources and `index.md` at the root as the curated entry point.
+
+**`wiki init` defaults to flat layout** (v0.3.27+). Use `wiki init --subdir` for the legacy `wiki/` subdirectory layout. `wiki init --flat` is accepted for backward compatibility.
+
+**`wiki.exclude_dirs` is additive** (v0.3.27+): user-provided entries merge with built-in defaults (node_modules, .git, .opencode, etc.) instead of replacing them. Add `exclude_dirs = ["secret"]` to keep defaults plus your custom exclude.
 
 ## Sub-skills
 

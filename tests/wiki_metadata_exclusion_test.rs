@@ -34,7 +34,11 @@ fn make_workspace() -> tempfile::TempDir {
     let ws = tmp.path();
     std::fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
     // Pin flat layout — pages at workspace root.
-    std::fs::write(ws.join(".llmwiki-cli/config.toml"), "[wiki]\npages_dir = \"\"\n").unwrap();
+    std::fs::write(
+        ws.join(".llmwiki-cli/config.toml"),
+        "[wiki]\npages_dir = \"\"\n",
+    )
+    .unwrap();
 
     // Real page (must appear in listings).
     std::fs::write(ws.join("real.md"), PAGE).unwrap();
@@ -69,7 +73,10 @@ fn ls_pages_excludes_workspace_root_index_log_and_raw() {
     let stdout = String::from_utf8(out.get_output().stdout.clone()).unwrap();
     // Real page shows up.
     assert!(stdout.contains("real"), "real page missing: {stdout}");
-    assert!(stdout.contains("Real Page"), "real page title missing: {stdout}");
+    assert!(
+        stdout.contains("Real Page"),
+        "real page title missing: {stdout}"
+    );
     // Workspace-root index.md / log.md are excluded.
     assert!(
         !stdout.contains("Pages (1)\n  index.md"),
@@ -106,7 +113,10 @@ fn tree_excludes_workspace_root_index_log_and_raw() {
         .success();
     let stdout = String::from_utf8(out.get_output().stdout.clone()).unwrap();
     assert!(stdout.contains("real"), "real page missing: {stdout}");
-    assert!(stdout.contains("Real Page"), "real page title missing: {stdout}");
+    assert!(
+        stdout.contains("Real Page"),
+        "real page title missing: {stdout}"
+    );
     // index.md / log.md at workspace root must not appear as tree entries.
     assert!(
         !stdout.lines().any(|l| l.starts_with("index ")),
@@ -133,7 +143,10 @@ fn status_counts_only_real_pages() {
         .assert()
         .success();
     let stdout = String::from_utf8(out.get_output().stdout.clone()).unwrap();
-    assert!(stdout.contains("Pages: 1"), "expected `Pages: 1`, got: {stdout}");
+    assert!(
+        stdout.contains("Pages: 1"),
+        "expected `Pages: 1`, got: {stdout}"
+    );
     // Raw sources are counted separately under their own field — make sure
     // the page count doesn't double-count them.
     assert!(
@@ -157,18 +170,12 @@ fn lint_does_not_report_issues_for_index_log_or_raw() {
     // Workspace-root index.md / log.md should not appear as lint issue paths.
     // (The lint command has its own pass for index/log content — they just
     // shouldn't be linted as wiki pages.)
-    let index_md_lines: Vec<&str> = stdout
-        .lines()
-        .filter(|l| l.contains("index.md"))
-        .collect();
+    let index_md_lines: Vec<&str> = stdout.lines().filter(|l| l.contains("index.md")).collect();
     assert!(
         index_md_lines.is_empty(),
         "workspace-root index.md leaked into lint as a wiki page: {index_md_lines:?}"
     );
-    let log_md_lines: Vec<&str> = stdout
-        .lines()
-        .filter(|l| l.contains("log.md"))
-        .collect();
+    let log_md_lines: Vec<&str> = stdout.lines().filter(|l| l.contains("log.md")).collect();
     assert!(
         log_md_lines.is_empty(),
         "workspace-root log.md leaked into lint as a wiki page: {log_md_lines:?}"
@@ -249,7 +256,11 @@ fn subdirectory_index_md_is_kept_as_a_page() {
     let tmp = tempfile::tempdir().unwrap();
     let ws = tmp.path();
     std::fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
-    std::fs::write(ws.join(".llmwiki-cli/config.toml"), "[wiki]\npages_dir = \"\"\n").unwrap();
+    std::fs::write(
+        ws.join(".llmwiki-cli/config.toml"),
+        "[wiki]\npages_dir = \"\"\n",
+    )
+    .unwrap();
 
     std::fs::create_dir_all(ws.join("research/decompilation")).unwrap();
     std::fs::write(ws.join("research/decompilation/index.md"), PAGE).unwrap();
