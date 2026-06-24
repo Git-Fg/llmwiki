@@ -1,11 +1,14 @@
+use crate::core::frontmatter::Frontmatter;
 use crate::error::WikiError;
 use regex::Regex;
-use serde_yaml::Value;
 use std::sync::LazyLock;
 
 #[derive(Debug, Clone)]
 pub struct ParsedPage {
-    pub frontmatter: Value,
+    /// `None` when the markdown has no `---` frontmatter block at all.
+    /// `Some(Frontmatter::default())` when the block is empty (`---\n---`).
+    /// `Some(Frontmatter { .. })` when the block parsed successfully.
+    pub frontmatter: Option<Frontmatter>,
     pub body: String,
 }
 
@@ -13,7 +16,7 @@ pub fn parse_frontmatter(content: &str) -> Result<ParsedPage, WikiError> {
     let trimmed = content.trim_start_matches('\u{feff}'); // strip BOM
     if !trimmed.starts_with("---") {
         return Ok(ParsedPage {
-            frontmatter: Value::Null,
+            frontmatter: None,
             body: content.to_string(),
         });
     }
@@ -30,12 +33,15 @@ pub fn parse_frontmatter(content: &str) -> Result<ParsedPage, WikiError> {
         .unwrap_or(&after_first[body_start..])
         .to_string();
 
-    let frontmatter: Value = if yaml_text.trim().is_empty() {
-        Value::Null
+    let frontmatter: Frontmatter = if yaml_text.trim().is_empty() {
+        Frontmatter::default()
     } else {
         serde_yaml::from_str(yaml_text)?
     };
-    Ok(ParsedPage { frontmatter, body })
+    Ok(ParsedPage {
+        frontmatter: Some(frontmatter),
+        body,
+    })
 }
 
 static WIKILINK_RE: LazyLock<Regex> =

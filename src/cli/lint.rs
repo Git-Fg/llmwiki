@@ -130,19 +130,15 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     }
                 }
 
-                if let Some(fm) = parsed.frontmatter.as_mapping() {
-                    if let Some(sources) = fm.get("sources").and_then(|v| v.as_sequence()) {
-                        for src in sources {
-                            if let Some(s) = src.as_str() {
-                                referenced_raws.insert(s.to_string());
-                            }
-                        }
+                if let Some(fm) = parsed.frontmatter.as_ref() {
+                    for src in &fm.sources {
+                        referenced_raws.insert(src.clone());
                     }
                 }
 
-                if let Some(fm) = parsed.frontmatter.as_mapping() {
-                    let created = fm.get("created").and_then(|v| v.as_str());
-                    let updated = fm.get("updated").and_then(|v| v.as_str());
+                if let Some(fm) = parsed.frontmatter.as_ref() {
+                    let created = fm.created.as_deref();
+                    let updated = fm.updated.as_deref();
 
                     if let Some(c) = created {
                         if chrono::NaiveDate::parse_from_str(c, "%Y-%m-%d").is_err() {
@@ -302,7 +298,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     }
                 };
 
-                if parsed.frontmatter.as_mapping().is_none() {
+                if parsed.frontmatter.is_none() {
                     all_issues.push(LintIssue {
                         severity: "warn".into(),
                         code: "raw-no-frontmatter".into(),
@@ -311,8 +307,8 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     });
                 }
 
-                if let Some(fm) = parsed.frontmatter.as_mapping() {
-                    if let Some(declared_sha) = fm.get("sha256").and_then(|v| v.as_str()) {
+                if let Some(fm) = parsed.frontmatter.as_ref() {
+                    if let Some(declared_sha) = fm.sha256.as_deref() {
                         let mut hasher = Sha256::new();
                         hasher.update(parsed.body.as_bytes());
                         let computed = hex::encode(hasher.finalize());
@@ -337,9 +333,9 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                         });
                     }
 
-                    let has_locator = fm.contains_key("source_url")
-                        || fm.contains_key("session_url")
-                        || fm.contains_key("source_path");
+                    let has_locator = fm.extra.contains_key("source_url")
+                        || fm.extra.contains_key("session_url")
+                        || fm.extra.contains_key("source_path");
                     if !has_locator {
                         all_issues.push(LintIssue {
                             severity: "warn".into(),

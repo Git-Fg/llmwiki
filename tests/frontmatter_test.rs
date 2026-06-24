@@ -6,14 +6,14 @@ use llmwiki_cli::core::markdown::{
 fn parse_simple_frontmatter() {
     let content = "---\ntitle: Hello\ntags: [a, b]\n---\n\nBody text.\n";
     let parsed = parse_frontmatter(content).unwrap();
-    assert_eq!(parsed.frontmatter.get("title").unwrap(), "Hello");
+    assert_eq!(parsed.frontmatter.unwrap().title.as_deref(), Some("Hello"));
     assert_eq!(parsed.body, "\nBody text.\n");
 }
 
 #[test]
 fn parse_missing_frontmatter_returns_empty() {
     let parsed = parse_frontmatter("Just body text.\n").unwrap();
-    assert!(parsed.frontmatter.is_null());
+    assert!(parsed.frontmatter.is_none());
     assert_eq!(parsed.body, "Just body text.\n");
 }
 
@@ -27,16 +27,10 @@ fn parse_unclosed_frontmatter_returns_error() {
 fn parse_yaml_list_value() {
     let content = "---\ntags: [rust, cli]\nsources: [raw/a.md, raw/b.md]\n---\n\nBody.\n";
     let parsed = parse_frontmatter(content).unwrap();
-    let tags: Vec<String> = parsed
-        .frontmatter
-        .get("tags")
-        .unwrap()
-        .as_sequence()
-        .unwrap()
-        .iter()
-        .map(|v| v.as_str().unwrap().to_string())
-        .collect();
-    assert_eq!(tags, vec!["rust", "cli"]);
+    assert_eq!(
+        parsed.frontmatter.unwrap().tags,
+        vec!["rust".to_string(), "cli".to_string()]
+    );
 }
 
 #[test]

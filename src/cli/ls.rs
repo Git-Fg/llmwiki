@@ -226,22 +226,14 @@ fn build_page_entries(
 
         let title = parsed
             .frontmatter
-            .as_mapping()
-            .and_then(|m| m.get("title"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+            .as_ref()
+            .and_then(|fm| fm.title.clone())
+            .unwrap_or_default();
 
         let tags = parsed
             .frontmatter
-            .as_mapping()
-            .and_then(|m| m.get("tags"))
-            .and_then(|v| v.as_sequence())
-            .map(|seq| {
-                seq.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
+            .as_ref()
+            .map(|fm| fm.tags.clone())
             .unwrap_or_default();
 
         let emb_info = embedded_pages.get(&rel);
@@ -285,7 +277,7 @@ fn build_raw_entries(ws: &Path) -> Result<Vec<RawEntry>, WikiError> {
         let Ok(parsed) = parse_frontmatter(&content) else {
             continue;
         };
-        let fm_ok = parsed.frontmatter.as_mapping().is_some();
+        let fm_ok = parsed.frontmatter.is_some();
 
         let file_type = entry
             .path()
@@ -294,17 +286,9 @@ fn build_raw_entries(ws: &Path) -> Result<Vec<RawEntry>, WikiError> {
             .unwrap_or("")
             .to_string();
 
-        let (sha256, ingested) = if let Some(fm) = parsed.frontmatter.as_mapping() {
-            let sha = fm
-                .get("sha256")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let ing = fm
-                .get("ingested")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+        let (sha256, ingested) = if let Some(fm) = parsed.frontmatter.as_ref() {
+            let sha = fm.sha256.as_deref().unwrap_or("").to_string();
+            let ing = fm.ingested.as_deref().unwrap_or("").to_string();
             (sha, ing)
         } else {
             (String::new(), String::new())

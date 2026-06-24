@@ -52,7 +52,8 @@ fn frontmatter_schema_has_canonical_keys() {
     let expected: BTreeSet<&str> = CANONICAL_FRONTMATTER_KEYS.iter().copied().collect();
 
     assert_eq!(
-        actual, expected,
+        actual,
+        expected,
         "frontmatter schema properties drifted from canonical set.\n\
          Missing from schema: {:?}\n\
          Unexpected in schema: {:?}",
