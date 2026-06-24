@@ -20,7 +20,9 @@ Minimal bootstrap skill. The CLI is the source of truth for everything below.
 
 ```bash
 llmwiki-cli skill list                  # every inline sub-skill
+llmwiki-cli skill list --json           # machine-readable JSON array
 llmwiki-cli skill get <topic>           # load one (e.g. wiki-search, wiki-config)
+llmwiki-cli skill get --all             # all sub-skills at once (with === headers)
 llmwiki-cli <command> --help            # full flag reference for any command
 ```
 
@@ -33,7 +35,10 @@ over guessing commands** — sub-skills are short, opinionated, never stale.
 1. **`llmwiki-cli doctor` first** if anything is misbehaving. Catches
    missing API keys, NIM connectivity, broken config, orphans in one
    pass. `--json` is machine-readable for CI.
-2. **Embeddings are gitignored.** After pulling wiki changes from
+2. **`llmwiki-cli ingest`** to add a source file to the wiki — raw
+   source files are copied to `raw/`, then pages are generated in
+   `wiki/`. `--json` for CI.
+3. **Embeddings are gitignored.** After pulling wiki changes from
    another machine, run `llmwiki-cli embed` before `search` / `query`.
 3. **`llmwiki-cli init` defaults to flat layout** (since v0.3.27).
    Use `--subdir` for the legacy `wiki/` subdir layout.

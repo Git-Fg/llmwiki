@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn list_skills_returns_nine_excluding_hub() {
         let skills = list_skills();
-        assert_eq!(skills.len(), 9, "expected 9 sub-skills, got {:?}", skills);
+        assert_eq!(skills.len(), 9, "expected 9 sub-skills, got {skills:?}");
         for (stem, lines) in &skills {
             assert!(stem.starts_with("wiki-"), "unexpected stem {stem}");
             assert!(*lines > 0, "sub-skill {stem} has 0 lines");

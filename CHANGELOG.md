@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.3.31] - 2026-06-24 — Machine-readable skill output
+
+**Added — `llmwiki-cli skill list --json`:**
+- Machine-readable JSON array for programmatic consumption by agents and
+  scripts. Output schema: `[{"name": "wiki-search", "lines": 41}, ...]`.
+- Useful for agents that parse available skills programmatically rather
+  than reading human-formatted text.
+
+**Added — `llmwiki-cli skill get --all`:**
+- Prints every sub-skill concatenated with `=== wiki-<name> ===` section
+  headers. Mirrors `agent-browser skills get --full`.
+- Useful when an agent wants to load all sub-skills in one call rather
+  than making nine separate `skill get` invocations.
+- `--all` conflicts with a topic argument: `skill get wiki-search --all`
+  produces a clean error.
+
+**Research finding — `npx skills add` compatibility confirmed:**
+- The repo layout `skills/SKILL.md` (hub at root of `skills/`) is
+  discovered by [`npx skills add`](https://github.com/vercel-labs/skills)
+  (23k stars, 72+ agents) as a single skill named "wiki". All sibling
+  `.md` files are bundled as resource files.
+- No restructuring needed — the current layout works with both
+  `llmwiki-cli install-skill` (small install, hub-only) and
+  `npx skills add` (fat install, all files).
+- Per-agent global paths (from vercel-labs/skills source):
+  Kimi Code CLI / Cursor / Codex / Gemini / Copilot → `~/.agents/skills/`
+  Claude Code → `~/.claude/skills/`
+
+**Correction from v0.3.30:**
+- Cursor DOES support SKILL.md (`.agents/skills/` project,
+  `~/.cursor/skills/` global, per the `npx skills add` agent table).
+  The v0.3.30 note "Cursor does not yet support SKILL.md" was wrong.
+
+**Verification:**
+- 287 tests pass (was 284; +3 for `list --json`, `get --all`,
+  `get --all` error case)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+
 ## v0.3.30 — Cross-host install path
 
 **Added — `llmwiki-cli install-skill --install-path <dir>`:**
