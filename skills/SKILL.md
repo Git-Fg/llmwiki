@@ -20,7 +20,9 @@ Minimal bootstrap skill. The CLI is the source of truth for everything below.
 
 ```bash
 llmwiki-cli skill list                  # every inline sub-skill
+llmwiki-cli skill list --json           # machine-readable JSON array
 llmwiki-cli skill get <topic>           # load one (e.g. wiki-search, wiki-config)
+llmwiki-cli skill get --all             # all sub-skills at once (with === headers)
 llmwiki-cli <command> --help            # full flag reference for any command
 ```
 
