@@ -1,7 +1,7 @@
 ---
 name: llmwiki-sync
 description: |
-  New-device setup, tailnet git sync. Routes to `llmwiki-cli init`,
+  New-device setup, cross-device git sync. Routes to `llmwiki-cli init`,
   `llmwiki-cli install-skill`, and `git` operations on the wiki repo.
   Use when the user asks to set up the wiki on a new machine, sync
   wikis across devices, or back up a wiki to git.
@@ -11,7 +11,7 @@ allowed-tools: Bash(llmwiki-cli:*), Bash(git:*)
 
 # llmwiki-sync
 
-Get the wiki onto a new machine, or sync wikis between devices over tailnet git.
+Get the wiki onto a new machine, or sync wikis between devices via git.
 
 ## Commands
 
@@ -19,7 +19,7 @@ Get the wiki onto a new machine, or sync wikis between devices over tailnet git.
 llmwiki-cli init <path>              # scaffold a new wiki
 llmwiki-cli install-skill --global   # install the skill bundle
 llmwiki-cli config list              # see registered wikis
-git clone <tailnet-url> <path>       # pull an existing wiki from another machine
+git clone <git-url> <path>           # pull an existing wiki from another machine
 ```
 
 ## Workflow (new device)
