@@ -23,8 +23,9 @@ by `build.rs`), and the new
 drift test. Adding a field to `Frontmatter` automatically updates the
 schema.
 
-`type: Option<String>` (not `enum PageType`) — the audit found 20+
-distinct `type` values across the 4 wikis plus pipeline expressions like
+`type: Option<String>` (not `enum PageType`) — the audit found 40+
+distinct `type` values across the 4 wikis (41 in the union; mevin 20,
+mywiki 12, minimax 9, pharma 9) plus pipeline expressions like
 `"entity | concept | comparison | query | schema | summary"`.
 
 **Polymorphic fields (smoke-test-surfaced):**
@@ -53,9 +54,11 @@ the typed-deserialize replacement: panic-free on malformed input, no
 object instantiation). The migration is a tight one-liner swap:
 `serde_yaml::from_str` → `serde_saphyr::from_str` (drop-in API).
 `WikiError::Yaml` keeps its transparent source via
-`#[from] serde_saphyr::Error`. All 298 tests pass with no test changes
-beyond comment updates. `cargo tree` confirms `serde_yaml` is gone and
-`serde-saphyr v0.0.28` (May 2026) is in the dep tree.
+`#[from] serde_saphyr::Error`. All tests pass with no test changes
+beyond comment updates during the migration; the polymorphic-field
+tests were added in a follow-up commit. `cargo tree` confirms
+`serde_yaml` is gone and `serde-saphyr v0.0.28` (May 2026) is in the
+dep tree.
 
 **Selective clippy lint: `string_slice` at warn level:**
 
@@ -129,7 +132,10 @@ binary download). Run `cargo deny check` locally before pushing releases.
   - `parse_frontmatter_accepts_string_form_for_tags_and_sources`
   - `parse_frontmatter_accepts_numeric_or_string_confidence`
   - `parse_frontmatter_accepts_descriptions_as_locale_map`
-- 1 drift test in `tests/frontmatter_schema_test.rs::frontmatter_schema_has_canonical_keys`
+- 2 drift tests in `tests/frontmatter_schema_test.rs`:
+  - `frontmatter_schema_has_canonical_keys`
+  - `frontmatter_schema_allows_additional_properties` (locks the open
+    contract required by the `extra: BTreeMap<String, Value>` flatten bag)
 - 1 fix in `src/core/markdown.rs` for the `---\n---` empty-block scanner
   gap (Task 6's empty-block test surfaced an implementation gap in Task 4+5)
 - **301 tests pass, 0 fail, 1 ignored** (was 289 in v0.3.34)
