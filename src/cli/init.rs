@@ -3,6 +3,7 @@ use crate::core::registry::Registry;
 use crate::core::workspace::pages_dir;
 use crate::error::WikiError;
 use anyhow::Context;
+use chrono::Utc;
 use std::path::PathBuf;
 
 pub struct InitArgs {
@@ -49,11 +50,12 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
     std::fs::create_dir_all(target.join("raw/articles")).context("create raw/articles/")?;
     std::fs::create_dir_all(target.join(".llmwiki-cli")).context("create .llmwiki-cli/")?;
 
-    let today = std::process::Command::new("date")
-        .arg("+%Y-%m-%d")
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "2026-06-21".to_string());
+    // Use the same `chrono::Utc::now()` path that `ingest.rs:44` uses for
+    // log entries — keeps the template's YYYY-MM-DD stamp in lock-step
+    // with the rest of the wiki's clock (no subprocess fork, no `date`
+    // portability concerns, no stale 2026-06-21 fallback if `date`
+    // somehow isn't on PATH).
+    let today = Utc::now().format("%Y-%m-%d").to_string();
 
     let template = include_str!("../../resources/page.template.md").replace("YYYY-MM-DD", &today);
 
