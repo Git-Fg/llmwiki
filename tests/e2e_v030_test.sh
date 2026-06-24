@@ -4,11 +4,11 @@
 # Verifies every user-facing surface introduced or stabilized in v0.3.0:
 #   - binary builds + prints version
 #   - `init` creates a valid workspace
-#   - all v0.3.0 commands (mcp, lsp, install-skill) respond to --help
-#   - skill bundle covers all 10 sub-skills including the new MCP one
-#   - install-skill --global bundles the hub + all sub-skills to disk
+#   - all v0.3.0 commands (install-skill) respond to --help
+#   - skill bundle covers all 9 sub-skills including the new CONFIG one
+#   - install-skill --workspace bundles the hub + all sub-skills to disk
 #   - marketplace validator passes --strict
-#   - Rust test suite passes (175 tests)
+#   - Rust test suite passes
 #
 # Usage:
 #   tests/e2e_v030_test.sh
@@ -37,7 +37,7 @@ echo "  ok: $VERSION_OUT"
 # 2. CLI surface
 step "CLI surface"
 for cmd in init build embed search query lint ls doctor tree status models \
-           ingest skill install-skill config version lsp mcp; do
+           ingest skill install-skill config version; do
     cargo run --quiet -- "$cmd" --help >/dev/null 2>&1 \
         || fail "$cmd --help failed"
     echo "  ok: $cmd --help"
@@ -46,21 +46,21 @@ done
 # 3. Skill bundle coverage
 step "skill bundle coverage"
 SKILL_LIST="$(cargo run --quiet -- skill list)"
-for topic in setup ingest search query lint models sync troubleshooting lsp mcp; do
+for topic in setup config ingest search query lint models sync troubleshooting; do
     echo "$SKILL_LIST" | grep -q "^$topic " \
         || fail "topic '$topic' missing from skill list"
     echo "  ok: topic '$topic' registered"
 done
 
 # Sub-skill show roundtrip
-for topic in mcp lsp setup; do
+for topic in setup config; do
     SHOW="$(cargo run --quiet -- skill show "$topic")"
     echo "$SHOW" | grep -q "name: $topic" \
         || fail "skill show $topic missing 'name: $topic' frontmatter"
     echo "  ok: skill show $topic"
 done
 
-# 4. install-skill bundles hub + 10 sub-skills (workspace-local, non-destructive)
+# 4. install-skill bundles hub + 9 sub-skills (workspace-local, non-destructive)
 step "install-skill (workspace-local)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP" "$INIT_DIR"' EXIT
@@ -68,7 +68,7 @@ cargo run --quiet -- install-skill --workspace "$TMP" >/dev/null
 HUB="$TMP/.agents/skills/wiki/SKILL.md"
 test -f "$HUB" || fail "hub SKILL.md not installed to $TMP/.agents/skills/wiki/"
 echo "  ok: hub SKILL.md installed"
-for sub in SETUP INGEST SEARCH QUERY LINT MODELS SYNC TROUBLESHOOTING LSP MCP; do
+for sub in SETUP CONFIG INGEST SEARCH QUERY LINT MODELS SYNC TROUBLESHOOTING; do
     test -f "$TMP/.agents/skills/wiki/$sub/SKILL.md" \
         || fail "sub-skill $sub/SKILL.md not installed"
     echo "  ok: $sub/SKILL.md installed"
@@ -80,19 +80,7 @@ python3 marketplace/scripts/validate.py --strict \
     || fail "marketplace validator failed"
 echo "  ok: marketplace validate --strict"
 
-# 6. LSP server smoke (initialize handshake + kill + reap)
-step "LSP server smoke"
-LSP_OUT="$(cargo run --quiet -- lsp --help)"
-echo "$LSP_OUT" | grep -q "stdio" || fail "lsp --help missing 'stdio'"
-echo "  ok: lsp --help mentions stdio"
-
-# 7. MCP server smoke
-step "MCP server smoke"
-MCP_OUT="$(cargo run --quiet -- mcp --help)"
-echo "$MCP_OUT" | grep -q "stdio" || fail "mcp --help missing 'stdio'"
-echo "  ok: mcp --help mentions stdio"
-
-# 8. Init + workspace discoverability (the file `wiki` knows how to find)
+# 6. Init + workspace discoverability (the file `wiki` knows how to find)
 step "init + workspace discover"
 INIT_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP" "$INIT_DIR"' EXIT
