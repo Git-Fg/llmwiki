@@ -215,3 +215,43 @@ fn user_exclude_dirs_merges_with_defaults() {
         .stdout(predicates::str::contains("Leaked").not()) // retained default
         .stdout(predicates::str::contains("Cached").not()); // retained default
 }
+
+#[test]
+#[ignore = "requires NIM API"]
+fn exclude_dirs_skips_excluded_pages_from_embed() {
+    // v0.3.27+: wiki embed must not embed pages under excluded dirs.
+    let tmp = tempdir().unwrap();
+    let ws = tmp.path();
+    fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
+    fs::create_dir_all(ws.join("node_modules/pkg")).unwrap();
+    fs::write(ws.join("keep.md"), page_with_title("Keep")).unwrap();
+    fs::write(
+        ws.join("node_modules/pkg/leaked.md"),
+        page_with_title("Leaked"),
+    )
+    .unwrap();
+    fs::write(
+        ws.join(".llmwiki-cli/config.toml"),
+        "[wiki]\npages_dir = \"\"\n",
+    )
+    .unwrap();
+    // wiki embed should succeed, and leaked.md should NOT appear in embeddings.jsonl.
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace")
+        .arg(ws)
+        .arg("embed")
+        .arg("--model")
+        .arg("nvidia/nv-embed-v1")
+        .assert()
+        .success();
+    let jsonl = fs::read_to_string(ws.join("embeddings.jsonl")).unwrap_or_default();
+    assert!(
+        !jsonl.contains("leaked"),
+        "leaked.md embedded despite exclusion: {jsonl}"
+    );
+    assert!(
+        jsonl.contains("keep"),
+        "keep.md not embedded: {jsonl}"
+    );
+}
