@@ -7,13 +7,13 @@
 //! just listing `--wiki` as a free-form argument with a hint that
 //! `llmwiki-cli config list` shows the available values.
 //!
-//! Supported shells: bash, zsh, fish, elvish, powershell.
+//! Supported shells: bash, zsh, fish, elvish, power-shell.
 //!
 //! Install:
-//!   llmwiki-cli completion bash  > ~/.local/share/bash-completion/completions/llmwiki-cli
-//!   llmwiki-cli completion zsh   > "${fpath[1]}/_llmwiki-cli"
-//!   llmwiki-cli completion fish  > ~/.config/fish/completions/llmwiki-cli.fish
-//!   llmwiki-cli completion powershell > $HOME\Documents\PowerShell\Completions\llmwiki-cli.ps1
+//!   llmwiki-cli completion bash        > ~/.local/share/bash-completion/completions/llmwiki-cli
+//!   llmwiki-cli completion zsh         > "${fpath[1]}/_llmwiki-cli"
+//!   llmwiki-cli completion fish        > ~/.config/fish/completions/llmwiki-cli.fish
+//!   llmwiki-cli completion power-shell > $HOME\Documents\PowerShell\Completions\llmwiki-cli.ps1
 use crate::error::WikiError;
 use clap::CommandFactory;
 use clap_complete::{generate, Shell};

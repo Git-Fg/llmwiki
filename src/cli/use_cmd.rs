@@ -136,7 +136,8 @@ fn run_unset(
     workspace: &std::path::Path,
     json: bool,
 ) -> Result<(), WikiError> {
-    if pointer_path.is_file() {
+    let existed = pointer_path.is_file();
+    if existed {
         std::fs::remove_file(pointer_path).map_err(|e| {
             WikiError::Other(anyhow::anyhow!("remove {}: {e}", pointer_path.display()))
         })?;
@@ -150,11 +151,13 @@ fn run_unset(
                 "alias": null,
                 "workspace": workspace,
                 "pointer": pointer_path,
-                "existed": true,
+                "existed": existed,
             }))?
         );
-    } else {
+    } else if existed {
         println!("✓ Removed active-wiki pointer for {}", workspace.display());
+    } else {
+        println!("✓ No active-wiki pointer to remove (already absent) for {}", workspace.display());
     }
     Ok(())
 }

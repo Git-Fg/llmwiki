@@ -2,9 +2,10 @@
 name: llmwiki-config
 description: |
   Edit wiki-root.toml or per-workspace config.toml. Routes to
-  `llmwiki-cli config {show-effective, show-schema, validate, edit}`.
+  `llmwiki-cli config {current, show-effective, show-schema, validate, edit}`.
   Use when the user asks to change a wiki's pages_dir, exclude_dirs,
-  NIM model, or any other setting; or when a config typo causes errors.
+  NIM model, or any other setting; or when a config typo causes errors;
+  or when the user asks "which wiki am I on right now?".
   Do NOT use for: installing the binary (llmwiki-setup), editing wiki content.
 allowed-tools: Bash(llmwiki-cli:*)
 ---

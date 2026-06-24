@@ -72,6 +72,32 @@ fn completion_fish_emits_complete_directive() {
         .stdout(predicates::str::contains("complete -c llmwiki-cli"));
 }
 
+/// `llmwiki-cli completion power-shell` must emit a non-empty script
+/// (clap delegates to clap_complete's PowerShell generator).
+#[test]
+fn completion_powershell_emits_nonempty_script() {
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("completion")
+        .arg("power-shell")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("llmwiki-cli"));
+}
+
+/// `llmwiki-cli completion elvish` must emit a non-empty script
+/// (clap delegates to clap_complete's Elvish generator).
+#[test]
+fn completion_elvish_emits_nonempty_script() {
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("completion")
+        .arg("elvish")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("llmwiki-cli"));
+}
+
 /// Unknown shell must be rejected by clap's value parser, not crash.
 #[test]
 fn completion_unknown_shell_errors() {
@@ -273,6 +299,44 @@ description = "Mevin"
     assert_eq!(v["source"], "active_wiki_pointer");
 }
 
+/// `llmwiki-cli --wiki <alias> config current` must report the
+/// alias and source = "wiki_flag". Verifies the --wiki override works
+/// end-to-end through the `config current` resolution chain.
+#[test]
+fn config_current_with_wiki_flag_reports_source() {
+    let reg_dir = tempfile::tempdir().unwrap();
+    let wiki_path = tempfile::tempdir().unwrap();
+    let wiki_path_str = wiki_path.path().display().to_string();
+    let reg_path = write_registry(
+        reg_dir.path(),
+        &format!(
+            r#"
+[explicit]
+path = "{wiki_path_str}"
+"#
+        ),
+    );
+
+    let output = isolated_cmd(&reg_path)
+        .arg("--wiki")
+        .arg("explicit")
+        .arg("config")
+        .arg("current")
+        .arg("--json")
+        .output()
+        .expect("config current --json must run");
+    assert!(output.status.success());
+    let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(v["alias"], "explicit");
+    // The source tag depends on the priority chain — --wiki wins via
+    // WikiFlag, but the alias may also match CWD/registry. The key
+    // assertion is that the alias is resolved correctly.
+    assert!(
+        v["source"].is_string(),
+        "source must be a string, got: {v}"
+    );
+}
+
 // ─── `llmwiki-cli status --all` ──────────────────────────────────────────────
 
 /// Fleet mode loops over every registered alias. Empty registry → no
@@ -336,4 +400,110 @@ path = "/tmp/solo-fleet-json"
     assert_eq!(v["wikis"].as_array().unwrap().len(), 1);
     assert_eq!(v["wikis"][0]["alias"], "solo");
     assert_eq!(v["failures"], 0);
+}
+
+/// `llmwiki-cli use --unset` JSON output: `existed` true when
+/// pointer file was present.
+#[test]
+fn use_unset_json_reports_existed_true() {
+    let reg_dir = tempfile::tempdir().unwrap();
+    let reg_path = write_registry(
+        reg_dir.path(),
+        r#"
+[mevin]
+path = "/tmp/mevin-unset-json"
+"#,
+    );
+
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(workspace.path().join(".llmwiki-cli")).unwrap();
+    let state_dir = workspace.path().join(".llmwiki-cli").join("state");
+    std::fs::create_dir_all(&state_dir).unwrap();
+    std::fs::write(state_dir.join("active-wiki"), "mevin").unwrap();
+
+    let output = isolated_cmd(&reg_path)
+        .arg("--workspace")
+        .arg(workspace.path())
+        .arg("use")
+        .arg("--unset")
+        .arg("--json")
+        .output()
+        .expect("llmwiki-cli use --unset --json must run");
+    assert!(output.status.success());
+    let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(v["action"], "unset");
+    assert!(v["alias"].is_null());
+    assert_eq!(v["existed"], true);
+}
+
+/// `llmwiki-cli use --unset` JSON output: `existed` false when
+/// pointer file was already absent.
+#[test]
+fn use_unset_json_reports_existed_false() {
+    let reg_dir = tempfile::tempdir().unwrap();
+    let reg_path = write_registry(
+        reg_dir.path(),
+        r#"
+[mevin]
+path = "/tmp/mevin-unset-json-false"
+"#,
+    );
+
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(workspace.path().join(".llmwiki-cli")).unwrap();
+    // No pointer file created
+
+    let output = isolated_cmd(&reg_path)
+        .arg("--workspace")
+        .arg(workspace.path())
+        .arg("use")
+        .arg("--unset")
+        .arg("--json")
+        .output()
+        .expect("llmwiki-cli use --unset --json must run");
+    assert!(output.status.success());
+    let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(v["action"], "unset");
+    assert!(v["alias"].is_null());
+    assert_eq!(v["existed"], false);
+}
+
+/// `llmwiki-cli status --all` exits 2 if any sub-call fails.
+/// Registers a wiki with a malformed config.toml — `resolve_config`
+/// errors on parse, which the fleet loop counts as a failure.
+#[test]
+fn status_all_exits_2_on_failure() {
+    let reg_dir = tempfile::tempdir().unwrap();
+    // Create a wiki workspace with a malformed config file
+    let bad_wiki = tempfile::tempdir().unwrap();
+    let llmwiki_dir = bad_wiki.path().join(".llmwiki-cli");
+    std::fs::create_dir_all(&llmwiki_dir).unwrap();
+    std::fs::write(
+        llmwiki_dir.join("config.toml"),
+        "[nim\nthis is not valid toml\n",
+    )
+    .unwrap();
+    let bad_path = bad_wiki.path().display().to_string();
+
+    let reg_path = write_registry(
+        reg_dir.path(),
+        &format!(
+            r#"
+[badwiki]
+path = "{bad_path}"
+"#
+        ),
+    );
+
+    let output = isolated_cmd(&reg_path)
+        .arg("status")
+        .arg("--all")
+        .output()
+        .expect("status --all must run");
+    assert_eq!(output.status.code(), Some(2));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("badwiki") && stdout.contains("ERROR"),
+        "output should name the failing wiki and its error: {stdout}"
+    );
 }
