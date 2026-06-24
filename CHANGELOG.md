@@ -1,5 +1,109 @@
 # Changelog
 
+## [0.3.33] - 2026-06-24 — Entrypoint-only architecture
+
+**Restructured — sub-skills moved from `skills/` to `src/skills/data/`:**
+
+```
+skills/                          ← ONLY the hub (+ spec-standard references/)
+  SKILL.md                       ← the entrypoint (~50 lines, was 76)
+  references/schema.json         ← standard agentskills.io subdirectory
+
+src/skills/data/                 ← CLI-internal sub-skills (was in skills/)
+  wiki-search.md
+  wiki-config.md
+  wiki-ingest.md
+  wiki-lint.md
+  wiki-models.md
+  wiki-query.md
+  wiki-setup.md
+  wiki-sync.md
+  wiki-troubleshooting.md
+```
+
+**Why this matters:**
+
+Before: `npx skills add Git-Fg/llmwiki` installed 11 files (hub + 9 sub-skill
+flat .md + schema.json). The same sub-skill content also lived in the binary
+via rust-embed — two sources of truth, drift risk.
+
+After: `npx skills add` installs 2 files (hub + references/schema.json).
+Sub-skills live ONLY in the binary. `llmwiki-cli skill get <topic>` always
+serves the version that matches your installed CLI. **No drift possible.**
+
+**Hub trimmed from 76 → ~50 lines:**
+- Removed: 6 "Core gotchas" entries (moved to relevant sub-skills)
+- Removed: 9-row sub-skill dispatch table (replaced with one-line pointer to `skill list`)
+- Kept: install hint, the 3 discovery primitives, "always run doctor first"
+  one-liner, reference to schema.json
+
+**Core gotchas redistributed:**
+- "Embeddings are gitignored" → `wiki-sync`
+- "`init` defaults to flat layout" → `wiki-setup`
+- "`exclude_dirs` is additive" → `wiki-config`
+- "Run `config validate` after edits" → `wiki-config`
+- "Use `--wiki <alias>`" → `wiki-config`
+- "Doctor first" → kept in hub (universal first action)
+
+**Implementation details:**
+- `src/skills/mod.rs` now embeds from `src/skills/data/` (was `skills/`)
+- The hub uses `include_str!("../../skills/SKILL.md")` for build-time embed
+- `build.rs` unchanged — `references/schema.json` still written by build.rs
+- New unit test: `hub_does_not_contain_sub_skill_bodies_inline` guards
+  against future drift
+- `tests/skill_smoke.sh` updated to assert flat `wiki-*.md` files are NOT
+  installed to disk (catches accidental layout regression)
+
+**Spec compliance:**
+- Still fully compatible with `npx skills add Git-Fg/llmwiki`
+- `npx skills add --list` still discovers skill "wiki"
+- agentskills.io spec: `references/` is now a real subdirectory (improvement)
+
+**Validation:**
+- 287 tests pass (added 1 new unit test)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+- `tests/skill_smoke.sh` passes (asserts no flat sub-skills on disk)
+- `tests/changelog_check.sh` passes
+
+## [0.3.32] - 2026-06-24 — Spec-compliant frontmatter
+
+**Added — `skills/SKILL.md` frontmatter compliance with agentskills.io spec:**
+
+The hub frontmatter now declares all spec fields relevant to our distribution:
+
+- **`license: Apache-2.0`** — clarifies reuse terms.
+- **`compatibility:`** — tells agents (and the
+  [`agentskills.io`](https://agentskills.io/specification) spec's
+  `compatibility` field) that the skill requires `llmwiki-cli v0.3.30+`
+  AND network access to NVIDIA NIM. Without the CLI installed, the
+  sub-skill bootstrap commands (`skill list`, `skill get`) will fail.
+- **`metadata:`** — `author`, `version`, `homepage`, `install-cli`,
+  `install-skill` — gives agents and humans everything they need to
+  discover and install the skill in one read.
+
+**Why this matters:**
+
+The [Snyk threat-modeling article](https://snyk.io/articles/skill-md-shell-access/)
+highlights that the OpenClaw ecosystem uses a `metadata.openclaw.requires.bins`
+extension to declare binary dependencies. Our `compatibility` field is the
+standardized agentskills.io equivalent — agents that read the spec will
+know to install the CLI before activating the skill.
+
+The ClawHavoc campaign (Jan 2026) compromised 341 of 2,857 skills (~12%)
+via trojanized "Prerequisites" sections. Our skill explicitly tells the
+agent to install the CLI from official sources (`cargo install` from
+crates.io or `curl | sh` from GitHub releases), not from arbitrary URLs.
+
+**Validation:**
+- Description: 552 chars (well under 1024 limit)
+- Name: 4 chars, lowercase, no leading/trailing hyphens ✓
+- All 287 tests pass
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+- `tests/skill_smoke.sh` passes
+- `tests/changelog_check.sh` passes
+
 ## [0.3.31] - 2026-06-24 — Machine-readable skill output
 
 **Added — `llmwiki-cli skill list --json`:**

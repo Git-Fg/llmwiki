@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/Git-Fg/llmwiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Git-Fg/llmwiki/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/llmwiki-cli.svg)](https://crates.io/crates/llmwiki-cli)
+[![skills.sh](https://skills.sh/b/Git-Fg/llmwiki)](https://skills.sh/Git-Fg/llmwiki)
 [![License](https://img.shields.io/crates/l/llmwiki-cli.svg)](https://github.com/Git-Fg/llmwiki/blob/main/LICENSE)
 
 A markdown-based personal knowledge base, built on Andrej Karpathy's LLM Wiki pattern. Single Rust binary, NVIDIA NIM embeddings, agent skill integration, tailnet-friendly sync, multi-wiki registry.
@@ -24,6 +25,23 @@ irm https://github.com/Git-Fg/llmwiki/releases/latest/download/install.ps1 | iex
 # Or any platform with the Rust toolchain installed
 cargo install llmwiki-cli --locked
 ```
+
+## Agent Skill
+
+This repo also ships a [SKILL.md](skills/SKILL.md) agent skill that any
+of the 72+ agents supported by [`npx skills add`](https://github.com/vercel-labs/skills)
+can install in one command:
+
+```bash
+npx skills add Git-Fg/llmwiki                              # install to default scope
+npx skills add Git-Fg/llmwiki --global -a claude-code -y   # Claude Code, global, no prompts
+npx skills add Git-Fg/llmwiki --global                     # Kimi / Cursor / Codex / Gemini / Copilot
+```
+
+The skill bundles inline sub-skills (search, query, ingest, lint, etc.)
+that load on demand. For the most useful experience, also install the
+CLI binary — sub-skills invoke `llmwiki-cli skill get <topic>` which
+returns content version-matched with your installed binary.
 
 Then install the agent skill:
 
