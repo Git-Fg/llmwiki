@@ -1,6 +1,6 @@
 [package]
 name = "llmwiki-cli"
-version = "0.3.35"
+version = "0.3.36"
 description = "Your LLM's persistent memory in plain markdown. Multiple wikis, semantic search, citations, no database. Single Rust binary, NVIDIA NIM embeddings, agent-skill native."
 license = "Apache-2.0"
 repository = "https://github.com/Git-Fg/llmwiki"
