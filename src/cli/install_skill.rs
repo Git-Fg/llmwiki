@@ -7,44 +7,47 @@ pub struct InstallSkillArgs {
     pub global: bool,
     pub workspace: Option<PathBuf>,
     /// Override the install directory. By default:
-    ///   --global          → $HOME/.agents/skills/wiki
-    ///   --workspace <ws>  → <ws>/.agents/skills/wiki
+    ///   --global          → $HOME/.agents/skills/llmwiki
+    ///   --workspace <ws>  → <ws>/.agents/skills/llmwiki
     /// Use --install-path to install to a different host's skills directory,
-    /// e.g. `--install-path ~/.claude/skills/wiki` for Claude Code,
-    /// `--install-path ~/.cursor/skills/wiki` for Cursor (if it supports
-    /// SKILL.md), or `--install-path ~/.kimi/skills/wiki` for Kimi Code's
+    /// e.g. `--install-path ~/.claude/skills/llmwiki` for Claude Code,
+    /// `--install-path ~/.cursor/skills/llmwiki` for Cursor (if it supports
+    /// SKILL.md), or `--install-path ~/.kimi/skills/llmwiki` for Kimi Code's
     /// brand path. The `~` is expanded to $HOME; relative paths are
     /// resolved against the workspace (or $HOME for --global).
     pub install_path: Option<PathBuf>,
 }
 
-/// Install the small `wiki` skill to the agent's skills directory.
+/// Install the small `llmwiki` skill to the agent's skills directory.
 ///
 /// v0.3.29 simplification: only the hub is installed to disk. Inline
-/// sub-skills (`wiki-search`, `wiki-config`, etc.) are served on demand via
+/// sub-skills (`llmwiki-search`, `llmwiki-config`, etc.) are served on demand via
 /// `llmwiki-cli skill get <topic>` from bytes embedded in the binary
 /// (`rust-embed` over `skills/`). This keeps the install layout minimal —
-/// one file at `~/.agents/skills/wiki/SKILL.md` — and avoids any
+/// one file at `~/.agents/skills/llmwiki/SKILL.md` — and avoids any
 /// marketplace / validator / multi-plugin-manifest machinery.
 ///
 /// v0.3.30: `--install-path <dir>` lets users target a specific host's
 /// skills directory (Claude Code reads `~/.claude/skills/`, Cursor reads
 /// `~/.cursor/skills/`, Kimi reads `~/.kimi/skills/` + the generic
-/// `~/.agents/skills/` fallback). The default `~/.agents/skills/wiki`
+/// `~/.agents/skills/` fallback). The default `~/.agents/skills/llmwiki`
 /// works for Kimi and any other host that follows the
 /// [agentskills.io](https://agentskills.io/) cross-host convention.
+///
+/// v0.3.36: hard-cut rebrand from `wiki` → `llmwiki` (no backward-compat
+/// alias for the install directory).
 pub fn run(args: InstallSkillArgs) -> Result<(), WikiError> {
     let target = if let Some(p) = args.install_path {
         expand_tilde(p)
     } else if args.global {
         let home =
             std::env::var("HOME").map_err(|_| WikiError::Other(anyhow::anyhow!("HOME not set")))?;
-        PathBuf::from(home).join(".agents/skills/wiki")
+        PathBuf::from(home).join(".agents/skills/llmwiki")
     } else {
         let ws = args
             .workspace
             .unwrap_or_else(|| std::env::current_dir().unwrap());
-        ws.join(".agents/skills/wiki")
+        ws.join(".agents/skills/llmwiki")
     };
 
     if let Some(parent) = target.parent() {
@@ -59,7 +62,7 @@ pub fn run(args: InstallSkillArgs) -> Result<(), WikiError> {
     std::fs::write(target.join("SKILL.md"), skills::hub().as_bytes())?;
 
     println!(
-        "✓ Installed wiki skill to {}\n  Inline sub-skills served via `llmwiki-cli skill get <topic>`",
+        "✓ Installed llmwiki skill to {}\n  Inline sub-skills served via `llmwiki-cli skill get <topic>`",
         target.display()
     );
     Ok(())

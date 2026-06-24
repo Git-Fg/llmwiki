@@ -46,14 +46,14 @@ done
 # 3. Skill bundle coverage (served via rust-embed)
 step "skill bundle coverage"
 SKILL_LIST="$(cargo run --quiet -- skill list)"
-for topic in wiki-setup wiki-config wiki-ingest wiki-search wiki-query wiki-lint wiki-models wiki-sync wiki-troubleshooting; do
+for topic in llmwiki-setup llmwiki-config llmwiki-ingest llmwiki-search llmwiki-query llmwiki-lint llmwiki-models llmwiki-sync llmwiki-troubleshooting; do
     echo "$SKILL_LIST" | grep -q "^$topic " \
         || fail "topic '$topic' missing from skill list"
     echo "  ok: topic '$topic' registered"
 done
 
 # Sub-skill show roundtrip via the agent-browser `skill get` primitive
-for topic in wiki-setup wiki-config; do
+for topic in llmwiki-setup llmwiki-config; do
     SHOW="$(cargo run --quiet -- skill get "$topic")"
     echo "$SHOW" | grep -q "name: $topic" \
         || fail "skill get $topic missing 'name: $topic' frontmatter"
