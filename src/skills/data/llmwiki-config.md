@@ -1,5 +1,5 @@
 ---
-name: wiki-config
+name: llmwiki-config
 description: |
   Edit wiki-root.toml or per-workspace config.toml. Routes to
   `llmwiki-cli config {show-effective, show-schema, validate, edit}`.
@@ -9,7 +9,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-config
+# llmwiki-config
 
 Manage the wiki config — see what's resolved, discover available keys,
 edit safely, validate every change.

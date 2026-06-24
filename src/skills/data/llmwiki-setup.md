@@ -1,5 +1,5 @@
 ---
-name: wiki-setup
+name: llmwiki-setup
 description: |
   First-run install, init, registry, skill install. Routes to
   `llmwiki-cli doctor` and `llmwiki-cli install-skill`. Use when the
@@ -9,7 +9,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-setup
+# llmwiki-setup
 
 Verify the `llmwiki-cli` install and bootstrap it on the user's machine.
 

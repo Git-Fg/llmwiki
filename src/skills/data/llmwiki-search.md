@@ -1,5 +1,5 @@
 ---
-name: wiki-search
+name: llmwiki-search
 description: |
   Find existing wiki content by semantic similarity over embedded chunks.
   Routes to `llmwiki-cli search`. Use when the user asks "find X in my
@@ -9,7 +9,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-search
+# llmwiki-search
 
 Find existing content by semantic similarity over the embedded chunks.
 

@@ -1,5 +1,5 @@
 ---
-name: wiki-models
+name: llmwiki-models
 description: |
   Switch the embedding or reranking model. Routes to
   `llmwiki-cli models` and the `nim.*` config keys. Use when the user
@@ -10,7 +10,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-models
+# llmwiki-models
 
 List whitelisted NVIDIA NIM models and switch the active embedding / reranking model.
 

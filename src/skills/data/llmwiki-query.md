@@ -1,5 +1,5 @@
 ---
-name: wiki-query
+name: llmwiki-query
 description: |
   RAG question-answering over the wiki. Routes to `llmwiki-cli query`.
   Use when the user asks "answer a question against my notes", "what
@@ -8,7 +8,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-query
+# llmwiki-query
 
 Ask a RAG question over the wiki — retrieves relevant chunks and asks the
 LLM to answer with citations.

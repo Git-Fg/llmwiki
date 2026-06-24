@@ -1,5 +1,5 @@
 ---
-name: wiki-lint
+name: llmwiki-lint
 description: |
   Hygiene checks on wiki pages, raw sources, and the log. Routes to
   `llmwiki-cli lint`. Use when the user asks to check wiki health, find
@@ -9,7 +9,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-lint
+# llmwiki-lint
 
 Run quality checks across the wiki — broken wikilinks, missing frontmatter,
 unknown tags, stale references.

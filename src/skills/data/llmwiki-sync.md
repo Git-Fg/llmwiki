@@ -1,5 +1,5 @@
 ---
-name: wiki-sync
+name: llmwiki-sync
 description: |
   New-device setup, tailnet git sync. Routes to `llmwiki-cli init`,
   `llmwiki-cli install-skill`, and `git` operations on the wiki repo.
@@ -9,7 +9,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*), Bash(git:*)
 ---
 
-# wiki-sync
+# llmwiki-sync
 
 Get the wiki onto a new machine, or sync wikis between devices over tailnet git.
 

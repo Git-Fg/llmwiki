@@ -1,5 +1,5 @@
 ---
-name: wiki-troubleshooting
+name: llmwiki-troubleshooting
 description: |
   Diagnose wiki errors. Routes to `llmwiki-cli doctor`,
   `llmwiki-cli config validate`, and the per-command `--help`. Use
@@ -9,7 +9,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-troubleshooting
+# llmwiki-troubleshooting
 
 Diagnose what's broken when a wiki command fails or returns wrong results.
 

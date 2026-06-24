@@ -1,5 +1,5 @@
 ---
-name: wiki-ingest
+name: llmwiki-ingest
 description: |
   Add a source file to the wiki. Routes to `llmwiki-cli ingest`. Use
   when the user asks to add a new source, ingest a file, or append
@@ -8,7 +8,7 @@ description: |
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki-ingest
+# llmwiki-ingest
 
 Add a source file to `raw/` and append a log entry. Pair with `embed`
 to make the new source searchable.
