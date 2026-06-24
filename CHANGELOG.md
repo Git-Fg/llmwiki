@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.3.30 — Cross-host install path
+
+**Added — `llmwiki-cli install-skill --install-path <dir>`:**
+- Override the default install directory to target a specific host's
+  skills directory.
+- Default behavior is unchanged: `--global` → `$HOME/.agents/skills/wiki`
+  (works for Kimi Code and any host that follows the
+  [agentskills.io](https://agentskills.io/) cross-host convention).
+- New examples:
+  ```bash
+  # Claude Code
+  llmwiki-cli install-skill --global --install-path ~/.claude/skills/wiki
+  # Cursor (note: Cursor does not yet support SKILL.md; uses .cursorrules)
+  llmwiki-cli install-skill --global --install-path ~/.cursor/skills/wiki
+  # Kimi brand path (in addition to the default ~/.agents/skills/ fallback)
+  llmwiki-cli install-skill --global --install-path ~/.kimi/skills/wiki
+  # Explicit project install at a non-default path
+  llmwiki-cli install-skill --workspace /path/to/wiki --install-path /path/to/wiki/.claude/skills/wiki
+  ```
+- Tilde (`~`) is expanded to `$HOME` so `--install-path ~/foo/bar` works
+  the same as `--install-path $HOME/foo/bar`.
+- Tested: 2 new tests in `tests/install_skill_test.rs`
+  (`install_skill_install_path_overrides_default`,
+  `install_skill_install_path_expands_tilde`).
+
+**Why this was needed:** v0.3.29 installed to `~/.agents/skills/wiki/`
+which is the cross-host generic fallback. Anthropic's [Claude Code Skills
+docs](https://code.claude.com/docs/en/skills) document that Claude Code
+reads from `~/.claude/skills/` (a brand path, not the generic fallback).
+Users on Claude Code had no way to install the skill to a path their
+agent would actually scan, so the install was silently invisible.
+The new `--install-path` flag resolves that gap without changing the
+default for existing users.
+
+**Changed — `build.rs` cleanup:**
+- Dropped redundant `cargo:rerun-if-changed=skills/SKILL.md` (rust-embed
+  emits its own per-file rerun triggers). Behavior unchanged; ~1 line
+  removed + comment explaining the delegation.
+
+**Verification:**
+- 284 tests pass (was 282; +2 for the new flag and tilde expansion)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+- `llmwiki-cli install-skill --install-path <tmp>` verified: writes
+  byte-identical hub to the custom path
+- Tilde expansion verified: `--install-path ~/test-wiki-tilde` resolves
+  to `$HOME/test-wiki-tilde`
+
+**Deferred to v0.3.31+:**
+- `LLMWIKI_SKILLS_DIR` env var override (debugging aid)
+- `skill get --all` and `skill get --full` (matches agent-browser's API;
+  useful when content grows beyond a single SKILL.md per sub-skill)
+- `references/` and `templates/` per-skill subdirectory support
+- Stale `~/.agents/skills/wiki/{SETUP,INGEST,...}/` folders from
+  v0.3.28 are auto-cleaned by `install-skill` (the directory is removed
+  and recreated with just the hub); no action needed.
+
 ## v0.3.29 — Flat skill bundle
 
 **Removed — `marketplace/` directory and all plugin-manifest plumbing:**

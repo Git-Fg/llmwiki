@@ -42,3 +42,46 @@ fn install_skill_workspace_writes_local_hub_only() {
 
     assert!(exists().eval(&workspace.join(".agents/skills/wiki/SKILL.md")));
 }
+
+#[test]
+fn install_skill_install_path_overrides_default() {
+    // v0.3.30: `--install-path <dir>` lets users target a specific host's
+    // skills directory (e.g. `~/.claude/skills/wiki` for Claude Code).
+    let tmp = tempfile::tempdir().unwrap();
+    let custom = tmp.path().join("custom-host/skills/wiki");
+
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("install-skill")
+        .arg("--install-path")
+        .arg(&custom)
+        .assert()
+        .success();
+
+    assert!(exists().eval(&custom.join("SKILL.md")));
+    // Hub contents must be byte-identical with the embedded source.
+    let installed = std::fs::read_to_string(custom.join("SKILL.md")).unwrap();
+    let embedded = llmwiki_cli::skills::hub();
+    assert_eq!(installed, embedded);
+}
+
+#[test]
+fn install_skill_install_path_expands_tilde() {
+    // `--install-path ~/...` should expand to $HOME on Unix.
+    let home = tempfile::tempdir().unwrap();
+    let custom = home.path().join("tilde-target");
+
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .env("HOME", home.path())
+        .arg("install-skill")
+        .arg("--install-path")
+        .arg(format!(
+            "~/{}",
+            custom.file_name().unwrap().to_string_lossy()
+        ))
+        .assert()
+        .success();
+
+    assert!(exists().eval(&custom.join("SKILL.md")));
+}

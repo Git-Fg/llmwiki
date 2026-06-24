@@ -15,11 +15,13 @@ include!("src/cli/doctor_report.rs");
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=skills/SKILL.md");
     println!("cargo:rerun-if-changed=src/core/config.rs");
     println!("cargo:rerun-if-changed=src/core/config_types.rs");
     println!("cargo:rerun-if-changed=src/cli/doctor.rs");
     println!("cargo:rerun-if-changed=src/cli/doctor_report.rs");
+    // Note: `rust-embed` (in `src/skills/mod.rs`) emits its own
+    // `cargo:rerun-if-changed=` lines for every file in the `skills/`
+    // folder, so we don't need to list them here.
 
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let manifest_path = Path::new(&manifest_dir);

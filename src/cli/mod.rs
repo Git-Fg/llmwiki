@@ -243,6 +243,12 @@ pub enum Command {
         global: bool,
         #[arg(long)]
         workspace: Option<std::path::PathBuf>,
+        /// Override the install directory. Useful for hosts that don't read
+        /// the default `~/.agents/skills/` (e.g. `--install-path
+        /// ~/.claude/skills/wiki` for Claude Code, `~/.cursor/skills/wiki`
+        /// for Cursor). Tilde (`~`) is expanded to $HOME.
+        #[arg(long, value_name = "DIR")]
+        install_path: Option<std::path::PathBuf>,
     },
     /// Print version
     Version,
@@ -489,12 +495,15 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Skill(args)) => crate::cli::skill::run(args),
-        Some(Command::InstallSkill { global, workspace }) => {
-            crate::cli::install_skill::run(crate::cli::install_skill::InstallSkillArgs {
-                global,
-                workspace,
-            })
-        }
+        Some(Command::InstallSkill {
+            global,
+            workspace,
+            install_path,
+        }) => crate::cli::install_skill::run(crate::cli::install_skill::InstallSkillArgs {
+            global,
+            workspace,
+            install_path,
+        }),
         Some(Command::Ingest {
             source,
             no_compile,
