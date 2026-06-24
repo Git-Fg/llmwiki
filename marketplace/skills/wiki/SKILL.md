@@ -49,7 +49,7 @@ For AI agents editing wiki-root.toml or per-workspace config.toml:
 
 1. Run `wiki config show-effective` first to see what's resolved
 2. Run `wiki config show-schema` (with `--section wiki` or `--section nim`) to discover available keys
-3. Edit the file with the Edit tool
+3. Modify the config file (preserve formatting — keys may include inline tables, multi-line arrays, etc.)
 4. Run `wiki config validate` after every change — it catches:
    - Unknown keys (typos)
    - Invalid TOML syntax

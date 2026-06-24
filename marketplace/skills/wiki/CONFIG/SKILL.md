@@ -52,9 +52,9 @@ license: Apache-2.0
 
 For AI agents editing wiki-root.toml or per-workspace config.toml:
 
-1. **Read current state**: `wiki config show-effective`
+1. **Show current state**: `wiki config show-effective`
 2. **Discover available keys**: `wiki config show-schema` (filter with `--section wiki|nim`)
-3. **Edit the file** (use Edit tool, preserve formatting)
+3. **Modify the config file** (preserve formatting — keys may include inline tables, multi-line arrays, etc.)
 4. **Validate after every change**: `wiki config validate`
 5. **Diagnose if something feels wrong**: `wiki doctor`
 
