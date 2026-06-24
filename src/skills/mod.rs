@@ -124,16 +124,57 @@ mod tests {
         assert_eq!(normalize_topic("  query  "), "wiki-query");
     }
 
+    /// Markers that, if found in the hub, would indicate sub-skill body
+    /// content has leaked into the single-file entrypoint. Every entry
+    /// here is a string that appears in at least one `src/skills/data/*.md`
+    /// file and MUST NOT appear in `skills/SKILL.md`.
+    ///
+    /// Add new markers here when adding new sub-skills — pick one
+    /// distinctive phrase per sub-skill. The test fails fast if anyone
+    /// copies a sub-skill workflow into the hub.
+    const LEAK_MARKERS: &[&str] = &[
+        "wiki-search",        // sub-skill frontmatter + body refs (4 files)
+        "wiki-config",        // sub-skill frontmatter + body refs (4 files)
+        "llmwiki-cli embed",  // wiki-embed sub-skill workflow (6 files)
+        "llmwiki-cli ingest", // wiki-ingest sub-skill workflow (1 file)
+        "## Workflow",        // common sub-skill section header (7 files)
+        "Do NOT use for:",    // sub-skill frontmatter contrast line (9 files)
+    ];
+
     #[test]
     fn hub_does_not_contain_sub_skill_bodies_inline() {
         // The hub must redirect sub-skill content to `skill get`, never
-        // duplicate it inline. Verify the hub does not mention
-        // `nvidia/nv-embed` (a sub-skill fact) which would indicate
-        // content drift.
+        // duplicate it inline. Every LEAK_MARKERS entry below is a string
+        // verified to appear in at least one sub-skill but never in the hub.
         let content = hub();
-        assert!(
-            !content.contains("nvidia/nv-embed"),
-            "hub leaks sub-skill detail; use `skill get wiki-models` instead"
-        );
+        for marker in LEAK_MARKERS {
+            assert!(
+                !content.contains(marker),
+                "hub leaks sub-skill content via marker {marker:?}; \
+                 remove it from skills/SKILL.md and route via `skill get <topic>`"
+            );
+        }
+    }
+
+    #[test]
+    fn leak_markers_are_actually_present_in_sub_skills() {
+        // Meta-guard: every LEAK_MARKERS entry must appear in at least one
+        // sub-skill body. If a marker stops appearing (sub-skill removed or
+        // reworded), the previous test would silently become a no-op.
+        // This test forces the marker list to stay in sync with reality.
+        let stems: Vec<String> = list_skills().into_iter().map(|(s, _)| s).collect();
+        assert!(!stems.is_empty(), "no sub-skills found — bundle is empty");
+        assert!(!LEAK_MARKERS.is_empty(), "LEAK_MARKERS list is empty");
+        for marker in LEAK_MARKERS {
+            let present = stems
+                .iter()
+                .any(|stem| find_skill(stem).is_some_and(|body| body.contains(marker)));
+            assert!(
+                present,
+                "LEAK_MARKERS entry {marker:?} no longer matches any sub-skill body; \
+                 remove it from src/skills/mod.rs::tests::LEAK_MARKERS to keep the \
+                 leak-guard test meaningful"
+            );
+        }
     }
 }
