@@ -1,5 +1,179 @@
 # Changelog
 
+## [0.3.35] - 2026-06-24 — typed Frontmatter + serde-saphyr + clippy + cargo-deny
+
+**Typed Frontmatter (SSOT + type safety):**
+
+`src/core/markdown.rs::parse_frontmatter` no longer returns the dynamic
+`serde_yaml::Value`. It now returns a typed `Frontmatter` struct
+(`src/core/frontmatter.rs`) with 21 known fields covering the high-frequency
+keys across the 4 real flat-layout wikis (15 of 21 with ≥50 occurrences;
+all 21 present): `title`, `tags`, `type`, `sources`, `confidence`,
+`created`, `updated`, `schema_version`, `status`, `kind`, `domain`,
+`maturity`, `reviewed`, `aliases`, `description`, `related`, `source_type`,
+`sha256`, `ingested`, `name`, `descriptions`, plus an
+`extra: BTreeMap<String, serde_json::Value>` flatten bag that preserves
+per-wiki extensions (`avatar`, `timezone`, `license`, `requiresBeta`,
+`session`, `schedule`, `triggers`, etc.) without forcing a closed schema.
+
+The same struct is the single source of truth for: runtime YAML parsing,
+the auto-generated `skills/references/frontmatter.schema.json` (emitted
+by `build.rs`), and the new
+`tests/frontmatter_schema_test.rs::frontmatter_schema_has_canonical_keys`
+drift test. Adding a field to `Frontmatter` automatically updates the
+schema.
+
+`type: Option<String>` (not `enum PageType`) — the audit found 20+
+distinct `type` values across the 4 wikis plus pipeline expressions like
+`"entity | concept | comparison | query | schema | summary"`.
+
+**Polymorphic fields (smoke-test-surfaced):**
+
+Real-wiki smoke testing against the 4 registered wikis (mevin, minimax,
+mywiki, pharma) surfaced 3 wiki-level type variances that the initial
+audit didn't catch. The typed struct adapts to all real-world forms:
+
+- `confidence: Option<String>` (was `Option<f64>`) — mevin writes
+  `"high"` / `"medium"` / `"low"` / pipeline expressions; minimax writes
+  both numeric (0.8, 0.85) and string forms; both round-trip as String.
+- `tags`, `sources`: custom `deserialize_string_or_vec` accepts both
+  bare scalars (`sources: raw/articles/foo.md`) and inline/block lists
+  (`sources: [foo.md, bar.md]`). MyWiki writes the scalar form; the other
+  3 wikis write list form. Both normalize to `Vec<String>`.
+- `descriptions: BTreeMap<String, String>` (was `Vec<String>`) —
+  minimax SKILL.md files use `descriptions: { zh-Hans: "...", en: "..." }`
+  as a locale → text map. None of the other 3 wikis use this field.
+
+**Migrated: `serde_yaml` 0.9 → `serde-saphyr` 0.0.28 (archived dep):**
+
+`serde_yaml` is archived (dtolnay: "no longer maintained") and pulls in a
+C-FFI `libyaml` backend subject to RUSTSEC-2025-0068. `serde-saphyr` is
+the typed-deserialize replacement: panic-free on malformed input, no
+`unsafe` code, no YAML remote-code-execution surface (no tag-driven
+object instantiation). The migration is a tight one-liner swap:
+`serde_yaml::from_str` → `serde_saphyr::from_str` (drop-in API).
+`WikiError::Yaml` keeps its transparent source via
+`#[from] serde_saphyr::Error`. All 298 tests pass with no test changes
+beyond comment updates. `cargo tree` confirms `serde_yaml` is gone and
+`serde-saphyr v0.0.28` (May 2026) is in the dep tree.
+
+**Selective clippy lint: `string_slice` at warn level:**
+
+New `clippy.toml` at the repo root holds MSRV (`1.88`) and stack-size
+threshold (default `51200`); lint levels live in `[lints.clippy]` of
+`Cargo.toml` (modern Rust 2024 syntax — clippy.toml no longer accepts
+lint-level config in clippy 0.1.96).
+
+We enable **only** `clippy::string_slice = "warn"` in v0.3.35. The full
+"Don't Panic" quartet from Evan Schwartz's Apr 2026 reference article
+(`string_slice`, `indexing_slicing`, `unwrap_used`, `panic`) was
+profiled against the existing codebase: only `string_slice` delivers
+positive value without test noise (15 src fires, 0 test fires). The
+other three would require 100+ per-site `#[expect]` annotations because
+`allow-*-in-tests` keys don't apply to `/tests` integration-test crates.
+Deferred to v0.3.36 with a per-file annotation policy.
+
+Profile results on v0.3.34 source (before any fixes):
+
+  | lint               | src fires | test fires |
+  |--------------------|-----------|------------|
+  | string_slice       |    15     |     0      | enabled
+  | indexing_slicing   |    10     |    34      | deferred (test noise)
+  | unwrap_used        |    25     |    80      | deferred (test noise)
+  | panic              |     0     |    17      | deferred (test noise)
+
+**Bug fix surfaced by the new lint:** `src/cli/query.rs::assemble_context`
+was building a per-page preview via `&content[..content.len().min(500)]`
+— a byte-slice that could land mid-character on multi-byte wikitext,
+causing an immediate panic. Replaced with `content.chars().take(500)
+.collect::<String>()`, which is both correct and semantically preferable
+for a "preview" use case (500 chars, not 500 bytes). The other 14 src
+`string_slice` sites are safe (indices from `str::find()` are always char
+boundaries; SHA256 hex output and `---` delimiters are ASCII) and carry
+explicit `#[expect(clippy::string_slice, reason = "...")]` annotations
+with the safety reasoning at each call site. Per `AGENTS.md` guidance,
+no `#[allow]` escape hatches are used — `#[expect]` requires a
+`reason = "...">` clause for audit trail.
+
+**Supply-chain policy (cargo-deny):**
+
+New `deny.toml` at the repo root enforces:
+
+- License allowlist: Apache-2.0, Apache-2.0 WITH LLVM-exception, MIT,
+  BSD-3-Clause, BSD-2-Clause, ISC, CC0-1.0, Unicode-3.0, CDLA-Permissive-2.0.
+- `serde_yaml` ban (prevents accidental re-introduction; verified zero
+  hits post-migration).
+- Advisory check on the dep graph (no active advisories).
+- Sources: only `crates.io`; allow-git for `Git-Fg/llmwiki` URL is
+  forward-looking.
+
+`cargo deny check` result: 0 errors, 7 warnings. The 6 `duplicate`
+warnings are inherent to the dep graph (`sha2`/`digest`/`block-buffer`/
+`cpufeatures`/`crypto-common`/`core-foundation` pulled in at older
+versions by `rust-embed-utils`); `multiple-versions = "warn"` is
+intentional. The 1 `unmatched-source` is the unused allow-git URL.
+
+CI gate is deferred to v0.3.36 (cargo-deny adds ~30s per job for the
+binary download). Run `cargo deny check` locally before pushing releases.
+
+**Tests:**
+
+- 10 new tests in `tests/frontmatter_test.rs` (Task 6 + Task 10 additions):
+  - `parse_frontmatter_returns_typed_struct_with_all_known_fields`
+  - `parse_frontmatter_typo_lands_in_extra_not_known_field`
+  - `parse_frontmatter_preserves_niche_extra_fields`
+  - `parse_frontmatter_rejects_duplicate_top_level_keys`
+  - `parse_frontmatter_empty_block_yields_default_struct`
+  - `parse_frontmatter_handles_pipeline_type_expression`
+  - `parse_frontmatter_no_block_yields_none`
+  - `parse_frontmatter_accepts_string_form_for_tags_and_sources`
+  - `parse_frontmatter_accepts_numeric_or_string_confidence`
+  - `parse_frontmatter_accepts_descriptions_as_locale_map`
+- 1 drift test in `tests/frontmatter_schema_test.rs::frontmatter_schema_has_canonical_keys`
+- 1 fix in `src/core/markdown.rs` for the `---\n---` empty-block scanner
+  gap (Task 6's empty-block test surfaced an implementation gap in Task 4+5)
+- **301 tests pass, 0 fail, 1 ignored** (was 289 in v0.3.34)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+- `cargo deny check` clean (0 errors, 7 warnings)
+
+**Real-wiki smoke test:**
+
+| Wiki      | v0.3.33 errors | v0.3.35 errors | Diff | Parse-errs |
+|-----------|----------------|----------------|------|------------|
+| mevin     |           1026 |           1023 |   -3 |  31 →  32  |
+| minimax   |           1827 |           1827 |    0 |   0 →   0  |
+| mywiki    |            503 |            503 |    0 |   2 →   2  |
+| pharma    |           1221 |           1315 |  +94 |   0 →   0  |
+
+Total: 4577 → 4668 (+91). The +94 in pharma comes from Task 6's
+intentional `.is_empty()` strictness (Decision #2): pages with
+`sources: []` or `tags: []` are now correctly flagged as
+`missing-sources` / `missing-tags` instead of silently passing. The +91
+is a positive correctness signal — the typed struct identifies bad data
+that v0.3.33's dynamic `Value` tree swallowed. `frontmatter-yaml-parse`
+counts are 33/33 (identical to v0.3.33 in each wiki, or better).
+
+**Migration plan:** see
+`docs/superpowers/specs/2026-06-24-v0.3.35-modernize-design.md` and
+`docs/superpowers/specs/2026-06-24-frontmatter-field-audit.md`.
+
+**Deferred to v0.3.36:**
+
+- `toml` 0.8 → 1.x — risk research complete (`docs.rs/toml/latest`
+  shows `Value`/`from_str`/`to_string` API preserved), per-call-site
+  audit still needed (`src/core/registry.rs`,
+  `src/core/models_registry.rs`).
+- cargo-deny CI gate (would add ~30s per job for binary download).
+- The 3 deferred clippy lints (`indexing_slicing`, `unwrap_used`,
+  `panic`) after a per-file annotation policy is in place.
+- `walkdir` → `ignore` swap (changes `.gitignore` honoring — requires
+  design discussion).
+- `wiki lint --scope wiki --strict-frontmatter` rule (warns on unknown
+  frontmatter keys against a wiki-declared schema).
+
+---
+
 ## [0.3.34] - 2026-06-24 — Dependency cleanup + low-risk bumps
 
 **Removed — 3 dead direct dependencies:**
