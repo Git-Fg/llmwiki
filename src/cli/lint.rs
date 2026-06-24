@@ -97,7 +97,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     Err(e) => {
                         all_issues.push(LintIssue {
                             severity: "error".into(),
-                            code: "frontmatter-parse".into(),
+                            code: "frontmatter-yaml-parse".into(),
                             path: page_path.clone(),
                             message: format!("could not parse YAML frontmatter: {e}"),
                         });
@@ -294,7 +294,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     Err(e) => {
                         all_issues.push(LintIssue {
                             severity: "error".into(),
-                            code: "frontmatter-parse".into(),
+                            code: "frontmatter-yaml-parse".into(),
                             path: rel.clone(),
                             message: format!("could not parse YAML frontmatter: {e}"),
                         });

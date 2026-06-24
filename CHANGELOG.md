@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.3.26 — Correctness
+
+**Breaking change — `wiki.pages_dir` default flipped:**
+- The default `wiki.pages_dir` is now `""` (flat layout) instead of `"wiki"`.
+  New users get a working wiki out-of-the-box without configuring
+  `pages_dir`. Users with legacy `wiki/`-subdir layouts MUST set
+  `wiki.pages_dir = "wiki"` explicitly. `wiki init --flat` is now the
+  default `wiki init` behavior; the legacy subdir layout is opt-in via
+  `wiki.pages_dir = "wiki"` or a future `--subdir` flag (out of scope
+  for v0.3.26). The pre-release real-wiki smoke test on the five real
+  wikis in `~/.agents/wiki-root.toml` confirms the new default works on
+  `mevin`, `minimax`, `mywiki`, `pharma`, `pharma.nim` (16,210 pages
+  reachable across the four flat-layout wikis).
+
+**New feature — `wiki.exclude_dirs`:**
+- `wiki.exclude_dirs: Vec<String>` configures bare directory basenames
+  that are skipped at any depth when walking the wiki for pages. Default
+  list (`default_exclude_dirs()` in `src/core/config_types.rs`) covers
+  dev-project noise (`node_modules`, `.git`, `target`, `dist`, `build`,
+  `.next`, `.cache`, `.turbo`, `.venv`, `venv`, `env`, `__pycache__`,
+  `.idea`, `.vscode`) and wiki-specific noise observed on the user's
+  real wikis (`.opencode`, `.claude`, `.mavis`, `.harness`, `.serena`,
+  `.principled`, `.swe-bench`). Custom `exclude_dirs` REPLACES the
+  default — append explicitly if you want both. Wired through
+  `workspace::walk_pages`, which replaces six `walkdir::WalkDir::new(...)`
+  call sites in `cli::{ls,tree,embed,lint,status}.rs`. Raw directory
+  walks (`raw/`) are unchanged.
+
+**New feature — `wiki init --flat`:**
+- The `--flat` flag forces flat-layout scaffolding (no `wiki/` subdir).
+  Plain `wiki init` follows `wiki.pages_dir` (default: flat). `wiki init`
+  now prints `Layout:` and `Config:` lines so users can audit what was
+  created.
+
+**Bugfix — lint code rename:**
+- The `frontmatter-parse` lint code (introduced v0.3.25) is renamed
+  `frontmatter-yaml-parse` for clarity — it fires ONLY on YAML parse
+  failures, not generic frontmatter issues.
+
+**Documentation:**
+- `marketplace/skills/wiki/SKILL.md` documents both layouts + the
+  `wiki config show-effective` command.
+- `AGENTS.md` filesystem-layout example shows the flat-layout form.
+
+**Cleanup:**
+- Deleted four per-workspace `~/.llmwiki-cli/<alias>/config.toml` files
+  whose only content was `pages_dir = ""`, now redundant under the new
+  default.
+
 ## [0.3.25] - 2026-06-23 — single-source-of-truth schema generation + flat-layout wiki support
 
 **Refactor (build pipeline):**
@@ -55,7 +104,7 @@
   triggered because the hardcoded `wiki/` path missed every real wiki
   on this machine; v0.3.25's flat-layout discovery exposed it on
   `~/.llmwiki-cli/` `mywiki`. `cli::lint` reports the same condition
-  as a new `frontmatter-parse` lint issue (severity `error`) and
+  as a new `frontmatter-yaml-parse` lint issue (severity `error`) and
   continues checking the remaining pages. New CLI tests
   `lint_resilient_to_unparseable_frontmatter` and
   `flat_layout_ls_resilient_to_unparseable_frontmatter` lock the

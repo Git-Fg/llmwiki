@@ -50,7 +50,7 @@ fn lint_resilient_to_unparseable_frontmatter() {
     // v0.3.25+: lint must not crash the whole run when one page has YAML
     // that `serde_yaml` cannot parse (e.g. duplicate top-level keys like
     // `type:` appearing twice). The bad page should be reported as a
-    // `frontmatter-parse` lint issue, the good page should still be checked
+    // `frontmatter-yaml-parse` lint issue, the good page should still be checked
     // normally, and the run should exit 2 (errors > 0) instead of panicking.
     let tmp = tempfile::tempdir().unwrap();
     let wiki = tmp.path();
@@ -75,7 +75,7 @@ fn lint_resilient_to_unparseable_frontmatter() {
         .arg("lint")
         .assert()
         .code(2)
-        .stdout(str::contains("frontmatter-parse"))
+        .stdout(str::contains("frontmatter-yaml-parse"))
         .stdout(str::contains("missing-title"));
 }
 
