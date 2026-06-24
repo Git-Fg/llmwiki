@@ -7,8 +7,6 @@ pub mod init;
 pub mod install_skill;
 pub mod lint;
 pub mod ls;
-pub mod lsp;
-pub mod mcp;
 pub mod models;
 pub mod query;
 pub mod search;
@@ -179,21 +177,7 @@ pub enum Command {
         #[command(subcommand)]
         cmd: ConfigCmd,
     },
-    /// Run the LSP server (stdio)
-    Lsp(LspArgs),
-    /// Run the MCP server (stdio)
-    Mcp(McpArgs),
 }
-
-#[derive(clap::Args, Debug)]
-pub struct LspArgs {
-    /// Transport (currently only stdio)
-    #[arg(long, default_value = "stdio")]
-    pub transport: String,
-}
-
-#[derive(clap::Args, Debug)]
-pub struct McpArgs {}
 
 #[derive(clap::Subcommand, Debug)]
 pub enum ConfigCmd {
@@ -475,8 +459,6 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Config { cmd }) => crate::cli::config::run(cmd).await,
-        Some(Command::Lsp(args)) => crate::cli::lsp::run(args).await,
-        Some(Command::Mcp(args)) => crate::cli::mcp::run(args).await,
         Some(Command::Version) | None => {
             println!("llmwiki-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())
