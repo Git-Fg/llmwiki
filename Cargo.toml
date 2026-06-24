@@ -1,6 +1,6 @@
 [package]
 name = "llmwiki-cli"
-version = "0.3.34"
+version = "0.3.35"
 description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
 license = "Apache-2.0"
 repository = "https://github.com/Git-Fg/llmwiki"
@@ -20,7 +20,7 @@ clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.13", features = ["json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
+serde-saphyr = "0.0"
 serde_json = "1"
 walkdir = "2"
 anyhow = "1"
@@ -57,3 +57,23 @@ strip = "symbols"
 bin = "llmwiki-cli"
 pkg-url = "https://github.com/Git-Fg/llmwiki/releases/download/v{ version }/llmwiki-cli-{ target }.tar.gz"
 pkg-fmt = "tgz"
+
+[lints.clippy]
+# Don't Panic — UTF-8 boundary slicing in production parsers.
+# This is the highest-value of the four "Don't Panic" lints:
+# it catches real panics on multi-byte characters in wikilink
+# detection, JSON schema path matching, and content extraction.
+# Catches 15 production sites in v0.3.34 source; zero test noise.
+string_slice = "warn"
+
+# Skipped for v0.3.35 (deferred to v0.3.36):
+#   indexing_slicing — 77% of v0.3.34 fires are in test fixtures
+#     (slicing Vecs we just constructed, always safe). A blanket
+#     allow on /tests files is justified but adds churn. Defer until
+#     a per-file annotation policy is in place.
+#   unwrap_used — 81% of v0.3.34 fires are in test setup helpers
+#     (strip_prefix on paths we just built). allow-unwrap-in-tests
+#     does NOT apply to /tests integration-test crates (no #[cfg(test)]
+#     wrapping). Per-site #[expect] would be 100+ annotations.
+#   panic — ~17 fires, all in test helpers. Same justification as
+#     unwrap_used; defer together with it.

@@ -1,0 +1,13 @@
+# Clippy config: variable = value mappings only.
+# Lint levels (warn/deny/allow) live in Cargo.toml under [lints.clippy].
+#
+# Reference: https://doc.rust-lang.org/clippy/configuration.html
+
+# Match the MSRV in Cargo.toml (rust-version = "1.88"). Lints that
+# recognize MSRV skip suggestions that require a newer toolchain.
+msrv = "1.88"
+
+# Reasonable stack-frame limit (default 51200 bytes). Existing code
+# does not have deep recursion; flagging new code at this threshold
+# catches accidental quadratic structures.
+stack-size-threshold = 51200

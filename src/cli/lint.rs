@@ -63,7 +63,17 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
             for line in index_content.lines() {
                 if let Some(start) = line.find("](") {
                     let path_start = start + 2;
+                    // find returns a char boundary; path_start and the
+                    // inner find result are also char boundaries.
+                    #[expect(
+                        clippy::string_slice,
+                        reason = "both indices come from str::find which guarantees char boundaries"
+                    )]
                     if let Some(end) = line[path_start..].find(')') {
+                        #[expect(
+                            clippy::string_slice,
+                            reason = "both indices come from str::find which guarantees char boundaries"
+                        )]
                         let path = &line[path_start..path_start + end];
                         if pages_dir_prefix.is_empty() || path.starts_with(&pages_dir_prefix) {
                             *index_paths_seen.entry(path.to_string()).or_insert(0) += 1;
@@ -130,19 +140,15 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     }
                 }
 
-                if let Some(fm) = parsed.frontmatter.as_mapping() {
-                    if let Some(sources) = fm.get("sources").and_then(|v| v.as_sequence()) {
-                        for src in sources {
-                            if let Some(s) = src.as_str() {
-                                referenced_raws.insert(s.to_string());
-                            }
-                        }
+                if let Some(fm) = parsed.frontmatter.as_ref() {
+                    for src in &fm.sources {
+                        referenced_raws.insert(src.clone());
                     }
                 }
 
-                if let Some(fm) = parsed.frontmatter.as_mapping() {
-                    let created = fm.get("created").and_then(|v| v.as_str());
-                    let updated = fm.get("updated").and_then(|v| v.as_str());
+                if let Some(fm) = parsed.frontmatter.as_ref() {
+                    let created = fm.created.as_deref();
+                    let updated = fm.updated.as_deref();
 
                     if let Some(c) = created {
                         if chrono::NaiveDate::parse_from_str(c, "%Y-%m-%d").is_err() {
@@ -189,13 +195,21 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     let trimmed = line.trim();
                     if trimmed.starts_with("[^") {
                         if let Some(rest) = trimmed.strip_prefix("[^") {
+                            #[expect(clippy::string_slice, reason = "find returns a char boundary")]
                             if let Some(end) = rest.find("]:") {
                                 defs_seen.push(rest[..end].to_string());
-                            } else if let Some(end) = rest.find(']') {
-                                refs_seen.push(rest[..end].to_string());
+                            } else {
+                                #[expect(
+                                    clippy::string_slice,
+                                    reason = "find returns a char boundary"
+                                )]
+                                if let Some(end) = rest.find(']') {
+                                    refs_seen.push(rest[..end].to_string());
+                                }
                             }
                         }
                     } else if let Some(rest) = trimmed.strip_prefix("[^") {
+                        #[expect(clippy::string_slice, reason = "find returns a char boundary")]
                         if let Some(end) = rest.find(']') {
                             refs_seen.push(rest[..end].to_string());
                         }
@@ -302,7 +316,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     }
                 };
 
-                if parsed.frontmatter.as_mapping().is_none() {
+                if parsed.frontmatter.is_none() {
                     all_issues.push(LintIssue {
                         severity: "warn".into(),
                         code: "raw-no-frontmatter".into(),
@@ -311,20 +325,30 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     });
                 }
 
-                if let Some(fm) = parsed.frontmatter.as_mapping() {
-                    if let Some(declared_sha) = fm.get("sha256").and_then(|v| v.as_str()) {
+                if let Some(fm) = parsed.frontmatter.as_ref() {
+                    if let Some(declared_sha) = fm.sha256.as_deref() {
                         let mut hasher = Sha256::new();
                         hasher.update(parsed.body.as_bytes());
                         let computed = hex::encode(hasher.finalize());
                         if computed != declared_sha {
+                            // SHA256 hex strings are 64 ASCII chars; min(16)
+                            // always lands on a char boundary.
+                            #[expect(
+                                clippy::string_slice,
+                                reason = "SHA256 hex output is ASCII; min(16) is at a char boundary"
+                            )]
+                            let declared_short = &declared_sha[..declared_sha.len().min(16)];
+                            #[expect(
+                                clippy::string_slice,
+                                reason = "SHA256 hex output is ASCII; min(16) is at a char boundary"
+                            )]
+                            let computed_short = &computed[..computed.len().min(16)];
                             all_issues.push(LintIssue {
                                 severity: "error".into(),
                                 code: "raw-drift".into(),
                                 path: rel.clone(),
                                 message: format!(
-                                    "sha256 drift: declared `{}` but body hashes to `{}`",
-                                    &declared_sha[..declared_sha.len().min(16)],
-                                    &computed[..computed.len().min(16)]
+                                    "sha256 drift: declared `{declared_short}` but body hashes to `{computed_short}`",
                                 ),
                             });
                         }
@@ -337,9 +361,9 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                         });
                     }
 
-                    let has_locator = fm.contains_key("source_url")
-                        || fm.contains_key("session_url")
-                        || fm.contains_key("source_path");
+                    let has_locator = fm.extra.contains_key("source_url")
+                        || fm.extra.contains_key("session_url")
+                        || fm.extra.contains_key("source_path");
                     if !has_locator {
                         all_issues.push(LintIssue {
                             severity: "warn".into(),

@@ -29,40 +29,43 @@ pub fn check_frontmatter(path: &str, content: &str) -> Vec<LintIssue> {
         }
     };
 
-    let fm = match parsed.frontmatter.as_mapping() {
-        Some(m) => m,
-        None => {
-            issues.push(LintIssue {
-                severity: "error".into(),
-                code: "missing-frontmatter".into(),
-                path: path.into(),
-                message: "frontmatter block is empty".into(),
-            });
-            return issues;
-        }
+    let Some(fm) = parsed.frontmatter.as_ref() else {
+        issues.push(LintIssue {
+            severity: "error".into(),
+            code: "missing-frontmatter".into(),
+            path: path.into(),
+            message: "frontmatter block is empty".into(),
+        });
+        return issues;
     };
 
-    for field in &[
-        "schema_version",
-        "title",
-        "created",
-        "updated",
-        "type",
-        "tags",
-        "sources",
-    ] {
-        if !fm.contains_key(*field) {
-            let code = field.replace('_', "-");
-            issues.push(LintIssue {
-                severity: "error".into(),
-                code: format!("missing-{code}"),
-                path: path.into(),
-                message: format!("frontmatter missing required field `{field}`"),
-            });
-        }
+    // Required-field checks. Option fields: is_none() means missing.
+    // Vec fields: is_empty() means missing (stricter than contains_key —
+    // an empty `tags: []` is effectively missing).
+    let missing: Vec<&str> = [
+        ("schema_version", fm.schema_version.is_none()),
+        ("title", fm.title.is_none()),
+        ("created", fm.created.is_none()),
+        ("updated", fm.updated.is_none()),
+        ("type", fm.page_type.is_none()),
+        ("tags", fm.tags.is_empty()),
+        ("sources", fm.sources.is_empty()),
+    ]
+    .into_iter()
+    .filter(|(_, missing)| *missing)
+    .map(|(name, _)| name)
+    .collect();
+    for field in missing {
+        let code = field.replace('_', "-");
+        issues.push(LintIssue {
+            severity: "error".into(),
+            code: format!("missing-{code}"),
+            path: path.into(),
+            message: format!("frontmatter missing required field `{field}`"),
+        });
     }
 
-    if let Some(type_val) = fm.get("type").and_then(|v| v.as_str()) {
+    if let Some(type_val) = fm.page_type.as_deref() {
         if !VALID_TYPES.contains(&type_val) {
             issues.push(LintIssue {
                 severity: "error".into(),
@@ -77,11 +80,8 @@ pub fn check_frontmatter(path: &str, content: &str) -> Vec<LintIssue> {
         }
     }
 
-    if let Some(tags) = fm.get("tags").and_then(|v| v.as_sequence()) {
-        let tag_strs: Vec<String> = tags
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-            .collect();
+    if !fm.tags.is_empty() {
+        let tag_strs: Vec<String> = fm.tags.clone();
 
         let dup_errors = tag_tax::validate_tag_list(&tag_strs);
         for msg in dup_errors {
@@ -105,17 +105,13 @@ pub fn check_frontmatter(path: &str, content: &str) -> Vec<LintIssue> {
         }
     }
 
-    if let Some(sources) = fm.get("sources") {
-        if let Some(seq) = sources.as_sequence() {
-            if seq.is_empty() {
-                issues.push(LintIssue {
-                    severity: "warn".into(),
-                    code: "empty-sources".into(),
-                    path: path.into(),
-                    message: "sources list is empty".into(),
-                });
-            }
-        }
+    if fm.sources.is_empty() {
+        issues.push(LintIssue {
+            severity: "warn".into(),
+            code: "empty-sources".into(),
+            path: path.into(),
+            message: "sources list is empty".into(),
+        });
     }
 
     issues
