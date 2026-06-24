@@ -24,10 +24,11 @@ use crate::cli::skill::SkillArgs;
 #[command(
     name = "llmwiki-cli",
     version,
-    about = "Karpathy-style LLM Wiki",
-    long_about = "Manage a personal LLM Wiki: markdown pages + JSONL embeddings, no database.\n\
-                  Single binary; no server; works offline against local files.\n\
-                  NVIDIA NIM provides embeddings + optional LLM for RAG queries.\n\
+    about = "Your LLM's persistent memory",
+    long_about = "Your LLM's persistent memory in plain markdown — Karpathy-style wiki with\n\
+                  semantic search, citations, and no database. Single Rust binary; no server;\n\
+                  works offline against local files. NVIDIA NIM provides embeddings + optional\n\
+                  LLM for RAG queries.\n\
                   \n\
                   Quick start:\n  \
                     llmwiki-cli doctor                        # verify config + NIM\n  \
