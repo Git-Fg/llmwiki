@@ -44,8 +44,8 @@ pub fn list_skills() -> Vec<(String, usize)> {
     let mut out: Vec<(String, usize)> = SubSkillBundle::iter()
         .filter_map(|p| {
             let path = p.as_ref();
-            // Sub-skills are `wiki-{name}.md` flat files in the bundle.
-            if !path.starts_with("wiki-") || !path.ends_with(".md") {
+            // Sub-skills are `llmwiki-{name}.md` flat files in the bundle.
+            if !path.starts_with("llmwiki-") || !path.ends_with(".md") {
                 return None;
             }
             let stem = path.trim_end_matches(".md");
@@ -59,16 +59,21 @@ pub fn list_skills() -> Vec<(String, usize)> {
     out
 }
 
-/// Resolves a topic name to its file stem. Accepts:
-///   - `wiki-search` → `wiki-search`
-///   - `search` → `wiki-search`
-///   - `Search` → `wiki-search`
+/// Resolves a topic name to its file stem. Accepts ONLY the canonical
+/// `llmwiki-X` prefix; bare topic names get the prefix added. Legacy
+/// `wiki-X` names are NOT supported (hard cut at v0.3.36) — they pass
+/// through unchanged so the caller surfaces a single "unknown topic"
+/// error.
 fn normalize_topic(name: &str) -> String {
     let lower = name.trim().to_ascii_lowercase();
-    if lower.starts_with("wiki-") {
+    if lower.starts_with("llmwiki-") {
+        lower
+    } else if lower.starts_with("wiki-") {
+        // Legacy alias: pass through unchanged so it looks like any
+        // other unknown topic to the caller.
         lower
     } else {
-        format!("wiki-{lower}")
+        format!("llmwiki-{lower}")
     }
 }
 
@@ -92,36 +97,36 @@ mod tests {
     fn hub_loads() {
         let content = hub();
         assert!(content.starts_with("---\n"));
-        assert!(content.contains("name: wiki"));
+        assert!(content.contains("name: llmwiki"));
     }
 
     #[test]
     fn find_skill_accepts_full_and_short_names() {
-        assert!(find_skill("wiki-search").is_some());
+        assert!(find_skill("llmwiki-search").is_some());
         assert!(find_skill("search").is_some());
         assert!(find_skill("Search").is_some());
         assert!(find_skill("nonexistent").is_none());
     }
 
     #[test]
-    fn list_skills_returns_wiki_prefixed_files() {
+    fn list_skills_returns_llmwiki_prefixed_files() {
         let skills = list_skills();
-        // Sub-skill count is the count of `wiki-*.md` files in
+        // Sub-skill count is the count of `llmwiki-*.md` files in
         // src/skills/data/ — assert only the invariants, not the literal
         // count, so adding/removing a sub-skill does not break this test.
         assert!(!skills.is_empty(), "no sub-skills found in bundle");
         for (stem, lines) in &skills {
-            assert!(stem.starts_with("wiki-"), "unexpected stem {stem}");
+            assert!(stem.starts_with("llmwiki-"), "unexpected stem {stem}");
             assert!(*lines > 0, "sub-skill {stem} has 0 lines");
         }
     }
 
     #[test]
     fn normalize_topic_handles_prefix_and_case() {
-        assert_eq!(normalize_topic("search"), "wiki-search");
-        assert_eq!(normalize_topic("wiki-search"), "wiki-search");
-        assert_eq!(normalize_topic("SEARCH"), "wiki-search");
-        assert_eq!(normalize_topic("  query  "), "wiki-query");
+        assert_eq!(normalize_topic("search"), "llmwiki-search");
+        assert_eq!(normalize_topic("llmwiki-search"), "llmwiki-search");
+        assert_eq!(normalize_topic("SEARCH"), "llmwiki-search");
+        assert_eq!(normalize_topic("  query  "), "llmwiki-query");
     }
 
     /// Markers that, if found in the hub, would indicate sub-skill body
@@ -133,12 +138,12 @@ mod tests {
     /// distinctive phrase per sub-skill. The test fails fast if anyone
     /// copies a sub-skill workflow into the hub.
     const LEAK_MARKERS: &[&str] = &[
-        "wiki-search",        // sub-skill frontmatter + body refs (4 files)
-        "wiki-config",        // sub-skill frontmatter + body refs (4 files)
-        "llmwiki-cli embed",  // wiki-embed sub-skill workflow (6 files)
-        "llmwiki-cli ingest", // wiki-ingest sub-skill workflow (1 file)
-        "## Workflow",        // common sub-skill section header (7 files)
-        "Do NOT use for:",    // sub-skill frontmatter contrast line (9 files)
+        "llmwiki-search",        // sub-skill frontmatter + body refs (4 files)
+        "llmwiki-config",        // sub-skill frontmatter + body refs (4 files)
+        "llmwiki-cli embed",     // llmwiki-embed sub-skill workflow (6 files)
+        "llmwiki-cli ingest",    // llmwiki-ingest sub-skill workflow (1 file)
+        "## Workflow",           // common sub-skill section header (7 files)
+        "Do NOT use for:",       // sub-skill frontmatter contrast line (9 files)
     ];
 
     #[test]
