@@ -23,6 +23,17 @@ pub fn parse_frontmatter(content: &str) -> Result<ParsedPage, WikiError> {
     // Find closing ---
     let after_first = &trimmed[3..];
     let after_first = after_first.strip_prefix('\n').unwrap_or(after_first);
+    // Special case: empty frontmatter block `---\n---<body>` or `---\n---`.
+    // After stripping the opening `\n`, the remaining text starts with the
+    // closing `---` (followed by `\n` or end-of-input). The general
+    // `\n---` scan below would not find a match.
+    if let Some(rest) = after_first.strip_prefix("---") {
+        let body = rest.strip_prefix('\n').unwrap_or(rest).to_string();
+        return Ok(ParsedPage {
+            frontmatter: Some(Frontmatter::default()),
+            body,
+        });
+    }
     let end = after_first
         .find("\n---")
         .ok_or_else(|| WikiError::Other(anyhow::anyhow!("unclosed frontmatter")))?;
