@@ -413,6 +413,11 @@ fn print_human(output: &LsOutput) {
         println!("\nRaw sources ({}):\n", raw.len());
         for r in raw {
             let sha_short = if r.sha256.len() > 12 {
+                // SHA256 hex output is ASCII; byte 12 is always a char boundary.
+                #[expect(
+                    clippy::string_slice,
+                    reason = "SHA256 hex output is ASCII; len > 12 implies [..12] is at a char boundary"
+                )]
                 &r.sha256[..12]
             } else {
                 &r.sha256

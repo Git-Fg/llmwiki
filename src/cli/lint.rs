@@ -63,7 +63,17 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
             for line in index_content.lines() {
                 if let Some(start) = line.find("](") {
                     let path_start = start + 2;
+                    // find returns a char boundary; path_start and the
+                    // inner find result are also char boundaries.
+                    #[expect(
+                        clippy::string_slice,
+                        reason = "both indices come from str::find which guarantees char boundaries"
+                    )]
                     if let Some(end) = line[path_start..].find(')') {
+                        #[expect(
+                            clippy::string_slice,
+                            reason = "both indices come from str::find which guarantees char boundaries"
+                        )]
                         let path = &line[path_start..path_start + end];
                         if pages_dir_prefix.is_empty() || path.starts_with(&pages_dir_prefix) {
                             *index_paths_seen.entry(path.to_string()).or_insert(0) += 1;
@@ -185,13 +195,21 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     let trimmed = line.trim();
                     if trimmed.starts_with("[^") {
                         if let Some(rest) = trimmed.strip_prefix("[^") {
+                            #[expect(clippy::string_slice, reason = "find returns a char boundary")]
                             if let Some(end) = rest.find("]:") {
                                 defs_seen.push(rest[..end].to_string());
-                            } else if let Some(end) = rest.find(']') {
-                                refs_seen.push(rest[..end].to_string());
+                            } else {
+                                #[expect(
+                                    clippy::string_slice,
+                                    reason = "find returns a char boundary"
+                                )]
+                                if let Some(end) = rest.find(']') {
+                                    refs_seen.push(rest[..end].to_string());
+                                }
                             }
                         }
                     } else if let Some(rest) = trimmed.strip_prefix("[^") {
+                        #[expect(clippy::string_slice, reason = "find returns a char boundary")]
                         if let Some(end) = rest.find(']') {
                             refs_seen.push(rest[..end].to_string());
                         }
@@ -313,14 +331,25 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                         hasher.update(parsed.body.as_bytes());
                         let computed = hex::encode(hasher.finalize());
                         if computed != declared_sha {
+                            // SHA256 hex strings are 64 ASCII chars; min(16)
+                            // always lands on a char boundary.
+                            #[expect(
+                                clippy::string_slice,
+                                reason = "SHA256 hex output is ASCII; min(16) is at a char boundary"
+                            )]
+                            let declared_short = &declared_sha[..declared_sha.len().min(16)];
+                            #[expect(
+                                clippy::string_slice,
+                                reason = "SHA256 hex output is ASCII; min(16) is at a char boundary"
+                            )]
+                            let computed_short = &computed[..computed.len().min(16)];
                             all_issues.push(LintIssue {
                                 severity: "error".into(),
                                 code: "raw-drift".into(),
                                 path: rel.clone(),
                                 message: format!(
                                     "sha256 drift: declared `{}` but body hashes to `{}`",
-                                    &declared_sha[..declared_sha.len().min(16)],
-                                    &computed[..computed.len().min(16)]
+                                    declared_short, computed_short
                                 ),
                             });
                         }

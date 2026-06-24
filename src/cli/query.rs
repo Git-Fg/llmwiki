@@ -101,12 +101,8 @@ pub async fn run(args: QueryArgs) -> Result<(), WikiError> {
     for (i, (path, _score)) in scored.iter().enumerate() {
         let full_path = ws.join(path);
         let content = std::fs::read_to_string(&full_path).unwrap_or_default();
-        context_parts.push(format!(
-            "[{}] {}:\n{}\n",
-            i + 1,
-            path,
-            &content[..content.len().min(500)]
-        ));
+        let preview: String = content.chars().take(500).collect();
+        context_parts.push(format!("[{}] {}:\n{}\n", i + 1, path, preview));
         citation_paths.push(path.clone());
     }
     let context = context_parts.join("\n");
