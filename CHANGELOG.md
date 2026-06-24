@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.3.27 — UX Polish
+
+**Bugfix — `wiki init` default aligned with read path (H1):**
+- Plain `wiki init` now scaffolds **flat layout** (pages at workspace root),
+  matching the `pages_dir = ""` read-path default introduced in v0.3.26.
+  New users see their pages immediately after `wiki init` without editing
+  config. `wiki init --subdir` explicitly opts into the legacy `wiki/`
+  subdirectory layout. `--flat` is still accepted for backward
+  compatibility with v0.3.26 scripts. `--flat` and `--subdir` are mutually
+  exclusive.
+
+**Bugfix — `wiki.exclude_dirs` is now additive (M2):**
+- User-provided `exclude_dirs` now **merges** with the built-in defaults
+  (`node_modules`, `.git`, `.opencode`, etc.) instead of replacing them.
+  This prevents users who add a single custom exclude from accidentally
+  losing the entire default exclusion list. The merge happens at
+  config-load time in both `load_config_unvalidated` and
+  `Registry::resolve_config`, so both `--workspace` and `--wiki <alias>`
+  paths benefit.
+
+**New feature — config key validation (M4):**
+- `wiki config validate` now warns on unknown keys under `[wiki]` and
+  `[nim]` sections. Typos like `pages_dirr = "wiki"` or
+  `embed_modle = "..."` are flagged instead of silently ignored by serde.
+
+**New test — `embed` exclusion (M3):**
+- Integration test verifies `wiki embed` skips pages under excluded
+  directories. Marked `#[ignore]` (requires real NIM API).
+
 ## v0.3.26 — Correctness
 
 **Breaking change — `wiki.pages_dir` default flipped:**

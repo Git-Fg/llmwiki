@@ -128,8 +128,8 @@ A test suite that uses `wiremock` and `tempfile`-isolated workspaces cannot dete
 
 The user's real wikis use the Karpathy pattern with pages at the workspace root (no `wiki/` subdirectory). v0.3.25 added `wiki.pages_dir` to `Config`:
 
-- **Default** `wiki.pages_dir = "wiki"` — backward-compatible with `wiki init`-created wikis (pages in `wiki/`).
-- **Flat layout** `wiki.pages_dir = ""` — pages live at workspace root (`comparisons/foo.md`, `queries/bar.md`, `index.md`).
+- **Default** `wiki.pages_dir = ""` (flat) — v0.3.26+ default, pages at workspace root. Used by all real wikis in `~/.agents/wiki-root.toml`.
+- **Legacy subdir** `wiki.pages_dir = "wiki"` — pages in `wiki/` subdirectory. Opt-in via config or `wiki init --subdir`.
 
 To switch a real wiki to flat layout, create `<wiki>/.llmwiki-cli/config.toml`:
 
@@ -172,6 +172,15 @@ The wiki supports two layouts, selected by `wiki.pages_dir` (default `""`, flat 
   (`wiki/<page>.md`). Set `wiki.pages_dir = "wiki"` to opt in. Used by
   `wiki init` before v0.3.26 and by any wiki that was scaffolded before
   the flat-layout default shipped.
+
+**`wiki.exclude_dirs` additive semantics (v0.3.27+):** User-provided
+`exclude_dirs` merges with built-in defaults. Adding
+`exclude_dirs = ["secret"]` retains all default exclusions plus "secret".
+The defaults cover dev-project noise (`node_modules`, `.git`, `target`,
+etc.) and wiki-specific noise from the real wikis (`.opencode`,
+`.claude`, `.mavis`, `.harness`, `.serena`, `.principled`,
+`.swe-bench`). See `src/core/workspace::DEFAULT_EXCLUDE_DIRS` for the
+full list.
 
 If a source wiki uses a different layout (e.g. Obsidian `notes/`),
 either move the files into one of the two supported layouts above, or
