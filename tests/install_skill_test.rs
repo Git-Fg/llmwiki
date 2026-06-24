@@ -17,7 +17,7 @@ fn install_skill_global_writes_bundle() {
 
     assert!(exists().eval(&agents_dir.join("wiki/SKILL.md")));
     assert!(exists().eval(&agents_dir.join("wiki/SETUP/SKILL.md")));
-    assert!(exists().eval(&agents_dir.join("wiki/MCP/SKILL.md")));
+    assert!(exists().eval(&agents_dir.join("wiki/CONFIG/SKILL.md")));
 }
 
 #[test]
