@@ -48,10 +48,12 @@ pub enum Command {
         #[arg(long)]
         alias: Option<String>,
         /// Force flat layout (pages at workspace root). Default scaffolds
-        /// the legacy `wiki/` subdir for backward compat; use `--flat` to
-        /// scaffold pages at workspace root instead.
+        /// pages at workspace root; use `--subdir` for legacy `wiki/` subdir.
         #[arg(long)]
         flat: bool,
+        /// Force legacy subdirectory layout (pages under `wiki/`).
+        #[arg(long, conflicts_with = "flat")]
+        subdir: bool,
         /// Tags for this wiki (repeatable)
         #[arg(long = "tag", value_name = "TAG")]
         tags: Vec<String>,
@@ -332,11 +334,13 @@ pub async fn run(cli: Cli) {
             path,
             alias,
             flat,
+            subdir,
             tags,
         }) => crate::cli::init::run(crate::cli::init::InitArgs {
             path,
             alias,
             flat,
+            subdir,
             tags,
         }),
         Some(Command::Models {

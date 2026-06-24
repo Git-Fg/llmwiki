@@ -53,22 +53,22 @@ fn init_with_flat_flag_creates_no_wiki_subdir() {
 }
 
 #[test]
-fn init_without_flat_flag_uses_subdirectory_layout() {
-    // v0.3.26+: plain `wiki init` (no `--flat`) scaffolds the legacy
-    // `wiki/` subdir layout for backward compatibility with existing
-    // tests + tooling. Users opt into flat layout via `--flat`.
+fn init_with_subdir_flag_uses_subdirectory_layout() {
+    // v0.3.27+: plain `wiki init` (no `--subdir`) scaffolds flat layout.
+    // Use `--subdir` to get the legacy `wiki/` subdir layout.
     let (_tmp, registry, mut cmd) = isolated_cmd();
     let target = _tmp.path().join("mywiki");
     cmd.env("WIKI_ROOT_CONFIG", &registry)
         .arg("init")
         .arg(&target)
+        .arg("--subdir")
         .arg("--alias")
         .arg("test-default")
         .assert()
         .success();
     assert!(
         target.join("wiki").exists(),
-        "plain init scaffolds wiki/ subdir for backward compat"
+        "--subdir scaffolds wiki/ subdir"
     );
     assert!(target.join("wiki/overview.md").exists());
     assert!(target.join("wiki/log.md").exists());
@@ -76,7 +76,7 @@ fn init_without_flat_flag_uses_subdirectory_layout() {
 
 #[test]
 fn init_prints_layout_and_config_path() {
-    // v0.3.26+: `wiki init` must report what layout it picked and where
+    // v0.3.27+: `wiki init` must report what layout it picked and where
     // the config file lives so users can audit.
     let (_tmp, registry, mut cmd) = isolated_cmd();
     let target = _tmp.path().join("mywiki");
@@ -92,4 +92,41 @@ fn init_prints_layout_and_config_path() {
         .stdout(predicates::str::contains("flat"))
         .stdout(predicates::str::contains("Config:"))
         .stdout(predicates::str::contains(".llmwiki-cli/config.toml"));
+
+    // Also test --subdir flag
+    let (_tmp2, registry2, mut cmd2) = isolated_cmd();
+    let target2 = _tmp2.path().join("mywiki2");
+    cmd2.env("WIKI_ROOT_CONFIG", &registry2)
+        .arg("init")
+        .arg(&target2)
+        .arg("--subdir")
+        .arg("--alias")
+        .arg("test-output2")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("Layout:"))
+        .stdout(predicates::str::contains("subdirectory"))
+        .stdout(predicates::str::contains("Config:"))
+        .stdout(predicates::str::contains(".llmwiki-cli/config.toml"));
+}
+
+#[test]
+fn init_without_flags_creates_flat_layout() {
+    // v0.3.27+: plain `wiki init` now scaffolds flat layout (no `wiki/` subdir).
+    let (_tmp, registry, mut cmd) = isolated_cmd();
+    let target = _tmp.path().join("mywiki");
+    cmd.env("WIKI_ROOT_CONFIG", &registry)
+        .arg("init")
+        .arg(&target)
+        .arg("--alias")
+        .arg("test-flat-default")
+        .assert()
+        .success();
+
+    assert!(!target.join("wiki").exists(), "wiki/ subdir should not exist by default");
+    assert!(target.join("index.md").exists());
+    assert!(target.join("overview.md").exists());
+    assert!(target.join("log.md").exists());
+    let cfg = fs::read_to_string(target.join(".llmwiki-cli/config.toml")).unwrap();
+    assert!(cfg.contains("pages_dir = \"\""), "config scaffold should reference flat default: {cfg}");
 }
