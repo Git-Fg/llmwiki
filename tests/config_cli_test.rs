@@ -249,6 +249,7 @@ description = "modify me"
 // duration of the test via `_dir`.
 
 use assert_cmd::Command;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str;
 
 fn isolated_cmd(reg_path: &std::path::Path) -> Command {
@@ -614,6 +615,71 @@ fn subprocess_config_validate_no_warnings_for_clean_config() {
     assert!(
         !stderr.contains("unknown key"),
         "clean config must not emit unknown-key warnings: {stderr}"
+    );
+}
+
+#[test]
+fn config_validate_after_edit_catches_typo() {
+    // v0.3.28+: AI agents that edit a wiki config (whether the central
+    // `wiki-root.toml` or a per-workspace `.llmwiki-cli/config.toml`) should
+    // run `wiki config validate` after every change. This test simulates
+    // that workflow: write a valid config, run validate (passes, no
+    // warnings), introduce a typo, run validate again (still exits 0 but
+    // emits the unknown-key warning on stderr).
+    let tmp = tempfile::tempdir().unwrap();
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(
+        &reg_path,
+        format!("[mevin]\npath = {:?}\n", workspace.display()),
+    )
+    .unwrap();
+
+    // 1. Valid config — validate should succeed with no warnings.
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[wiki]\npages_dir = \"\"\n\n[nim]\nembed_model = \"nvidia/nv-embed-v1\"\n",
+    )
+    .unwrap();
+
+    let output = isolated_cmd(&reg_path)
+        .args(["config", "validate"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "validate should pass for clean config: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unknown key"),
+        "clean config must not emit unknown-key warnings: {stderr}"
+    );
+
+    // 2. Introduce a typo (pages_dir → pages_dur) — validate should still
+    // exit 0 but surface the unknown-key warning on stderr so the agent
+    // catches its mistake before committing it.
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[wiki]\npages_dur = \"\"\n\n[nim]\nembed_model = \"nvidia/nv-embed-v1\"\n",
+    )
+    .unwrap();
+
+    let output = isolated_cmd(&reg_path)
+        .args(["config", "validate"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "validate should still succeed (warnings, not errors): stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("unknown key in [wiki]: pages_dur"),
+        "expected [wiki] typo warning in stderr: {stderr}"
     );
 }
 
@@ -1311,4 +1377,17 @@ fn show_effective_overrides_only_surfaces_wiki_and_retry_overrides() {
         stdout.contains("nim.retry.max_attempts"),
         "nim.retry.max_attempts should appear (overridden): {stdout}"
     );
+}
+
+#[test]
+fn show_schema_section_filters_output() {
+    let tmp = tempfile::tempdir().unwrap();
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace").arg(tmp.path())
+        .arg("config").arg("show-schema").arg("--section").arg("wiki")
+        .assert().success()
+        .stdout(predicates::str::contains("\"pages_dir\""))
+        .stdout(predicates::str::contains("\"exclude_dirs\""))
+        .stdout(predicates::str::contains("\"embed_model\"").not());
 }
