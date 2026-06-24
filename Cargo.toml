@@ -1,12 +1,12 @@
 [package]
 name = "llmwiki-cli"
 version = "0.3.35"
-description = "Karpathy-style LLM Wiki CLI — manage multiple wikis, embed pages, search semantically"
+description = "Your LLM's persistent memory in plain markdown. Multiple wikis, semantic search, citations, no database. Single Rust binary, NVIDIA NIM embeddings, agent-skill native."
 license = "Apache-2.0"
 repository = "https://github.com/Git-Fg/llmwiki"
 homepage = "https://github.com/Git-Fg/llmwiki"
 readme = "README.md"
-keywords = ["llmwiki", "karpathy-wiki", "wiki", "knowledge-base", "rag"]
+keywords = ["llmwiki", "llm-memory", "second-brain", "karpathy-wiki", "wiki", "knowledge-base", "rag", "semantic-search"]
 categories = ["command-line-utilities", "development-tools"]
 edition = "2021"
 rust-version = "1.88"
