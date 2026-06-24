@@ -7,3 +7,4 @@ embeddings.jsonl
 .wiki/cache/
 .env
 .env.local
+.worktrees/
