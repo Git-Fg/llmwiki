@@ -29,9 +29,9 @@ llmwiki-cli embed                   # (separate command) build embeddings.jsonl
 
 ## Sibling skills
 
-- `wiki-search` — find the freshly-ingested content
-- `wiki-query` — RAG question-answering over the new content
-- `wiki-lint` — check that the ingest produced valid pages
+- `llmwiki-search` — find the freshly-ingested content
+- `llmwiki-query` — RAG question-answering over the new content
+- `llmwiki-lint` — check that the ingest produced valid pages
 
 ## Full reference
 

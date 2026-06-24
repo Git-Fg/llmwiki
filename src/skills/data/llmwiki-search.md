@@ -4,7 +4,7 @@ description: |
   Find existing wiki content by semantic similarity over embedded chunks.
   Routes to `llmwiki-cli search`. Use when the user asks "find X in my
   wiki", "search the wiki", or "what pages mention Y".
-  Do NOT use for: RAG question-answering (use wiki-query), browsing files
+  Do NOT use for: RAG question-answering (use llmwiki-query), browsing files
   directly (use native file tools).
 allowed-tools: Bash(llmwiki-cli:*)
 ---
@@ -30,9 +30,9 @@ llmwiki-cli --wiki <alias> search ...   # search a different wiki without cd
 
 ## Sibling skills
 
-- `wiki-query` — when the user wants a synthesized answer with citations
-- `wiki-ingest` — when the content is missing (needs to be added first)
-- `wiki-troubleshooting` — when `search` returns empty after `embed`
+- `llmwiki-query` — when the user wants a synthesized answer with citations
+- `llmwiki-ingest` — when the content is missing (needs to be added first)
+- `llmwiki-troubleshooting` — when `search` returns empty after `embed`
 
 ## Full reference
 

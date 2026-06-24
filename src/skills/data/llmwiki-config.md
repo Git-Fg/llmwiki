@@ -5,7 +5,7 @@ description: |
   `llmwiki-cli config {show-effective, show-schema, validate, edit}`.
   Use when the user asks to change a wiki's pages_dir, exclude_dirs,
   NIM model, or any other setting; or when a config typo causes errors.
-  Do NOT use for: installing the binary (wiki-setup), editing wiki content.
+  Do NOT use for: installing the binary (llmwiki-setup), editing wiki content.
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
@@ -34,8 +34,8 @@ llmwiki-cli config validate                    # catches typos, bad TOML, bad mo
 
 ## Sibling skills
 
-- `wiki-setup` — when `doctor` fails before config validation
-- `wiki-troubleshooting` — when validation passes but behavior is wrong
+- `llmwiki-setup` — when `doctor` fails before config validation
+- `llmwiki-troubleshooting` — when validation passes but behavior is wrong
 
 ## Full reference
 

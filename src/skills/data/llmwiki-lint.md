@@ -31,8 +31,8 @@ llmwiki-cli lint --fix                 # auto-repair where safe
 
 ## Sibling skills
 
-- `wiki-search` / `wiki-query` — locate the page that needs fixing
-- `wiki-troubleshooting` — when lint flags something the agent doesn't recognize
+- `llmwiki-search` / `llmwiki-query` — locate the page that needs fixing
+- `llmwiki-troubleshooting` — when lint flags something the agent doesn't recognize
 
 ## Full reference
 

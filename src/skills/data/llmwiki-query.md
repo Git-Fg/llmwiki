@@ -4,7 +4,7 @@ description: |
   RAG question-answering over the wiki. Routes to `llmwiki-cli query`.
   Use when the user asks "answer a question against my notes", "what
   does my wiki say about X", or wants a synthesized answer with sources.
-  Do NOT use for: simple search (use wiki-search), browsing files directly.
+  Do NOT use for: simple search (use llmwiki-search), browsing files directly.
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
@@ -30,8 +30,8 @@ llmwiki-cli query "<q>" --llm-model <model>          # override the LLM
 
 ## Sibling skills
 
-- `wiki-search` — when the user just wants the relevant pages, not an answer
-- `wiki-models` — when the user wants to switch the LLM or embedding model
+- `llmwiki-search` — when the user just wants the relevant pages, not an answer
+- `llmwiki-models` — when the user wants to switch the LLM or embedding model
 
 ## Full reference
 

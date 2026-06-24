@@ -37,8 +37,8 @@ git clone <tailnet-url> <path>       # pull an existing wiki from another machin
 
 ## Sibling skills
 
-- `wiki-setup` — first-run install / bootstrap
-- `wiki-troubleshooting` — when sync breaks (merge conflicts, missing aliases)
+- `llmwiki-setup` — first-run install / bootstrap
+- `llmwiki-troubleshooting` — when sync breaks (merge conflicts, missing aliases)
 
 ## Full reference
 

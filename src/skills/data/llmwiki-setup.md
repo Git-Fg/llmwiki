@@ -38,8 +38,8 @@ llmwiki-cli completion bash        # print shell completion script
 
 ## Sibling skills
 
-- `wiki-troubleshooting` — when `doctor` reports an error
-- `wiki-config` — when `doctor` succeeds but a config setting needs changing
+- `llmwiki-troubleshooting` — when `doctor` reports an error
+- `llmwiki-config` — when `doctor` succeeds but a config setting needs changing
 
 ## Full reference
 

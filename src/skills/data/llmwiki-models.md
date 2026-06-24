@@ -5,8 +5,8 @@ description: |
   `llmwiki-cli models` and the `nim.*` config keys. Use when the user
   asks to use a different NVIDIA NIM model, switch embedding dimensions,
   or set a reranking model.
-  Do NOT use for: installing the binary (wiki-setup), changing
-  non-model config (wiki-config).
+  Do NOT use for: installing the binary (llmwiki-setup), changing
+  non-model config (llmwiki-config).
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
@@ -33,8 +33,8 @@ llmwiki-cli config validate                     # catch bad model names
 
 ## Sibling skills
 
-- `wiki-config` — full config editing workflow
-- `wiki-troubleshooting` — when `embed` fails after a model change
+- `llmwiki-config` — full config editing workflow
+- `llmwiki-troubleshooting` — when `embed` fails after a model change
 
 ## Full reference
 

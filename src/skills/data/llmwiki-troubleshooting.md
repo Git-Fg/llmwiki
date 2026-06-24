@@ -5,7 +5,7 @@ description: |
   `llmwiki-cli config validate`, and the per-command `--help`. Use
   when `doctor` reports a failure, `embed`/`search`/`query` returns
   empty, or any command exits non-zero unexpectedly.
-  Do NOT use for: routine wiki work; first-run install (wiki-setup).
+  Do NOT use for: routine wiki work; first-run install (llmwiki-setup).
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
@@ -26,18 +26,18 @@ llmwiki-cli config show-effective        # see what's actually loaded
 
 | Symptom | First thing to try |
 |---|---|
-| `command not found` | `wiki-setup` |
+| `command not found` | `llmwiki-setup` |
 | `doctor` reports no API key | `export NVIDIA_NIM_API_KEY=...` then retry |
 | `doctor` reports no NIM connectivity | check `WIKI_NIM_BASE_URL` override |
 | `search` / `query` returns empty after a content change | `llmwiki-cli embed` |
-| `embed` fails with model error | `wiki-models` to switch to a whitelisted model |
-| `lint` flags unknown key | `wiki-config` to fix the typo |
+| `embed` fails with model error | `llmwiki-models` to switch to a whitelisted model |
+| `lint` flags unknown key | `llmwiki-config` to fix the typo |
 
 ## Sibling skills
 
-- `wiki-setup` — install / bootstrap issues
-- `wiki-config` — config typos / wrong values
-- `wiki-models` — bad embedding / reranking model
+- `llmwiki-setup` — install / bootstrap issues
+- `llmwiki-config` — config typos / wrong values
+- `llmwiki-models` — bad embedding / reranking model
 
 ## Full reference
 
