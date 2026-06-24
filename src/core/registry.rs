@@ -884,7 +884,7 @@ impl Registry {
     ) -> Result<(), WikiError> {
         if self.entries.iter().any(|e| e.alias == alias) {
             return Err(WikiError::Other(anyhow::anyhow!(
-                "alias '{alias}' already exists. Use 'wiki config rm {alias}' first.",
+                "alias '{alias}' already exists. Use `llmwiki-cli config rm {alias}` first.",
             )));
         }
 

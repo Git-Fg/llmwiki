@@ -16,7 +16,7 @@ pub enum SkillCmd {
     /// `agent-browser skills get <name>` — the canonical discovery
     /// primitive for AI-agent CLIs. Pass `--all` to dump every sub-skill.
     Get {
-        /// Topic name (e.g. `wiki-search`, `search`, `wiki-config`).
+        /// Topic name (e.g. `llmwiki-search`, `search`, `llmwiki-config`).
         /// Omit and pass --all to print every sub-skill.
         topic: Option<String>,
 
@@ -26,7 +26,7 @@ pub enum SkillCmd {
     },
     /// Print the hub SKILL.md, or a specific sub-skill by topic name.
     Show {
-        /// Topic name (e.g. `wiki-search`, `search`, `wiki-config`).
+        /// Topic name (e.g. `llmwiki-search`, `search`, `llmwiki-config`).
         topic: Option<String>,
     },
     /// List every sub-skill with its line count.
@@ -37,7 +37,7 @@ pub enum SkillCmd {
     },
     /// Print the path of an installed sub-skill (or the hub if no name).
     Path {
-        /// Topic name (e.g. `wiki-search`). Defaults to the hub.
+        /// Topic name (e.g. `llmwiki-search`). Defaults to the hub.
         topic: Option<String>,
     },
 }
@@ -117,7 +117,7 @@ pub fn run(args: SkillArgs) -> Result<(), WikiError> {
         Some(SkillCmd::Path { topic }) => {
             let home = std::env::var("HOME").unwrap_or_default();
             match topic {
-                None => println!("{home}/.agents/skills/wiki/SKILL.md"),
+                None => println!("{home}/.agents/skills/llmwiki/SKILL.md"),
                 Some(t) => {
                     let dir = normalize_for_install(&t);
                     println!("{home}/.agents/skills/{dir}/SKILL.md");
@@ -129,12 +129,18 @@ pub fn run(args: SkillArgs) -> Result<(), WikiError> {
 }
 
 /// Mirror of `skills::normalize_topic` but kept local to avoid a public
-/// re-export. Accepts `search` → `wiki-search` and passes through `wiki-search`.
+/// re-export. Accepts `search` → `llmwiki-search` and passes through
+/// `llmwiki-search`. Legacy `wiki-search` names are NOT supported
+/// aliases (v0.3.36 hard cut) — they pass through unchanged so the
+/// caller surfaces a single "unknown topic" error.
 fn normalize_for_install(name: &str) -> String {
     let lower = name.trim().to_ascii_lowercase();
-    if lower.starts_with("wiki-") {
+    if lower.starts_with("llmwiki-") {
+        lower
+    } else if lower.starts_with("wiki-") {
+        // Legacy alias: pass through unchanged.
         lower
     } else {
-        format!("wiki-{lower}")
+        format!("llmwiki-{lower}")
     }
 }

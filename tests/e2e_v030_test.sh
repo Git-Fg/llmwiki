@@ -37,7 +37,7 @@ echo "  ok: $VERSION_OUT"
 # 2. CLI surface
 step "CLI surface"
 for cmd in init build embed search query lint ls doctor tree status models \
-           ingest skill install-skill config version; do
+           ingest skill install-skill config version completion use; do
     cargo run --quiet -- "$cmd" --help >/dev/null 2>&1 \
         || fail "$cmd --help failed"
     echo "  ok: $cmd --help"
@@ -66,8 +66,8 @@ TMP="$(mktemp -d)"
 INIT_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP" "$INIT_DIR"' EXIT
 cargo run --quiet -- install-skill --workspace "$TMP" >/dev/null
-HUB="$TMP/.agents/skills/wiki/SKILL.md"
-test -f "$HUB" || fail "hub SKILL.md not installed to $TMP/.agents/skills/wiki/"
+HUB="$TMP/.agents/skills/llmwiki/SKILL.md"
+test -f "$HUB" || fail "hub SKILL.md not installed to $TMP/.agents/skills/llmwiki/"
 echo "  ok: hub SKILL.md installed"
 
 # 5. Init + workspace discoverability
