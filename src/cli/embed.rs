@@ -41,9 +41,13 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
             crate::error::WikiError::Other(anyhow::anyhow!("unknown embed model: {model_name}"))
         })?;
     let api_key = resolve_api_key(&cfg.nim);
-    let client = NimClient::new(cfg.nim.base_url.clone(), api_key)
-        .with_max_attempts(cfg.nim.retry.max_attempts)
-        .with_backoff_ms(cfg.nim.retry.backoff_ms);
+    let client = NimClient::with_timeout(
+        cfg.nim.base_url.clone(),
+        api_key,
+        cfg.nim.request_timeout_secs,
+    )
+    .with_max_attempts(cfg.nim.retry.max_attempts)
+    .with_backoff_ms(cfg.nim.retry.backoff_ms);
 
     let wiki_dir = pages_dir(&ws, &cfg.wiki.pages_dir);
     let jsonl_path = ws.join("embeddings.jsonl");

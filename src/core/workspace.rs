@@ -118,11 +118,10 @@ pub fn discover_workspace(
     // Walk up from CWD looking for `.llmwiki-cli/` (skip HOME so
     // `~/.llmwiki-cli/` is treated as per-computer config, not a workspace).
     if let Some(p) = walk_up_for_llmwiki_cli_dir(&cwd) {
-        // Step 5.5: honor the per-workspace active-wiki pointer
-        // (`llmwiki-cli use <alias>`) by looking up the alias in the registry
-        // and returning ITS path, not the workspace marker. The
-        // pointer is the user's explicit "this project uses THAT wiki"
-        // signal — it should override walk-up so the resolution chain
+        // Per-workspace active-wiki pointer (`llmwiki-cli use <alias>`): look
+        // up the alias in the registry and return ITS path, not the workspace
+        // marker. The pointer is the user's explicit "this project uses THAT
+        // wiki" signal — it should override walk-up so the resolution chain
         // stays consistent with `Registry::resolve_active`.
         let pointer = p.join(".llmwiki-cli").join("state").join("active-wiki");
         if pointer.is_file() {
@@ -220,9 +219,11 @@ pub fn pages_dir(workspace: &Path, pages_dir_config: &str) -> PathBuf {
 /// real-wiki smoke test asserts on (filter `node_modules/`, `.opencode/`,
 /// `.harness/`, etc.).
 ///
-/// Returns an iterator of `walkdir::Result<walkdir::DirEntry>` — callers
-/// should `.filter_map(|e| e.ok())` exactly as they did with the raw
-/// `walkdir::WalkDir` to preserve current error-tolerance semantics.
+/// Returns an iterator of `walkdir::Result<walkdir::DirEntry>`. Callers
+/// currently propagate errors via `entry.map_err(|e| anyhow::anyhow!(e))?`
+/// (lint, tree, embed, ls) — a single walkdir error aborts the command.
+/// If a future caller needs resilience (skip a single unreadable dir
+/// rather than abort), use `.filter_map(|e| e.ok())` instead.
 pub fn walk_pages<'a>(
     root: &'a Path,
     exclude_dirs: &'a [String],

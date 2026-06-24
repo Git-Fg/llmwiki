@@ -165,10 +165,9 @@ fn build_page_entries(
         // `.unwrap()`-ed here, which would crash the whole command on
         // a single misconfigured symlink. Skipping is safer: a wiki
         // that has one weird symlink still gets listed otherwise.
-        let rel = match crate::core::workspace::rel_path(ws, entry.path()) {
-            Some(r) => r,
-            None => continue,
-        };
+        if crate::core::workspace::rel_path(ws, entry.path()).is_none() {
+            continue;
+        }
         let slug = entry
             .path()
             .file_stem()
@@ -177,7 +176,6 @@ fn build_page_entries(
             .to_string();
         all_slugs.push(slug);
         page_files.push(entry.path().to_path_buf());
-        let _ = rel; // keep for debugging but not used now
     }
 
     // compute inbound link counts

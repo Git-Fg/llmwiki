@@ -8,7 +8,7 @@ pub struct NimClient {
     api_key: String,
     max_attempts: u32,
     backoff_ms: u64,
-    _timeout_secs: u64,
+    timeout_secs: u64,
     http: reqwest::Client,
 }
 
@@ -31,8 +31,16 @@ struct EmbedItem {
 
 impl NimClient {
     pub fn new(base_url: String, api_key: String) -> Self {
+        Self::with_timeout(base_url, api_key, 30)
+    }
+
+    /// Construct a client with a custom request timeout (in seconds).
+    /// Wired from `cfg.nim.request_timeout_secs` by call sites that have
+    /// the resolved config (currently `embed.rs`, `search.rs`, `query.rs`,
+    /// `doctor.rs`). The default constructor keeps the legacy 30s default.
+    pub fn with_timeout(base_url: String, api_key: String, timeout_secs: u64) -> Self {
         let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(timeout_secs.max(1)))
             .build()
             .unwrap();
         NimClient {
@@ -40,9 +48,15 @@ impl NimClient {
             api_key,
             max_attempts: 3,
             backoff_ms: 500,
-            _timeout_secs: 30,
+            timeout_secs,
             http,
         }
+    }
+
+    /// Current request timeout in seconds. Used by `doctor` to display
+    /// the actual value used by the rest of the CLI.
+    pub fn timeout_secs(&self) -> u64 {
+        self.timeout_secs
     }
 
     pub fn with_max_attempts(mut self, n: u32) -> Self {

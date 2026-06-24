@@ -353,7 +353,6 @@ async fn cmd_show_effective(
     // source is reported. This mirrors what `load_config` does for the
     // resolved Config, plus the per-source attribution.
     let mut origin: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
-    let mut ordered_keys: Vec<String> = Vec::new();
     for p in &paths {
         if !p.is_file() {
             continue;
@@ -365,9 +364,6 @@ async fn cmd_show_effective(
             message: format!("TOML parse error: {e}"),
         })?;
         for (key, _value) in collect_dotted(&parsed, "") {
-            if !origin.contains_key(&key) {
-                ordered_keys.push(key.clone());
-            }
             origin.insert(key, p.display().to_string());
         }
     }
@@ -459,9 +455,6 @@ async fn cmd_show_effective(
         }
     }
 
-    // Keep `ordered_keys` reachable so the compiler doesn't warn; it's the
-    // order in which keys were first observed (mostly for future use).
-    let _ = ordered_keys;
     Ok(())
 }
 

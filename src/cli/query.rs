@@ -71,9 +71,13 @@ pub async fn run(args: QueryArgs) -> Result<(), WikiError> {
     }
 
     let api_key = resolve_api_key(&cfg.nim);
-    let client = NimClient::new(cfg.nim.base_url.clone(), api_key.clone())
-        .with_max_attempts(cfg.nim.retry.max_attempts)
-        .with_backoff_ms(cfg.nim.retry.backoff_ms);
+    let client = NimClient::with_timeout(
+        cfg.nim.base_url.clone(),
+        api_key.clone(),
+        cfg.nim.request_timeout_secs,
+    )
+    .with_max_attempts(cfg.nim.retry.max_attempts)
+    .with_backoff_ms(cfg.nim.retry.backoff_ms);
 
     let query_vec = client
         .embed(&[args.question.as_str()], &model, "query")
