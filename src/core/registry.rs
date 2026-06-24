@@ -1,6 +1,84 @@
 use crate::core::config::Config;
 use crate::error::WikiError;
+use serde::Serialize;
 use std::path::{Path, PathBuf};
+
+/// Which step of the resolution chain produced the active wiki. Returned
+/// by [`Registry::resolve_active`] and surfaced by `wiki config current` plus
+/// the bare-`llmwiki-cli` startup line, so users can see exactly *why* a
+/// particular workspace is in effect — the resolution chain is otherwise
+/// invisible from the CLI.
+///
+/// The variants are listed in the same priority order as the resolution
+/// chain itself (see `resolve_active`). Adding a new step in the chain
+/// means adding a new variant here AND wiring it through the
+/// `label()` mapping below.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResolutionSource {
+    /// `--workspace <path>` flag (highest priority; an absolute path that
+    /// may or may not be registered in any wiki-root.toml).
+    FlagWorkspace,
+    /// `--wiki <alias>` flag.
+    FlagAlias,
+    /// `$WIKI_WORKSPACE` env var.
+    EnvWorkspace,
+    /// `$WIKI_ACTIVE` env var (looks up the alias in the registry).
+    EnvActive,
+    /// CWD is under a registered wiki's path.
+    CwdPrefix,
+    /// Per-workspace pointer file (`<workspace>/.llmwiki-cli/state/active-wiki`)
+    /// written by `wiki use <alias>`. Sets the active wiki for a
+    /// project without modifying the registry or needing env vars.
+    ActiveWikiPointer,
+    /// Walked up from CWD to find `.llmwiki-cli/` (skips HOME so the
+    /// per-computer config dir is not mistaken for a workspace).
+    WalkUp,
+    /// Registry has exactly one entry — used as a fallback.
+    SingleWiki,
+}
+
+impl ResolutionSource {
+    /// Human-readable one-liner describing this source. Stable text
+    /// suitable for `wiki config current` output and assertions in
+    /// tests. Used in both the human and `--json` paths (the JSON
+    /// shape includes the variant name separately).
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::FlagWorkspace => "--workspace flag",
+            Self::FlagAlias => "--wiki flag",
+            Self::EnvWorkspace => "$WIKI_WORKSPACE env var",
+            Self::EnvActive => "$WIKI_ACTIVE env var",
+            Self::CwdPrefix => "CWD prefix match against wiki-root.toml registry",
+            Self::ActiveWikiPointer => "per-workspace .llmwiki-cli/state/active-wiki",
+            Self::WalkUp => "walked up from CWD to find .llmwiki-cli/",
+            Self::SingleWiki => "single-wiki shortcut (registry has exactly one entry)",
+        }
+    }
+}
+
+impl std::fmt::Display for ResolutionSource {
+    /// Delegates to [`label`](Self::label) so `{}` and `format!()` work
+    /// in user-facing strings alongside the structured `label()` helper
+    /// (which is reused in `--json` output where the variant name
+    /// comes from the `Serialize` impl, not the Display).
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label())
+    }
+}
+
+/// Result of resolving the active wiki. Returned by
+/// [`Registry::resolve_active`]. Bundles the resolved alias, path, merged
+/// `Config`, and which step of the resolution chain matched so callers
+/// (especially `wiki config current` and the bare-`llmwiki-cli` startup
+/// line) can tell users *how* the wiki was chosen, not just *what* it is.
+#[derive(Debug, Clone)]
+pub struct ResolvedWiki {
+    pub alias: String,
+    pub path: PathBuf,
+    pub config: Config,
+    pub source: ResolutionSource,
+}
 
 /// A single wiki entry in the registry.
 #[derive(Debug, Clone)]
@@ -258,16 +336,20 @@ impl Registry {
         paths
     }
 
-    /// Resolve which wiki is active. Returns (alias, workspace_path, merged_config).
+    /// Resolve which wiki is active. Returns a [`ResolvedWiki`] that
+    /// bundles the alias, workspace path, merged config, and which
+    /// resolution step matched (see [`ResolutionSource`] for the full
+    /// priority chain).
     ///
     /// Priority order (first match wins):
     /// 1. flag_path (--workspace)
     /// 2. flag_alias (--wiki)
-    /// 3. env WIKI_WORKSPACE
-    /// 4. env WIKI_ACTIVE
+    /// 3. env_path (WIKI_WORKSPACE)
+    /// 4. env_alias (WIKI_ACTIVE)
     /// 5. CWD prefix match against registry paths
-    /// 6. Single-wiki shortcut
-    /// 7. Error
+    /// 6. Walk-up from CWD for `.llmwiki-cli/` (skips HOME)
+    /// 7. Single-wiki shortcut
+    /// 8. Error
     pub fn resolve_active(
         &self,
         flag_alias: Option<&str>,
@@ -275,7 +357,7 @@ impl Registry {
         env_alias: Option<&str>,
         env_path: Option<&str>,
         cwd: &Path,
-    ) -> Result<(String, PathBuf, Config), WikiError> {
+    ) -> Result<ResolvedWiki, WikiError> {
         // 1. --workspace <path>
         if let Some(p) = flag_path {
             let alias = self
@@ -290,12 +372,24 @@ impl Registry {
                         .to_string()
                 });
             let cfg = self.resolve_config(&alias).unwrap_or_default();
-            return Ok((alias, p.to_path_buf(), cfg));
+            return Ok(ResolvedWiki {
+                alias,
+                path: p.to_path_buf(),
+                config: cfg,
+                source: ResolutionSource::FlagWorkspace,
+            });
         }
 
         // 2. --wiki <alias>
         if let Some(alias) = flag_alias {
-            return self.resolve_by_alias(alias);
+            let r = self.resolve_by_alias(alias)?;
+            // resolve_by_alias always returns FlagAlias source, but make
+            // the construction explicit so the resolution path is clear
+            // to readers.
+            return Ok(ResolvedWiki {
+                source: ResolutionSource::FlagAlias,
+                ..r
+            });
         }
 
         // 3. WIKI_WORKSPACE
@@ -313,30 +407,104 @@ impl Registry {
                         .to_string()
                 });
             let cfg = self.resolve_config(&alias).unwrap_or_default();
-            return Ok((alias, path, cfg));
+            return Ok(ResolvedWiki {
+                alias,
+                path,
+                config: cfg,
+                source: ResolutionSource::EnvWorkspace,
+            });
         }
 
         // 4. WIKI_ACTIVE
         if let Some(alias) = env_alias {
-            return self.resolve_by_alias(alias);
+            let r = self.resolve_by_alias(alias)?;
+            return Ok(ResolvedWiki {
+                source: ResolutionSource::EnvActive,
+                ..r
+            });
         }
 
         // 5. CWD prefix match
         for entry in &self.entries {
             if cwd.starts_with(&entry.path) {
                 let cfg = self.resolve_config(&entry.alias)?;
-                return Ok((entry.alias.clone(), entry.path.clone(), cfg));
+                return Ok(ResolvedWiki {
+                    alias: entry.alias.clone(),
+                    path: entry.path.clone(),
+                    config: cfg,
+                    source: ResolutionSource::CwdPrefix,
+                });
             }
         }
 
-        // 6. Single-wiki shortcut
+        // 5.5 Per-workspace active-wiki pointer (wiki use <alias>).
+        // Walks up from CWD to find the closest `.llmwiki-cli/` ancestor
+        // (the workspace marker), then checks for `state/active-wiki`
+        // inside it. Lower priority than CWD-prefix match (step 5) so
+        // a cd'd-into-workspace behavior wins; higher than walk-up
+        // (step 6) so an explicit pointer wins over a synthetic
+        // leaf-name alias.
+        if let Some(ws_root) = crate::core::workspace::walk_up_for_llmwiki_cli_dir_public(cwd) {
+            let pointer = ws_root
+                .join(".llmwiki-cli")
+                .join("state")
+                .join("active-wiki");
+            if pointer.is_file() {
+                if let Ok(content) = std::fs::read_to_string(&pointer) {
+                    let alias = content.trim();
+                    if !alias.is_empty() {
+                        if let Some(entry) = self.entries.iter().find(|e| e.alias == alias) {
+                            let cfg = self.resolve_config(&entry.alias)?;
+                            return Ok(ResolvedWiki {
+                                alias: entry.alias.clone(),
+                                path: entry.path.clone(),
+                                config: cfg,
+                                source: ResolutionSource::ActiveWikiPointer,
+                            });
+                        }
+                        // Pointer references a stale alias (e.g. wiki was
+                        // renamed or removed). Fall through silently —
+                        // the next step (walk-up) will still find the
+                        // workspace marker, and `wiki config current` will
+                        // surface the divergence.
+                    }
+                }
+            }
+        }
+
+        // 6. Walk-up from CWD for `.llmwiki-cli/`
+        if let Some(ws) = crate::core::workspace::walk_up_for_llmwiki_cli_dir_public(cwd) {
+            // Synthesize an alias from the workspace's leaf name — the
+            // registry didn't know about this workspace, so there is no
+            // canonical alias. Mirrors the same fallback used by
+            // --workspace when the path isn't registered.
+            let alias = ws
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let cfg = self.resolve_config(&alias).unwrap_or_default();
+            return Ok(ResolvedWiki {
+                alias,
+                path: ws,
+                config: cfg,
+                source: ResolutionSource::WalkUp,
+            });
+        }
+
+        // 7. Single-wiki shortcut
         if self.entries.len() == 1 {
             let entry = &self.entries[0];
             let cfg = self.resolve_config(&entry.alias)?;
-            return Ok((entry.alias.clone(), entry.path.clone(), cfg));
+            return Ok(ResolvedWiki {
+                alias: entry.alias.clone(),
+                path: entry.path.clone(),
+                config: cfg,
+                source: ResolutionSource::SingleWiki,
+            });
         }
 
-        // 7. No match
+        // 8. No match
         Err(WikiError::AliasNotFound {
             alias: format!("CWD={}", cwd.display()),
             available: self
@@ -348,8 +516,27 @@ impl Registry {
         })
     }
 
-    /// Resolve by alias name.
-    fn resolve_by_alias(&self, alias: &str) -> Result<(String, PathBuf, Config), WikiError> {
+    /// Soft variant of [`resolve_active`]: returns `None` instead of
+    /// `Err` when no wiki can be resolved. Used by `wiki config current`
+    /// and the bare-`llmwiki-cli` startup line, both of which want to
+    /// degrade gracefully (report "no active wiki" with hints) rather
+    /// than exit non-zero when the user simply hasn't picked one yet.
+    pub fn resolve_active_optional(
+        &self,
+        flag_alias: Option<&str>,
+        flag_path: Option<&Path>,
+        env_alias: Option<&str>,
+        env_path: Option<&str>,
+        cwd: &Path,
+    ) -> Option<ResolvedWiki> {
+        self.resolve_active(flag_alias, flag_path, env_alias, env_path, cwd)
+            .ok()
+    }
+
+    /// Resolve by alias name. Always tags the result as `FlagAlias`
+    /// source — callers that need a different source (e.g. `EnvActive`)
+    /// override the field after calling this.
+    fn resolve_by_alias(&self, alias: &str) -> Result<ResolvedWiki, WikiError> {
         let entry = self
             .entries
             .iter()
@@ -364,15 +551,22 @@ impl Registry {
                     .join(", "),
             })?;
         let cfg = self.resolve_config(&entry.alias)?;
-        Ok((entry.alias.clone(), entry.path.clone(), cfg))
+        Ok(ResolvedWiki {
+            alias: entry.alias.clone(),
+            path: entry.path.clone(),
+            config: cfg,
+            source: ResolutionSource::FlagAlias,
+        })
     }
 
     /// Convenience method: resolve active wiki from env + flags.
+    /// Returns the [`ResolvedWiki`] (alias, path, config, source) so
+    /// callers can surface the resolution source if they want.
     pub fn resolve_from_env_and_flags(
         &self,
         flag_alias: Option<&str>,
         flag_path: Option<&Path>,
-    ) -> Result<(String, PathBuf, Config), WikiError> {
+    ) -> Result<ResolvedWiki, WikiError> {
         let env_workspace = std::env::var("WIKI_WORKSPACE").ok();
         let env_active = std::env::var("WIKI_ACTIVE").ok();
         let cwd = std::env::current_dir()

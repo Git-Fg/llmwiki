@@ -160,12 +160,15 @@ fn build_page_entries(
         if !crate::core::workspace::is_wiki_page_entry(ws, entry.path()) {
             continue;
         }
-        let rel = entry
-            .path()
-            .strip_prefix(ws)
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Skip entries that can't be relativized against `ws` (e.g. a
+        // symlink that walked out of the workspace). The old code
+        // `.unwrap()`-ed here, which would crash the whole command on
+        // a single misconfigured symlink. Skipping is safer: a wiki
+        // that has one weird symlink still gets listed otherwise.
+        let rel = match crate::core::workspace::rel_path(ws, entry.path()) {
+            Some(r) => r,
+            None => continue,
+        };
         let slug = entry
             .path()
             .file_stem()
@@ -192,12 +195,12 @@ fn build_page_entries(
                         .unwrap_or("")
                         .to_lowercase();
                     if candidate_slug == target_slug && candidate != path {
-                        let rel = candidate
-                            .strip_prefix(ws)
-                            .unwrap()
-                            .to_string_lossy()
-                            .replace('\\', "/");
-                        *inbound.entry(rel).or_insert(0) += 1;
+                        // Symlink-out-of-workspace guard: skip links
+                        // that can't be relativized rather than
+                        // crashing the whole listing.
+                        if let Some(rel) = crate::core::workspace::rel_path(ws, candidate) {
+                            *inbound.entry(rel).or_insert(0) += 1;
+                        }
                     }
                 }
             }
@@ -206,11 +209,10 @@ fn build_page_entries(
 
     let mut entries = vec![];
     for path in &page_files {
-        let rel = path
-            .strip_prefix(ws)
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Symlink-out-of-workspace guard (see rel_path docs).
+        let Some(rel) = crate::core::workspace::rel_path(ws, path) else {
+            continue;
+        };
         let content = std::fs::read_to_string(path).unwrap_or_default();
         // Skip pages with unparseable frontmatter (e.g. duplicate YAML keys).
         // Pre-v0.3.25 this never triggered because the hardcoded `wiki/`
@@ -265,12 +267,10 @@ fn build_raw_entries(ws: &Path) -> Result<Vec<RawEntry>, WikiError> {
         if !entry.file_type().is_file() {
             continue;
         }
-        let rel = entry
-            .path()
-            .strip_prefix(ws)
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Symlink-out-of-workspace guard (see rel_path docs).
+        let Some(rel) = crate::core::workspace::rel_path(ws, entry.path()) else {
+            continue;
+        };
         let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
         // Same resilience: skip raw files with unparseable frontmatter
         // rather than failing the whole `wiki ls`.

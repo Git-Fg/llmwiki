@@ -1,4 +1,5 @@
 pub mod build;
+pub mod completion;
 pub mod config;
 pub mod doctor;
 pub mod embed;
@@ -13,6 +14,7 @@ pub mod search;
 pub mod skill;
 pub mod status;
 pub mod tree;
+pub mod use_cmd;
 
 use clap::{Parser, Subcommand};
 
@@ -41,6 +43,11 @@ use crate::cli::skill::SkillArgs;
                     llmwiki-cli skill list                    # every inline sub-skill\n  \
                     llmwiki-cli skill get <topic>             # load one (e.g. wiki-search)\n  \
                     llmwiki-cli <command> --help              # full flag reference\n  \n\
+                  On startup (no subcommand): prints the version AND the active\n  \
+                  wiki alias, workspace, and which resolution step matched:\n  \
+                    --workspace > --wiki > $WIKI_WORKSPACE > $WIKI_ACTIVE >\n  \
+                    CWD prefix match > walk-up for .llmwiki-cli/ > single-wiki.\n  \
+                  See `llmwiki-cli config current` for the same info + registry path.\n  \n\
                   Common flags (all commands):\n  \
                     --workspace <path>                        # override workspace\n  \
                     --wiki <alias>                            # select wiki from registry\n  \n\
@@ -48,7 +55,10 @@ use crate::cli::skill::SkillArgs;
                     NVIDIA_NIM_API_KEY     required (get at https://build.nvidia.com/)\n  \
                     NVIDIA_API_KEY         fallback if NVIDIA_NIM_API_KEY is unset\n  \
                     WIKI_NIM_BASE_URL      override default https://integrate.api.nvidia.com\n  \
-                    LLMWIKI_CONFIG         path to a single config file (overrides walk-up)\n  \n\
+                    LLMWIKI_CONFIG         path to a single config file (overrides walk-up)\n  \
+                    WIKI_ACTIVE            alias to use when no --wiki flag is given\n  \
+                    WIKI_WORKSPACE         absolute path override for the workspace\n  \
+                    WIKI_ROOT_CONFIG       path to a single wiki-root.toml file\n  \n\
                   Project layout: <workspace>/{wiki/, raw/, index.md, log.md}\n  \
                                  + per-workspace .llmwiki-cli/config.toml\n  \
                                  + gitignored embeddings.jsonl (regenerate via `llmwiki-cli embed`)"
@@ -212,6 +222,10 @@ pub enum Command {
     },
     /// Report pages, embeddings, and raw-source coverage
     Status {
+        /// Loop over every registered alias and print a one-line summary
+        /// per wiki (multi-wiki fleet mode). Exits 2 if any wiki fails.
+        #[arg(long)]
+        all: bool,
         #[arg(long)]
         json: bool,
     },
@@ -252,6 +266,21 @@ pub enum Command {
     },
     /// Print version
     Version,
+    /// Generate a shell completion script to stdout. Install once per
+    /// shell: `wiki completion bash > ~/.local/share/bash-completion/completions/llmwiki-cli`
+    /// (and similarly for zsh, fish, elvish, powershell).
+    Completion(crate::cli::completion::CompletionArgs),
+    /// Set or clear the per-workspace active-wiki pointer. With no
+    /// arguments, prints the current pointer (if any). Mirrors
+    /// `npm use <pkg>` and `cargo --manifest-path` — gives a per-workspace
+    /// default wiki without changing the registry.
+    ///
+    /// Writes to `<workspace>/.llmwiki-cli/state/active-wiki` (gitignored
+    /// automatically by `wiki init` since v0.3.36+). The resolution chain
+    /// checks this pointer as step 5.5, between env-vars and CWD-prefix
+    /// match — so once you `wiki use mevin` in your project, every
+    /// `llmwiki-cli` command picks `mevin` without `--wiki`.
+    Use(crate::cli::use_cmd::UseArgs),
     /// Manage wiki-root.toml and per-workspace configuration
     ///
     /// Config resolution priority (highest wins):
@@ -339,6 +368,31 @@ pub enum ConfigCmd {
         /// Filter output to one section: `wiki` or `nim`.
         #[arg(long, value_parser = ["wiki", "nim"])]
         section: Option<String>,
+    },
+    /// Print the active wiki: alias, workspace, and which resolution
+    /// step matched. Mirrors the line printed by `llmwiki-cli` with no
+    /// subcommand, plus the registry file the alias came from.
+    /// Exits 0 even when no wiki is resolved (prints "no active wiki"
+    /// with hints) — this is a *report* command, not a *do* command.
+    ///
+    /// Honors the global `--wiki` and `--workspace` flags (plus
+    /// `WIKI_ACTIVE` and `WIKI_WORKSPACE` env vars) so users can probe
+    /// "what would `--wiki mevin` resolve to?" without actually
+    /// operating on the wiki.
+    Current {
+        /// Override the workspace used as the walk-up start. `from_global`
+        /// receives the value of the top-level `--workspace` flag so
+        /// `wiki --workspace <ws> config current` works.
+        #[arg(from_global)]
+        workspace: Option<std::path::PathBuf>,
+        /// Select wiki by alias from wiki-root.toml. `from_global`
+        /// receives the value of the top-level `--wiki` flag so
+        /// `wiki --wiki <alias> config current` works.
+        #[arg(from_global)]
+        wiki: Option<String>,
+        /// JSON output
+        #[arg(long)]
+        json: bool,
     },
     /// Print the resolved config search order with each path's existence status.
     /// Useful for debugging why a particular config.toml is or isn't being loaded.
@@ -489,11 +543,14 @@ pub async fn run(cli: Cli) {
             })
             .await
         }
-        Some(Command::Status { json }) => crate::cli::status::run(crate::cli::status::StatusArgs {
-            workspace: cli.workspace,
-            wiki: cli.wiki.clone(),
-            json,
-        }),
+        Some(Command::Status { json, all }) => {
+            crate::cli::status::run(crate::cli::status::StatusArgs {
+                workspace: cli.workspace,
+                wiki: cli.wiki.clone(),
+                all,
+                json,
+            })
+        }
         Some(Command::Skill(args)) => crate::cli::skill::run(args),
         Some(Command::InstallSkill {
             global,
@@ -552,13 +609,69 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Config { cmd }) => crate::cli::config::run(cmd).await,
-        Some(Command::Version) | None => {
+        Some(Command::Version) => {
             println!("llmwiki-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
+        Some(Command::Completion(args)) => crate::cli::completion::run(args),
+        Some(Command::Use(args)) => crate::cli::use_cmd::run(args),
+        None => print_startup_banner(),
     };
     if let Err(e) = result {
         eprintln!("Error: {e}");
         std::process::exit(1);
     }
+}
+
+/// Print the version + active-wiki one-liner when `llmwiki-cli` is run
+/// with no subcommand. Soft-fails: if the registry can't be discovered
+/// or no wiki resolves, still print the version + a hint, never exit
+/// non-zero. This is the same info `llmwiki-cli config current` prints
+/// (minus the registry file path on the no-resolve branch), kept
+/// here so users can probe "where am I?" by just running the binary.
+fn print_startup_banner() -> Result<(), crate::error::WikiError> {
+    println!("llmwiki-cli {}", env!("CARGO_PKG_VERSION"));
+    println!();
+
+    match crate::core::registry::Registry::discover() {
+        Ok(reg) => {
+            let cwd = std::env::current_dir().map_err(crate::error::WikiError::Io)?;
+            let resolved = reg.resolve_active_optional(
+                None,
+                None,
+                std::env::var("WIKI_ACTIVE").ok().as_deref(),
+                std::env::var("WIKI_WORKSPACE").ok().as_deref(),
+                &cwd,
+            );
+            match resolved {
+                Some(r) => {
+                    println!("Active wiki:  {} ({})", r.alias, r.path.display());
+                    println!("  via:        {}", r.source.label());
+                }
+                None => {
+                    println!("No active wiki resolved.");
+                    println!(
+                        "  registry:   {} ({} entries)",
+                        reg.root_path.display(),
+                        reg.entries.len()
+                    );
+                    println!("  hint:       pass --wiki <alias>, set $WIKI_ACTIVE, or cd into a registered wiki path.");
+                }
+            }
+        }
+        Err(_) => {
+            // No registry at all — fall back to walk-up-only behavior.
+            // Don't error; the user may simply not have a wiki-root.toml
+            // yet. Print a hint pointing them at `wiki init`.
+            println!("No wiki-root.toml registry found in any of the candidate paths.");
+            println!("  hint:       run `llmwiki-cli init <path>` to scaffold a new wiki, or");
+            println!("              run `llmwiki-cli doctor` for the full resolution path.");
+        }
+    }
+
+    println!();
+    println!(
+        "Run `llmwiki-cli --help` for the full command reference, or `llmwiki-cli doctor` to diagnose."
+    );
+    Ok(())
 }

@@ -13,12 +13,22 @@ allowed-tools: Bash(llmwiki-cli:*)
 
 Verify the `llmwiki-cli` install and bootstrap it on the user's machine.
 
+**Always start with `llmwiki-cli --help`** — it shows the active wiki
+alias, workspace, and resolution source, so you can confirm you're
+operating on the wiki you think you are before running anything that
+mutates state. The same info is printed when you run `llmwiki-cli`
+with no subcommand.
+
 ## Commands
 
 ```bash
-llmwiki-cli doctor                  # diagnose install + config + NIM
-llmwiki-cli install-skill --global  # install skill bundle to ~/.agents/skills/
-llmwiki-cli init <path>             # scaffold a new wiki at <path>
+llmwiki-cli --help                 # active wiki + full command reference
+llmwiki-cli doctor                 # diagnose install + config + NIM
+llmwiki-cli config current         # just the active wiki line
+llmwiki-cli install-skill --global # install skill bundle to ~/.agents/skills/
+llmwiki-cli init <path>            # scaffold a new wiki at <path>
+llmwiki-cli use <alias>            # pin a workspace to a specific wiki (post-init)
+llmwiki-cli completion bash        # print shell completion script
 ```
 
 ## When this skill loads

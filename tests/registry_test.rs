@@ -1,4 +1,4 @@
-use llmwiki_cli::core::registry::Registry;
+use llmwiki_cli::core::registry::{Registry, ResolutionSource};
 use std::io::Write;
 
 fn write_tmp_toml(content: &str) -> std::path::PathBuf {
@@ -112,7 +112,7 @@ description = "Test"
 "#,
     );
     let reg = Registry::load_from(&path).unwrap();
-    let (alias, _, _) = reg
+    let resolved = reg
         .resolve_active(
             None,
             None,
@@ -121,7 +121,8 @@ description = "Test"
             std::path::Path::new("/tmp/mywiki/wiki/sub"),
         )
         .unwrap();
-    assert_eq!(alias, "mywiki");
+    assert_eq!(resolved.alias, "mywiki");
+    assert_eq!(resolved.source, ResolutionSource::CwdPrefix);
 }
 
 #[test]
@@ -134,10 +135,11 @@ description = "Solo"
 "#,
     );
     let reg = Registry::load_from(&path).unwrap();
-    let (alias, _, _) = reg
+    let resolved = reg
         .resolve_active(None, None, None, None, std::path::Path::new("/etc"))
         .unwrap();
-    assert_eq!(alias, "solo");
+    assert_eq!(resolved.alias, "solo");
+    assert_eq!(resolved.source, ResolutionSource::SingleWiki);
 }
 
 #[test]
@@ -154,7 +156,7 @@ description = "Two"
 "#,
     );
     let reg = Registry::load_from(&path).unwrap();
-    let (alias, _, _) = reg
+    let resolved = reg
         .resolve_active(
             Some("wiki2"),
             None,
@@ -163,7 +165,8 @@ description = "Two"
             std::path::Path::new("/tmp/wiki1"),
         )
         .unwrap();
-    assert_eq!(alias, "wiki2");
+    assert_eq!(resolved.alias, "wiki2");
+    assert_eq!(resolved.source, ResolutionSource::FlagAlias);
 }
 
 #[test]

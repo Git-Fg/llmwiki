@@ -69,11 +69,10 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
     let mut updated = 0;
 
     for page_path in pages {
-        let rel = page_path
-            .strip_prefix(&ws)
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Symlink-out-of-workspace guard (see rel_path docs).
+        let Some(rel) = crate::core::workspace::rel_path(&ws, &page_path) else {
+            continue;
+        };
         let content = std::fs::read_to_string(&page_path)?;
         let digest = Sha256::digest(content.as_bytes());
         let sha = digest

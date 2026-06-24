@@ -17,6 +17,7 @@ edit safely, validate every change.
 ## Commands
 
 ```bash
+llmwiki-cli config current                    # active wiki alias + resolution source
 llmwiki-cli config show-effective              # resolved config with source attribution
 llmwiki-cli config show-schema [--section wiki|nim]   # JSON Schema; filter by section
 llmwiki-cli config edit                        # open wiki-root.toml in $EDITOR

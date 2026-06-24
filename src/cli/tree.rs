@@ -57,12 +57,10 @@ pub fn run(args: TreeArgs) -> Result<(), WikiError> {
         if !crate::core::workspace::is_wiki_page_entry(&ws, entry.path()) {
             continue;
         }
-        let rel = entry
-            .path()
-            .strip_prefix(&ws)
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Symlink-out-of-workspace guard (see rel_path docs).
+        let Some(rel) = crate::core::workspace::rel_path(&ws, entry.path()) else {
+            continue;
+        };
 
         let slug = entry
             .path()

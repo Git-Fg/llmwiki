@@ -68,7 +68,11 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
     )?;
     write_if_absent(
         &target.join(".gitignore"),
-        "embeddings.jsonl\n.env\n.env.local\n",
+        // `.llmwiki-cli/state/` is written by `wiki use <alias>` and
+        // holds the per-workspace active-wiki pointer — it's session
+        // state, not config, and must not be committed (mirrors how
+        // `embeddings.jsonl` is generated locally per device).
+        "embeddings.jsonl\n.env\n.env.local\n.llmwiki-cli/state/\n",
     )?;
 
     // Per-workspace config (v0.3.7). Safe to commit to the wiki repo so

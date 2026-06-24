@@ -118,6 +118,25 @@ pub fn discover_workspace(
     // Walk up from CWD looking for `.llmwiki-cli/` (skip HOME so
     // `~/.llmwiki-cli/` is treated as per-computer config, not a workspace).
     if let Some(p) = walk_up_for_llmwiki_cli_dir(&cwd) {
+        // Step 5.5: honor the per-workspace active-wiki pointer
+        // (`wiki use <alias>`) by looking up the alias in the registry
+        // and returning ITS path, not the workspace marker. The
+        // pointer is the user's explicit "this project uses THAT wiki"
+        // signal — it should override walk-up so the resolution chain
+        // stays consistent with `Registry::resolve_active`.
+        let pointer = p.join(".llmwiki-cli").join("state").join("active-wiki");
+        if pointer.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&pointer) {
+                let alias = content.trim();
+                if !alias.is_empty() {
+                    if let Ok(reg) = Registry::discover() {
+                        if let Some(entry) = reg.entries.iter().find(|e| e.alias == alias) {
+                            return Ok(entry.path.clone());
+                        }
+                    }
+                }
+            }
+        }
         return Ok(p);
     }
 
@@ -137,6 +156,15 @@ pub fn discover_workspace(
 /// `.llmwiki-cli/` directory. Skips the user's HOME so `~/.llmwiki-cli/`
 /// is treated as the per-computer config location, not as a workspace marker.
 fn walk_up_for_llmwiki_cli_dir(start: &Path) -> Option<PathBuf> {
+    walk_up_for_llmwiki_cli_dir_public(start)
+}
+
+/// Public wrapper used by [`crate::core::registry::Registry::resolve_active`]
+/// for the walk-up resolution step. Kept separate from the private helper
+/// above so callers can't accidentally rely on a non-public function while
+/// the internal implementation may still move (e.g. add an `Option<bool>`
+/// flag for "skip HOME" in a future change).
+pub(crate) fn walk_up_for_llmwiki_cli_dir_public(start: &Path) -> Option<PathBuf> {
     let canonical = start.canonicalize().ok()?;
     let home_canon = home_dir().and_then(|h| h.canonicalize().ok());
     let mut current: Option<PathBuf> = Some(canonical);
@@ -222,6 +250,28 @@ pub fn walk_pages<'a>(
             true
         })
         .filter(|e| e.as_ref().ok().is_some_and(|e| e.file_type().is_file()))
+}
+
+/// Returns the relative path from `base` to `entry_path` as a
+/// `String` with forward slashes. Returns `None` if `entry_path`
+/// is not under `base` (e.g. via a symlink that escaped the
+/// workspace). The forward-slash conversion is the agent-friendly
+/// format — `walkdir` returns native separators (backslash on
+/// Windows), but `wiki ls`, `wiki tree`, and `wiki embed` all
+/// report paths with `/` regardless of OS so the output is
+/// stable across machines and shell-pipable.
+///
+/// Used by `ls`, `tree`, `embed`, and `status` to replace the
+/// `strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/")`
+/// pattern that used to panic if a symlink escaped the workspace
+/// (a real risk for `walk_pages` when `wiki.exclude_dirs` is
+/// misconfigured and a symlinked dir points at `/etc`, for
+/// example). The new helper degrades gracefully: a path that
+/// can't be relativized is dropped from the listing rather than
+/// crashing the whole command.
+pub fn rel_path(base: &Path, entry_path: &Path) -> Option<String> {
+    let rel = entry_path.strip_prefix(base).ok()?;
+    Some(rel.to_string_lossy().replace('\\', "/"))
 }
 
 /// Filter helper for the 5 read-path commands (ls, tree, embed, lint, status).

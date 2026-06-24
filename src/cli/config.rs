@@ -1,6 +1,7 @@
 use crate::cli::ConfigCmd;
+use crate::core::registry::{ResolutionSource, ResolvedWiki};
 use crate::error::WikiError;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub async fn run(cmd: ConfigCmd) -> Result<(), WikiError> {
     match cmd {
@@ -21,6 +22,11 @@ pub async fn run(cmd: ConfigCmd) -> Result<(), WikiError> {
         ConfigCmd::ConfigEdit { workspace } => cmd_config_edit(workspace).await,
         ConfigCmd::Validate => cmd_validate().await,
         ConfigCmd::ShowSchema { section } => cmd_show_schema(section).await,
+        ConfigCmd::Current {
+            workspace,
+            wiki,
+            json,
+        } => cmd_current(workspace.as_deref(), wiki.as_deref(), json).await,
         ConfigCmd::ShowEffective {
             workspace,
             json,
@@ -744,6 +750,106 @@ fn collect_dotted_into(value: &toml::Value, prefix: &str, out: &mut Vec<(String,
 fn print_value_dotted(value: &toml::Value, prefix: &str) {
     for (key, value) in collect_dotted(value, prefix) {
         println!("{key} = {value}");
+    }
+}
+
+/// Print the active wiki: alias, workspace, resolution source, and the
+/// registry file the alias was loaded from. Exits 0 even when no wiki
+/// resolves — this is a report command, not a do-command, so it should
+/// never break user scripts that probe for "is there a wiki here?"
+///
+/// Mirrors the one-liner printed by `llmwiki-cli` with no subcommand
+/// (see `cli::run`), but adds the registry path and supports `--json`.
+///
+/// `flag_workspace` and `flag_wiki` are the global `--workspace` and
+/// `--wiki` flags, threaded through `ConfigCmd::Current` via
+/// `from_global`. The resolver combines them with the `WIKI_WORKSPACE`
+/// and `WIKI_ACTIVE` env vars, so users can probe "what would
+/// `llmwiki-cli --wiki mevin` resolve to?" by running
+/// `llmwiki-cli --wiki mevin config current`.
+async fn cmd_current(
+    flag_workspace: Option<&Path>,
+    flag_wiki: Option<&str>,
+    json: bool,
+) -> Result<(), WikiError> {
+    let cwd = std::env::current_dir()?;
+    let reg = crate::core::registry::Registry::discover()?;
+    let resolved = reg.resolve_active_optional(
+        flag_wiki,
+        flag_workspace,
+        std::env::var("WIKI_ACTIVE").ok().as_deref(),
+        std::env::var("WIKI_WORKSPACE").ok().as_deref(),
+        &cwd,
+    );
+
+    match resolved {
+        Some(r) => print_current_resolved(&r, &reg.root_path, json),
+        None => print_current_unresolved(&reg.root_path, json),
+    }
+    Ok(())
+}
+
+/// Print a single resolved-wiki report. JSON shape:
+///
+/// ```json
+/// {
+///   "alias": "mevin",
+///   "workspace": "/Users/.../mevin-tauri2/wiki",
+///   "source": "flag_alias",
+///   "source_label": "--wiki flag",
+///   "registry_file": "/Users/.../.agents/wiki-root.toml"
+/// }
+/// ```
+fn print_current_resolved(r: &ResolvedWiki, registry_path: &std::path::Path, json: bool) {
+    if json {
+        // `ResolutionSource` is `Serialize` + `#[serde(rename_all = "snake_case")]`
+        // so the variant names below are stable machine identifiers.
+        let payload = serde_json::json!({
+            "alias": r.alias,
+            "workspace": r.path,
+            "source": r.source,
+            "source_label": r.source.label(),
+            "registry_file": registry_path,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload)
+                .expect("ResolutionSource + PathBuf + String are all JSON-safe")
+        );
+    } else {
+        println!("Active wiki:");
+        println!("  alias:     {}", r.alias);
+        println!("  workspace: {}", r.path.display());
+        println!("  source:    {}", r.source);
+        println!("  registry:  {}", registry_path.display());
+        println!();
+        println!("(Run `llmwiki-cli doctor` to validate; `llmwiki-cli config show-effective` for resolved keys.)");
+    }
+}
+
+/// Print a "no active wiki" report with hints. Same JSON keys as
+/// [`print_current_resolved`] but with `null` for alias/workspace/source,
+/// plus a `note` field explaining how to fix it.
+fn print_current_unresolved(registry_path: &std::path::Path, json: bool) {
+    if json {
+        let payload = serde_json::json!({
+            "alias": null,
+            "workspace": null,
+            "source": null,
+            "source_label": ResolutionSource::WalkUp.label(), // placeholder for type stability
+            "registry_file": registry_path,
+            "note": "no active wiki — pass --wiki <alias>, set WIKI_ACTIVE, or cd into a registered wiki path",
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload)
+                .expect("JSON serialization of the no-wiki payload is infallible")
+        );
+    } else {
+        println!("No active wiki.");
+        println!("  registry:  {}", registry_path.display());
+        println!("  hint:      pass --wiki <alias>, set $WIKI_ACTIVE, or cd into a registered wiki path.");
+        println!("  hint:      run `llmwiki-cli config list` to see available aliases.");
     }
 }
 

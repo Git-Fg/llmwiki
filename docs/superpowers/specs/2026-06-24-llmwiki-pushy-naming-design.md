@@ -1,8 +1,8 @@
 # llmwiki — Pushy Naming & Description Redesign
 
 **Date:** 2026-06-24
-**Status:** Approved (Approach A)
-**Scope:** User-facing brand surfaces only. No binary, crate, or repo rename.
+**Status:** Approved (Approach A, hard-cut migration — no deprecation aliases)
+**Scope:** User-facing brand surfaces only. No binary, crate, or repo rename. No backward-compat aliases for sub-skill topic names.
 
 ## Motivation
 
@@ -114,21 +114,23 @@ For AI agents: start with `llmwiki-cli skill get <topic>`.
 ### 8. Sub-skill topic names (9 files)
 
 - **Before:** `wiki-config`, `wiki-ingest`, `wiki-lint`, `wiki-models`, `wiki-query`, `wiki-search`, `wiki-setup`, `wiki-sync`, `wiki-troubleshooting`
-- **After (canonical):** `llmwiki-config`, `llmwiki-ingest`, `llmwiki-lint`, `llmwiki-models`, `llmwiki-query`, `llmwiki-search`, `llmwiki-setup`, `llmwiki-sync`, `llmwiki-troubleshooting`
-- **Old names:** accepted as deprecated aliases. `skill get wiki-search` prints
-  a one-line deprecation notice and forwards to `llmwiki-search`.
+- **After (canonical, hard cut — no aliases):** `llmwiki-config`, `llmwiki-ingest`, `llmwiki-lint`, `llmwiki-models`, `llmwiki-query`, `llmwiki-search`, `llmwiki-setup`, `llmwiki-sync`, `llmwiki-troubleshooting`
+- **Old names:** **NOT supported.** `skill get wiki-search` returns
+  "unknown topic" the same as `skill get nonexistent`. No deprecation
+  aliases, no forwarding. Document the migration in the CHANGELOG
+  (`skill get wiki-X` → `skill get llmwiki-X`).
 - **Files:**
   - `src/skills/data/wiki-{config,ingest,lint,models,query,search,setup,sync,troubleshooting}.md` → rename to `llmwiki-*.md`
   - Each file: frontmatter `name:` field + H1 line updated
   - Cross-references between sub-skills updated to new names
-  - `src/skills/mod.rs::normalize_topic()` accepts both prefixes (`wiki-` and `llmwiki-`); canonicalizes to `llmwiki-`
-  - `src/skills/mod.rs::list_skills()` filter accepts either prefix
+  - `src/skills/mod.rs::normalize_topic()` accepts ONLY `llmwiki-` prefix (no `wiki-` fallback)
+  - `src/skills/mod.rs::list_skills()` filter accepts ONLY `llmwiki-` prefix
   - `src/skills/mod.rs::tests`:
-    - `LEAK_MARKERS` array updated (markers must match new frontmatter names)
+    - `LEAK_MARKERS` array updated to new frontmatter names (`llmwiki-search`, `llmwiki-config`, etc.)
     - `hub_loads()` updates the `name: llmwiki` assertion
-    - `find_skill_accepts_full_and_short_names()` adds `llmwiki-search` case
-    - `normalize_topic_handles_prefix_and_case()` adds `llmwiki-search` → `llmwiki-search` case and `wiki-search` → `llmwiki-search` (deprecation)
-    - `list_skills_returns_wiki_prefixed_files()` renamed to `list_skills_returns_canonical_prefixed_files` and updated to expect `llmwiki-`
+    - `find_skill_accepts_full_and_short_names()` removes `wiki-search` case; adds `llmwiki-search` case
+    - `normalize_topic_handles_prefix_and_case()` updates all assertions to use `llmwiki-` prefix
+    - `list_skills_returns_wiki_prefixed_files()` renamed to `list_skills_returns_llmwiki_prefixed_files`
 
 ### 9. `after_help` in `src/cli/mod.rs`
 
@@ -151,7 +153,7 @@ For AI agents: start with `llmwiki-cli skill get <topic>`.
 
 | Risk | Mitigation |
 |---|---|
-| Sub-skill topic rename breaks muscle memory | Old names accepted as deprecated aliases with a one-line notice |
+| Sub-skill topic rename breaks muscle memory | None — direct cut. Documented in CHANGELOG as a breaking change. Users update aliases and muscle memory in one pass. |
 | `LEAK_MARKERS` array drift if frontmatter names change but tests don't | Update markers in same PR; add a second test (`leak_markers_are_actually_present_in_sub_skills`) already exists as a meta-guard |
 | README H1 change shifts doc anchors | None expected (single H1) |
 | Brand tagline "persistent memory" too generic / not specific enough | One-line revision possible in next release; tagline lives in 3 places, not deep in code |
@@ -162,17 +164,16 @@ For AI agents: start with `llmwiki-cli skill get <topic>`.
 
 - **Unit tests** (`cargo test`):
   - `src/skills/mod.rs` tests updated for new prefix (5 test fns + LEAK_MARKERS)
-  - Add 2 new tests:
-    - `normalize_topic_accepts_legacy_wiki_prefix` — `wiki-search` → `llmwiki-search`
-    - `find_skill_legacy_alias_still_works` — `wiki-search` returns the renamed content
+  - No legacy-alias tests (direct cut; `wiki-search` returns "unknown topic" same as any other unknown name)
 - **Integration tests**:
-  - `tests/skill_test.rs` — update any topic-name assertions to new canonical names; add a test that the legacy alias still resolves
+  - `tests/skill_test.rs` — update topic-name assertions to new canonical names
   - `tests/install_skill_test.rs` — verify installed path is `~/.agents/skills/llmwiki/` not `~/.agents/skills/wiki/`
+  - Add a test that `skill get wiki-search` (legacy name) returns "unknown topic" — guards against accidental alias re-introduction
 - **Manual smoke**:
   - `llmwiki-cli --help` shows new tagline
   - `llmwiki-cli skill list` shows new topic names
-  - `llmwiki-cli skill get wiki-search` (legacy) prints deprecation notice and serves content
-  - `llmwiki-cli skill get llmwiki-search` (canonical) works without notice
+  - `llmwiki-cli skill get llmwiki-search` works
+  - `llmwiki-cli skill get wiki-search` errors with "unknown topic"
   - `llmwiki-cli install-skill --global` writes to `~/.agents/skills/llmwiki/`
 - **Pre-release smoke** (mandatory per AGENTS.md): run the 6-step real-wiki smoke test on `--wiki minimax` before tagging v0.3.36.
 

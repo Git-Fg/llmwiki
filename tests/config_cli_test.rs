@@ -1396,3 +1396,184 @@ fn show_schema_section_filters_output() {
         .stdout(predicates::str::contains("\"exclude_dirs\""))
         .stdout(predicates::str::contains("\"embed_model\"").not());
 }
+
+// ─── `wiki config current` tests ──────────────────────────────────────
+//
+// These exercise the new "active wiki report" command. It must:
+//  - Exit 0 in all cases (it's a *report* command, not a do-command).
+//  - Print alias + workspace + resolution source in human form.
+//  - Print stable JSON with `source` matching the ResolutionSource
+//    variant name (snake_case) for machine consumers.
+//  - Degrade gracefully to "no active wiki" when nothing matches.
+
+/// Single-wiki registry → CWD doesn't match anything → falls through to
+/// the single-wiki shortcut. Source should be `single_wiki`.
+#[test]
+fn config_current_single_wiki_shortcut() {
+    let (reg_path, _dir) = isolated_registry_with(
+        r#"
+[solo]
+path = "/tmp/solo-wiki"
+description = "Solo"
+"#,
+    );
+
+    // CWD doesn't match any registered path → fall through to single-wiki.
+    let cwd = tempfile::tempdir().unwrap();
+    isolated_cmd(&reg_path)
+        .current_dir(cwd.path())
+        .arg("config")
+        .arg("current")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("Active wiki:"))
+        .stdout(predicates::str::contains("alias:     solo"))
+        .stdout(predicates::str::contains("source:    single-wiki shortcut"));
+}
+
+/// JSON output: must use the snake_case variant name for `source`.
+/// This is the stable identifier machine consumers (CI, agents) rely on.
+#[test]
+fn config_current_json_uses_snake_case_source() {
+    let (reg_path, _dir) = isolated_registry_with(
+        r#"
+[solo]
+path = "/tmp/solo-json"
+description = "Solo"
+"#,
+    );
+
+    let cwd = tempfile::tempdir().unwrap();
+    let output = isolated_cmd(&reg_path)
+        .current_dir(cwd.path())
+        .arg("config")
+        .arg("current")
+        .arg("--json")
+        .output()
+        .expect("wiki config current --json must run");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("config current --json must return JSON");
+    assert_eq!(v["alias"], "solo");
+    assert_eq!(v["source"], "single_wiki");
+    assert!(v["source_label"].is_string());
+    assert!(v["registry_file"].is_string());
+}
+
+/// When the registry has multiple wikis and the user is in none of their
+/// paths, the resolver returns `AliasNotFound` and `config current` must
+/// degrade to the "no active wiki" report (not error out).
+#[test]
+fn config_current_no_match_reports_gracefully() {
+    let (reg_path, _dir) = isolated_registry_with(
+        r#"
+[wiki1]
+path = "/tmp/wiki1-multi"
+description = "One"
+
+[wiki2]
+path = "/tmp/wiki2-multi"
+description = "Two"
+"#,
+    );
+
+    let cwd = tempfile::tempdir().unwrap();
+    isolated_cmd(&reg_path)
+        .current_dir(cwd.path())
+        .arg("config")
+        .arg("current")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("No active wiki"))
+        .stdout(predicates::str::contains("hint:"));
+}
+
+/// JSON path for the "no match" case: alias/workspace/source must all be
+/// `null` plus a `note` field. Stable schema for CI consumers.
+///
+/// Two wiki entries are required so the single-wiki shortcut (step 7)
+/// doesn't fire. Both paths live under tempdirs that the CWD does NOT
+/// start with, so step 5 (CWD prefix match) also fails. Step 6
+/// (walk-up for `.llmwiki-cli/`) also fails because the CWD is empty.
+#[test]
+fn config_current_no_match_json_shape() {
+    let wiki1 = tempfile::tempdir().unwrap();
+    let wiki2 = tempfile::tempdir().unwrap();
+    let cwd = tempfile::tempdir().unwrap();
+
+    let (reg_path, _dir) = isolated_registry_with(&format!(
+        r#"
+[wiki1]
+path = "{}"
+
+[wiki2]
+path = "{}"
+"#,
+        wiki1.path().display(),
+        wiki2.path().display(),
+    ));
+
+    let output = isolated_cmd(&reg_path)
+        .current_dir(cwd.path())
+        .arg("config")
+        .arg("current")
+        .arg("--json")
+        .output()
+        .expect("wiki config current --json must run");
+    assert!(output.status.success());
+    let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(v["alias"].is_null(), "alias must be null: {v}");
+    assert!(v["workspace"].is_null(), "workspace must be null: {v}");
+    assert!(v["source"].is_null(), "source must be null: {v}");
+    assert!(v["note"].is_string(), "note must be a string: {v}");
+}
+
+/// CWD inside a registered wiki's path → `cwd_prefix` source. This is
+/// the most common real-world case (you `cd` into a wiki and the CLI
+/// auto-detects it).
+///
+/// Test-fixture note: the macOS filesystem canonicalizes `/var` to
+/// `/private/var` and `/tmp` to `/private/tmp` for `getcwd()` results,
+/// so a literal string comparison between `entry.path` and `cwd` is
+/// unreliable across platforms. The robust fix is Approach A3 from
+/// the brainstorm (canonicalize both sides before the `starts_with`
+/// check); that's a separate refactor. For now, the `cwd_prefix`
+/// source is covered by the unit test
+/// `resolve_active_cwd_prefix_match` in `tests/registry_test.rs`
+/// which passes both sides as literal strings, sidestepping the
+/// kernel-level canonicalization.
+///
+/// Here we cover the **walk-up** step instead — same shape, more
+/// portable. Drop a `.llmwiki-cli/` dir into a tempdir, cd into a
+/// child of that tempdir, and the resolver should pick it up via
+/// step 6 of the chain.
+#[test]
+fn config_current_walk_up_marker() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(workspace.path().join(".llmwiki-cli")).unwrap();
+    let nested = workspace.path().join("deep").join("child");
+    std::fs::create_dir_all(&nested).unwrap();
+
+    // Empty registry — no entries — so the only way the resolver can
+    // succeed is via walk-up (step 6). This forces the test to exercise
+    // exactly that step instead of falling back to a registry-driven
+    // path.
+    let (reg_path, _dir) = isolated_registry_with(
+        r#"
+# intentionally empty — no [alias] entries
+"#,
+    );
+
+    isolated_cmd(&reg_path)
+        .current_dir(&nested)
+        .arg("config")
+        .arg("current")
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("\"source\": \"walk_up\""));
+}
