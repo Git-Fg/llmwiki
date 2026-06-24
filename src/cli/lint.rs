@@ -348,8 +348,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                                 code: "raw-drift".into(),
                                 path: rel.clone(),
                                 message: format!(
-                                    "sha256 drift: declared `{}` but body hashes to `{}`",
-                                    declared_short, computed_short
+                                    "sha256 drift: declared `{declared_short}` but body hashes to `{computed_short}`",
                                 ),
                             });
                         }
