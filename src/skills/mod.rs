@@ -138,12 +138,12 @@ mod tests {
     /// distinctive phrase per sub-skill. The test fails fast if anyone
     /// copies a sub-skill workflow into the hub.
     const LEAK_MARKERS: &[&str] = &[
-        "llmwiki-search",        // sub-skill frontmatter + body refs (4 files)
-        "llmwiki-config",        // sub-skill frontmatter + body refs (4 files)
-        "llmwiki-cli embed",     // llmwiki-embed sub-skill workflow (6 files)
-        "llmwiki-cli ingest",    // llmwiki-ingest sub-skill workflow (1 file)
-        "## Workflow",           // common sub-skill section header (7 files)
-        "Do NOT use for:",       // sub-skill frontmatter contrast line (9 files)
+        "llmwiki-search",     // sub-skill frontmatter + body refs (4 files)
+        "llmwiki-config",     // sub-skill frontmatter + body refs (4 files)
+        "llmwiki-cli embed",  // llmwiki-embed sub-skill workflow (6 files)
+        "llmwiki-cli ingest", // llmwiki-ingest sub-skill workflow (1 file)
+        "## Workflow",        // common sub-skill section header (7 files)
+        "Do NOT use for:",    // sub-skill frontmatter contrast line (9 files)
     ];
 
     #[test]
