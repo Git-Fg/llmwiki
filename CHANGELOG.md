@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.3.28 — Lean CLI
+
+**Removed — `wiki lsp` and `wiki mcp`:**
+- The LSP server (`llmwiki-cli lsp`) and MCP server (`llmwiki-cli mcp`)
+  are removed. The CLI is now a single-purpose file tool.
+- Skills `lsp/` and `mcp/` are removed from the marketplace bundle.
+- Source files removed: `src/cli/lsp.rs`, `src/cli/mcp.rs`,
+  `src/core/lsp_domain.rs` (shared domain, only used by the servers).
+- Dependencies removed: `tower-lsp-server`, `rmcp`.
+- 4 protocol-level tests removed (`lsp_*`, `mcp_*`).
+- ~1,475 lines removed across source + skills + tests + docs.
+
+**Migration:** if you wired `llmwiki-cli lsp` into your editor (Helix,
+Neovim, Zed, VS Code) or `llmwiki-cli mcp` into your AI host (Claude
+Desktop, Claude Code, Cursor, Codex), remove the config block — the
+subcommands no longer exist.
+
+**Added — `wiki config show-schema --section <wiki|nim>`:**
+- Filter the schema output by section. Agents writing configs no
+  longer need to scroll through 200+ lines of JSON.
+
+**Added — `CONFIG` sub-skill:**
+- Teaches AI agents the edit-config workflow:
+  show-effective → show-schema → edit → validate → doctor.
+- Replaces the role the `lsp/` and `mcp/` skills filled.
+
 ## v0.3.27 — UX Polish
 
 **Bugfix — `wiki init` default aligned with read path (H1):**
