@@ -88,11 +88,10 @@ anything.
 
 NOT for **using** the wiki → use `search/`, `query/`, `ingest/`, etc.
 NOT for **fixing errors** that aren't install-related → use `troubleshooting/`.
-NOT for **browsing installed wikis** → use `lsp/` or `mcp/` skills.
+NOT for **browsing installed wikis** → use `search/` or `query/` skills.
 
 ## When NOT to load
 
 Do NOT load this skill when:
 - The user is asking about wiki content (use `search/` or `query/`).
 - The binary is installed and `doctor` passes (use the appropriate sub-skill).
-- The user is asking about the LSP or MCP integration (use `lsp/` or `mcp/`).
