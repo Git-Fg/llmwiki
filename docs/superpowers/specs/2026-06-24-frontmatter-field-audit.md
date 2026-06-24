@@ -276,11 +276,13 @@ The `BTreeMap` (not `HashMap`) choice is deliberate: BTreeMap has a stable itera
 
 ## Drift findings (for the v0.3.35 reviewer)
 
-Two findings the parent reviewer should be aware of before approving Task 2:
+Three findings the parent reviewer should be aware of before approving Task 2:
 
-1. **Threshold drift (low severity).** The design spec's "≥50 occurrences" rationale is empirically wrong for 6 of 21 fields. The field *selection* is correct; only the rationale text needs updating. **Action:** update line 92 of the design spec to drop "with ≥50 occurrences" and replace with a presence-based criterion.
+1. **Threshold drift (low severity).** The design spec's "≥50 occurrences" rationale is empirically wrong for 6 of 21 fields. The field *selection* is correct; only the rationale text needed updating. **Action:** completed in commit `6cfc1fa` ("docs: refine v0.3.35 field-rationale (15/21 meet ≥50, all 21 present + semantic)") which dropped the "≥50" claim from the design spec line 92 and the plan doc.
 
 2. **Script head-cap sampling bias (low severity, informational).** The audit script's `head -200`, `head -300`, and `head -1000` caps truncate the data for `mywiki` (11,378 files → 200/300) and `pharma` (339 files → 200/300), and `pharma` is **not represented at all** in the combined frequency table. The per-wiki key *vocabulary* is complete (caps don't add new key types), but absolute counts are lower bounds for mywiki and pharma. **Action:** none required — the field vocabulary is complete enough to lock the 21 typed fields. If a future revision needs exact counts, re-run the script without the head caps.
+
+3. **Page count drift (cosmetic).** The pre-audit estimate cited in the v0.3.25 smoke test (16,210) is stale. Actual count is 16,357 total `.md` files across the 4 wikis, 12,044 at depth ≤ 4 (the audit's sampling depth). The 21-field selection is unaffected by this number; the count difference reflects pages added since v0.3.25 plus an earlier rounding error in the smoke-test narrative.
 
 ## References
 
