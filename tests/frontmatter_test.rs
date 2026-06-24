@@ -74,3 +74,160 @@ fn extract_handles_no_footnotes() {
     assert!(extract_footnotes(body).is_empty());
     assert!(extract_footnote_refs(body).is_empty());
 }
+
+#[test]
+fn parse_frontmatter_returns_typed_struct_with_all_known_fields() {
+    let md = "\
+---
+title: Hello
+type: concept
+tags: [a, b]
+sources: [raw/page.md]
+confidence: 0.85
+created: '2026-01-01'
+updated: '2026-06-24'
+schema_version: 2
+status: stable
+kind: reference
+domain: pharma
+maturity: reviewed
+reviewed: '2026-05-01'
+aliases: [hello-world]
+description: A greeting
+related: [other-page]
+source_type: article
+sha256: abc123
+ingested: '2026-01-02'
+name: hello
+descriptions: [alt1, alt2]
+---
+Body content
+";
+    let parsed = parse_frontmatter(md).unwrap();
+    let fm = parsed
+        .frontmatter
+        .expect("frontmatter block should be present");
+    assert_eq!(fm.title.as_deref(), Some("Hello"));
+    assert_eq!(fm.page_type.as_deref(), Some("concept"));
+    assert_eq!(fm.tags, vec!["a", "b"]);
+    assert_eq!(fm.sources, vec!["raw/page.md"]);
+    assert_eq!(fm.confidence, Some(0.85));
+    assert_eq!(fm.created.as_deref(), Some("2026-01-01"));
+    assert_eq!(fm.updated.as_deref(), Some("2026-06-24"));
+    assert_eq!(fm.schema_version, Some(2));
+    assert_eq!(fm.status.as_deref(), Some("stable"));
+    assert_eq!(fm.kind.as_deref(), Some("reference"));
+    assert_eq!(fm.domain.as_deref(), Some("pharma"));
+    assert_eq!(fm.maturity.as_deref(), Some("reviewed"));
+    assert_eq!(fm.reviewed.as_deref(), Some("2026-05-01"));
+    assert_eq!(fm.aliases, vec!["hello-world"]);
+    assert_eq!(fm.description.as_deref(), Some("A greeting"));
+    assert_eq!(fm.related, vec!["other-page"]);
+    assert_eq!(fm.source_type.as_deref(), Some("article"));
+    assert_eq!(fm.sha256.as_deref(), Some("abc123"));
+    assert_eq!(fm.ingested.as_deref(), Some("2026-01-02"));
+    assert_eq!(fm.name.as_deref(), Some("hello"));
+    assert_eq!(fm.descriptions, vec!["alt1", "alt2"]);
+    assert!(fm.extra.is_empty());
+}
+
+#[test]
+fn parse_frontmatter_typo_lands_in_extra_not_known_field() {
+    // "titel" (typo) is not a known field, so it lands in `extra`, not `title`.
+    let md = "---\ntitel: Hello\n---\n";
+    let parsed = parse_frontmatter(md).unwrap();
+    let fm = parsed
+        .frontmatter
+        .expect("frontmatter block should be present");
+    assert_eq!(
+        fm.title, None,
+        "typo 'titel' must NOT populate the typed `title` field"
+    );
+    assert_eq!(
+        fm.extra.get("titel").and_then(|v| v.as_str()),
+        Some("Hello"),
+        "typo 'titel' must be preserved in the `extra` flatten bag",
+    );
+}
+
+#[test]
+fn parse_frontmatter_preserves_niche_extra_fields() {
+    // `avatar` and `timezone` are niche fields (1-10 occurrences in the audit
+    // across the 4 real flat-layout wikis). They are NOT typed fields, so they
+    // must round-trip through `extra` without being rejected.
+    let md = "\
+---
+title: X
+avatar: /img/x.png
+timezone: Europe/Paris
+session: 2026-01-01T00:00:00Z
+triggers: [a, b]
+---
+";
+    let parsed = parse_frontmatter(md).unwrap();
+    let fm = parsed
+        .frontmatter
+        .expect("frontmatter block should be present");
+    assert_eq!(fm.title.as_deref(), Some("X"));
+    assert_eq!(fm.extra.len(), 4);
+    assert!(fm.extra.contains_key("avatar"));
+    assert!(fm.extra.contains_key("timezone"));
+    assert!(fm.extra.contains_key("session"));
+    assert!(fm.extra.contains_key("triggers"));
+}
+
+#[test]
+fn parse_frontmatter_rejects_duplicate_top_level_keys() {
+    // Duplicate top-level keys must still error (both serde_yaml and
+    // serde-saphyr reject them). The frontmatter-yaml-parse lint code
+    // depends on this.
+    let md = "---\ntype: page\ntype: query\n---\n";
+    assert!(
+        parse_frontmatter(md).is_err(),
+        "duplicate top-level keys must fail to parse",
+    );
+}
+
+#[test]
+fn parse_frontmatter_empty_block_yields_default_struct() {
+    // Empty `---\n---` block: previously returned `Value::Null`. Now returns
+    // `Some(Frontmatter::default())`. This is Decision #1 from Task 4+5:
+    // we now distinguish "no block" (None) from "empty block" (Some(default())).
+    let md = "---\n---\nBody after empty frontmatter";
+    let parsed = parse_frontmatter(md).unwrap();
+    let fm = parsed
+        .frontmatter
+        .expect("empty block must yield Some(default)");
+    assert_eq!(fm.title, None);
+    assert!(fm.tags.is_empty());
+    assert!(fm.sources.is_empty());
+    assert!(fm.extra.is_empty());
+    assert_eq!(parsed.body, "Body after empty frontmatter");
+}
+
+#[test]
+fn parse_frontmatter_handles_pipeline_type_expression() {
+    // From minimax-code-wiki audit: a `type` value can be a pipeline
+    // expression like `"entity | concept | comparison | query | schema |
+    // summary"`. The typed struct uses `page_type: Option<String>` (not
+    // `enum PageType`) precisely because of these expressions.
+    let md = "---\ntype: entity | concept | comparison | query | schema | summary\n---\n";
+    let parsed = parse_frontmatter(md).unwrap();
+    let fm = parsed
+        .frontmatter
+        .expect("frontmatter block should be present");
+    assert_eq!(
+        fm.page_type.as_deref(),
+        Some("entity | concept | comparison | query | schema | summary"),
+    );
+}
+
+#[test]
+fn parse_frontmatter_no_block_yields_none() {
+    // No `---` block at all → `frontmatter: None`. Distinct from the
+    // empty-block case (which yields `Some(default())`).
+    let md = "Just body content, no frontmatter delimiter at all.\n";
+    let parsed = parse_frontmatter(md).unwrap();
+    assert!(parsed.frontmatter.is_none());
+    assert_eq!(parsed.body, md);
+}
