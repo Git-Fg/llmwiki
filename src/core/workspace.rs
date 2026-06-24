@@ -163,6 +163,51 @@ pub fn walk_pages<'a>(
         .filter(|e| e.as_ref().ok().is_some_and(|e| e.file_type().is_file()))
 }
 
+/// Filter helper for the 5 read-path commands (ls, tree, embed, lint, status).
+/// Returns `true` if `entry_path` should be treated as a wiki page; `false`
+/// if it should be skipped (project metadata, raw source, operation log, etc.).
+///
+/// Filters three categories:
+/// - Workspace-root `index.md` and `log.md`: the wiki registry and
+///   chronological operation log. They live at the workspace root by
+///   convention (both pre-v0.3.26 in `wiki/` and v0.3.26+ flat at the
+///   root). Filtered only at the workspace root — a subdirectory's
+///   `index.md` (e.g. `research/decompilation/index.md`) is a legitimate
+///   entry-point page and is kept.
+/// - Anything under `raw/`: raw sources handled by `--scope raw`, not
+///   by the page walks. Detected via the entry's path containing a
+///   `raw/` component relative to the workspace root.
+/// - `wiki.exclude_dirs` is handled by `walk_pages` itself via
+///   `filter_entry`, so this helper doesn't re-check it.
+///
+/// `workspace_root` is the resolved workspace (`ws`); `entry_path` is
+/// typically `entry.path()` from a `walkdir::DirEntry`. If `entry_path`
+/// isn't under `workspace_root` (e.g. an absolute path outside the wiki),
+/// the helper defaults to including it — callers should not feed in
+/// paths from elsewhere.
+pub fn is_wiki_page_entry(workspace_root: &Path, entry_path: &Path) -> bool {
+    let rel = match entry_path.strip_prefix(workspace_root) {
+        Ok(r) => r,
+        Err(_) => return true,
+    };
+    let components: Vec<_> = rel.components().collect();
+    if components.len() == 1 {
+        if let Some(name) = entry_path.file_name().and_then(|n| n.to_str()) {
+            if name == "index.md" || name == "log.md" {
+                return false;
+            }
+        }
+    }
+    for component in &components {
+        if let std::path::Component::Normal(os) = component {
+            if os.to_str() == Some("raw") {
+                return false;
+            }
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod pages_dir_tests {
     use super::*;
@@ -241,5 +286,49 @@ mod pages_dir_tests {
             .map(|e| e.path().strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/"))
             .collect();
         assert_eq!(paths, vec!["real.md".to_string()]);
+    }
+
+    #[test]
+    fn is_wiki_page_entry_filters_workspace_root_index_and_log() {
+        let ws = Path::new("/tmp/wiki");
+        assert!(!is_wiki_page_entry(ws, &ws.join("index.md")));
+        assert!(!is_wiki_page_entry(ws, &ws.join("log.md")));
+    }
+
+    #[test]
+    fn is_wiki_page_entry_keeps_subdirectory_index_and_log() {
+        // A `research/decompilation/index.md` is a legitimate entry-point page;
+        // only workspace-root `index.md`/`log.md` are filtered.
+        let ws = Path::new("/tmp/wiki");
+        assert!(is_wiki_page_entry(
+            ws,
+            &ws.join("research/decompilation/index.md")
+        ));
+        assert!(is_wiki_page_entry(ws, &ws.join("research/notes/log.md")));
+    }
+
+    #[test]
+    fn is_wiki_page_entry_filters_raw_at_any_depth() {
+        let ws = Path::new("/tmp/wiki");
+        assert!(!is_wiki_page_entry(ws, &ws.join("raw/foo.md")));
+        assert!(!is_wiki_page_entry(ws, &ws.join("raw/articles/x.md")));
+        assert!(!is_wiki_page_entry(ws, &ws.join("nested/raw/y.md")));
+    }
+
+    #[test]
+    fn is_wiki_page_entry_keeps_real_pages() {
+        let ws = Path::new("/tmp/wiki");
+        assert!(is_wiki_page_entry(ws, &ws.join("foo.md")));
+        assert!(is_wiki_page_entry(ws, &ws.join("comparisons/foo.md")));
+        assert!(is_wiki_page_entry(ws, &ws.join("AGENTS.md")));
+        assert!(is_wiki_page_entry(ws, &ws.join("README.md")));
+    }
+
+    #[test]
+    fn is_wiki_page_entry_returns_true_for_paths_outside_workspace() {
+        // Defensive default: callers should not pass these, but the helper
+        // doesn't fault on them.
+        let ws = Path::new("/tmp/wiki");
+        assert!(is_wiki_page_entry(ws, Path::new("/other/foo.md")));
     }
 }

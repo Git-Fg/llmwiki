@@ -154,23 +154,27 @@ fn build_page_entries(
     let mut page_files: Vec<PathBuf> = vec![];
     for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
         let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
-        if entry.path().extension().and_then(|s| s.to_str()) == Some("md") {
-            let rel = entry
-                .path()
-                .strip_prefix(ws)
-                .unwrap()
-                .to_string_lossy()
-                .replace('\\', "/");
-            let slug = entry
-                .path()
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_string();
-            all_slugs.push(slug);
-            page_files.push(entry.path().to_path_buf());
-            let _ = rel; // keep for debugging but not used now
+        if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
         }
+        if !crate::core::workspace::is_wiki_page_entry(ws, entry.path()) {
+            continue;
+        }
+        let rel = entry
+            .path()
+            .strip_prefix(ws)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let slug = entry
+            .path()
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        all_slugs.push(slug);
+        page_files.push(entry.path().to_path_buf());
+        let _ = rel; // keep for debugging but not used now
     }
 
     // compute inbound link counts
@@ -352,6 +356,9 @@ fn build_link_entries(
     for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
         let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
         if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+        if !crate::core::workspace::is_wiki_page_entry(ws, entry.path()) {
             continue;
         }
         let from = entry

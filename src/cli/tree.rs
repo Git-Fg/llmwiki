@@ -51,63 +51,67 @@ pub fn run(args: TreeArgs) -> Result<(), WikiError> {
 
     for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
         let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
-        if entry.path().extension().and_then(|s| s.to_str()) == Some("md") {
-            let rel = entry
-                .path()
-                .strip_prefix(&ws)
-                .unwrap()
-                .to_string_lossy()
-                .replace('\\', "/");
-
-            let slug = entry
-                .path()
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_string();
-
-            let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-            // Resilience: skip pages with unparseable frontmatter rather
-            // than failing the whole `wiki tree` listing.
-            let Ok(parsed) = crate::core::markdown::parse_frontmatter(&content) else {
-                continue;
-            };
-            let title = parsed
-                .frontmatter
-                .as_mapping()
-                .and_then(|m| m.get("title"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-
-            let tags = parsed
-                .frontmatter
-                .as_mapping()
-                .and_then(|m| m.get("tags"))
-                .and_then(|v| v.as_sequence())
-                .map(|seq| {
-                    seq.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            // Check if embedded
-            let embedded = if let Ok(emb) =
-                crate::core::embeddings::EmbeddingsFile::read_from(&ws.join("embeddings.jsonl"))
-            {
-                emb.pages.iter().any(|p| p.path == rel)
-            } else {
-                false
-            };
-
-            entries.push(TreeEntry {
-                slug,
-                path: rel,
-                title,
-                tags,
-                embedded,
-            });
+        if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
         }
+        if !crate::core::workspace::is_wiki_page_entry(&ws, entry.path()) {
+            continue;
+        }
+        let rel = entry
+            .path()
+            .strip_prefix(&ws)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        let slug = entry
+            .path()
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+        // Resilience: skip pages with unparseable frontmatter rather
+        // than failing the whole `wiki tree` listing.
+        let Ok(parsed) = crate::core::markdown::parse_frontmatter(&content) else {
+            continue;
+        };
+        let title = parsed
+            .frontmatter
+            .as_mapping()
+            .and_then(|m| m.get("title"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let tags = parsed
+            .frontmatter
+            .as_mapping()
+            .and_then(|m| m.get("tags"))
+            .and_then(|v| v.as_sequence())
+            .map(|seq| {
+                seq.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Check if embedded
+        let embedded = if let Ok(emb) =
+            crate::core::embeddings::EmbeddingsFile::read_from(&ws.join("embeddings.jsonl"))
+        {
+            emb.pages.iter().any(|p| p.path == rel)
+        } else {
+            false
+        };
+
+        entries.push(TreeEntry {
+            slug,
+            path: rel,
+            title,
+            tags,
+            embedded,
+        });
     }
 
     entries.sort_by(|a, b| a.slug.cmp(&b.slug));

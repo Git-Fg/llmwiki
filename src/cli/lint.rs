@@ -41,7 +41,10 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
             let mut all_pages: Vec<String> = vec![];
             for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
                 let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
-                if !is_wiki_page_entry(&entry, &ws, &cfg.wiki.pages_dir) {
+                if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
+                    continue;
+                }
+                if !crate::core::workspace::is_wiki_page_entry(&ws, entry.path()) {
                     continue;
                 }
                 let rel = entry
@@ -429,58 +432,4 @@ fn compute_inbound_links(ws: &Path, all_pages: &[String]) -> HashMap<String, usi
         }
     }
     inbound
-}
-
-/// Decide whether a `walkdir` entry should be treated as a wiki page by
-/// `wiki lint --scope wiki`.
-///
-/// v0.3.26+: the read-path default flipped to flat layout (`pages_dir = ""`),
-/// which makes the lint walk descend from the workspace root instead of the
-/// legacy `wiki/` subdirectory. The root also contains wiki metadata files
-/// (`index.md` registry, `log.md` operations log) and the `raw/` source
-/// directory. None of these are wiki pages — they have their own dedicated
-/// scopes (`--scope raw` for sources, log parsing is its own pass) and
-/// linted them under `--scope wiki` would generate false-positive
-/// `missing-frontmatter` / `no-outbound-links` errors.
-///
-/// Filter rules:
-/// - Must be a `.md` file (directories are walked for descent only).
-/// - Must NOT be `index.md` or `log.md` (wiki metadata, not pages).
-/// - Must NOT live under the `raw/` source directory.
-fn is_wiki_page_entry(
-    entry: &walkdir::DirEntry,
-    workspace: &Path,
-    pages_dir_config: &str,
-) -> bool {
-    if !entry.file_type().is_file() {
-        return false;
-    }
-    if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
-        return false;
-    }
-    let file_name = entry
-        .file_name()
-        .to_str()
-        .unwrap_or("");
-    if file_name == "index.md" || file_name == "log.md" {
-        return false;
-    }
-    // Skip the `raw/` source directory at any depth. Only meaningful in
-    // flat layout (subdir layout never descends into raw/); kept defensive.
-    let raw_root = workspace.join("raw");
-    if entry.path().starts_with(&raw_root) {
-        return false;
-    }
-    // Sanity check: if `pages_dir` is a non-empty subdir, the entry should
-    // live under it. Prevents lint from accidentally crawling the workspace
-    // root when a user sets `pages_dir = "wiki"` but the walk somehow
-    // escapes (it shouldn't with the current walk_pages implementation, but
-    // the guard is cheap and makes the contract explicit).
-    if !pages_dir_config.is_empty() {
-        let pages_root = workspace.join(pages_dir_config);
-        if !entry.path().starts_with(&pages_root) {
-            return false;
-        }
-    }
-    true
 }
