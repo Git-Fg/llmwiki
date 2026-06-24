@@ -47,6 +47,11 @@ pub enum Command {
         /// Wiki alias for wiki-root.toml registration
         #[arg(long)]
         alias: Option<String>,
+        /// Force flat layout (pages at workspace root). Default scaffolds
+        /// the legacy `wiki/` subdir for backward compat; use `--flat` to
+        /// scaffold pages at workspace root instead.
+        #[arg(long)]
+        flat: bool,
         /// Tags for this wiki (repeatable)
         #[arg(long = "tag", value_name = "TAG")]
         tags: Vec<String>,
@@ -323,9 +328,17 @@ pub async fn run(cli: Cli) {
                 dry_run,
             })
         }
-        Some(Command::Init { path, alias, tags }) => {
-            crate::cli::init::run(crate::cli::init::InitArgs { path, alias, tags })
-        }
+        Some(Command::Init {
+            path,
+            alias,
+            flat,
+            tags,
+        }) => crate::cli::init::run(crate::cli::init::InitArgs {
+            path,
+            alias,
+            flat,
+            tags,
+        }),
         Some(Command::Models {
             embed,
             rerank,

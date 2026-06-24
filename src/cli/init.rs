@@ -8,6 +8,7 @@ use std::path::PathBuf;
 pub struct InitArgs {
     pub path: PathBuf,
     pub alias: Option<String>,
+    pub flat: bool,
     pub tags: Vec<String>,
 }
 
@@ -36,8 +37,12 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         &crate::core::config::config_paths(&target),
     )
     .unwrap_or_else(|_| Config::default());
-    if cfg.wiki.pages_dir.is_empty() {
-        // No explicit user setting — use the init-scaffold default (subdir).
+    if args.flat {
+        // --flat forces flat layout regardless of any config default.
+        cfg.wiki.pages_dir = String::new();
+    } else if cfg.wiki.pages_dir.is_empty() {
+        // No --flat and no explicit user override → scaffold `wiki/` subdir
+        // for backward compat with existing tests + tooling.
         cfg.wiki.pages_dir = "wiki".into();
     }
     let pages_dir_path = pages_dir(&target, &cfg.wiki.pages_dir);
@@ -140,7 +145,15 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         println!("Registered wiki '{alias}' in wiki-root.toml");
     }
 
+    let layout_label = if args.flat || cfg.wiki.pages_dir.is_empty() {
+        "flat (pages at workspace root)"
+    } else {
+        "subdirectory"
+    };
+    let config_path = target.join(".llmwiki-cli").join("config.toml");
     println!("✓ Initialized wiki at {}", target.display());
+    println!("  Layout: {layout_label}");
+    println!("  Config: {}", config_path.display());
     Ok(())
 }
 
