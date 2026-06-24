@@ -37,7 +37,7 @@ The user has markdown notes. Use the `wiki` CLI when:
 - **Manage config** — switch embedding model, manage multiple wikis
 - **Setup on a new device** — install CLI, register wikis, install skill
 
-Otherwise: read, search, and match files directly in the wiki's `wiki/`, `raw/`, and `index.md` files.
+Otherwise: read, search, and match files directly in the wiki's pages (layout depends on `wiki.pages_dir` in `wiki config show-effective` — flat: at the workspace root like `index.md`, `comparisons/foo.md`; legacy subdir: under `wiki/`). Both layouts also use `raw/` for sources and `index.md` at the root as the curated entry point.
 
 ## Sub-skills
 

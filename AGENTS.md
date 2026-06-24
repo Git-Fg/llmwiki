@@ -161,7 +161,22 @@ The `tests/doctor_test.rs::doctor_uses_correct_models_endpoint` and the `tests/e
 
 ## Importing an Existing Wiki
 
-The canonical workspace layout uses a `wiki/` subdirectory containing markdown pages (`wiki/<page>.md`), a `raw/` directory for ingested sources (`raw/<category>/<source>.<ext>`), a `embeddings.jsonl` index, and a `.wiki/config.yaml`. If the source wiki uses a different layout (e.g. `concepts/`, `entities/`), the manual recipe is:
+The wiki supports two layouts, selected by `wiki.pages_dir` (default `""`, flat — v0.3.26+):
+
+- **Flat (default, v0.3.26+):** pages live at the workspace root
+  (`comparisons/foo.md`, `queries/bar.md`, `index.md`). Used by all real
+  wikis in `~/.agents/wiki-root.toml`. The `raw/` directory for ingested
+  sources is still `raw/<category>/<source>.<ext>`, and `embeddings.jsonl`
+  plus `.llmwiki-cli/config.toml` live at the root.
+- **Legacy subdir:** pages live in a `wiki/` subdirectory
+  (`wiki/<page>.md`). Set `wiki.pages_dir = "wiki"` to opt in. Used by
+  `wiki init` before v0.3.26 and by any wiki that was scaffolded before
+  the flat-layout default shipped.
+
+If a source wiki uses a different layout (e.g. Obsidian `notes/`),
+either move the files into one of the two supported layouts above, or
+set `wiki.pages_dir = "notes"` to point at the existing directory. Use
+`wiki config show-effective` to see the resolved `pages_dir`.
 
 ```bash
 llmwiki-cli init /path/to/new-wiki
