@@ -20,7 +20,7 @@ clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.13", features = ["json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
+serde-saphyr = "0.0"
 serde_json = "1"
 walkdir = "2"
 anyhow = "1"

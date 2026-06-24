@@ -47,7 +47,7 @@ pub fn parse_frontmatter(content: &str) -> Result<ParsedPage, WikiError> {
     let frontmatter: Frontmatter = if yaml_text.trim().is_empty() {
         Frontmatter::default()
     } else {
-        serde_yaml::from_str(yaml_text)?
+        serde_saphyr::from_str(yaml_text)?
     };
     Ok(ParsedPage {
         frontmatter: Some(frontmatter),

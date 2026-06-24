@@ -48,7 +48,7 @@ fn lint_detects_orphan_page() {
 #[test]
 fn lint_resilient_to_unparseable_frontmatter() {
     // v0.3.25+: lint must not crash the whole run when one page has YAML
-    // that `serde_yaml` cannot parse (e.g. duplicate top-level keys like
+    // that `serde-saphyr` cannot parse (e.g. duplicate top-level keys like
     // `type:` appearing twice). The bad page should be reported as a
     // `frontmatter-yaml-parse` lint issue, the good page should still be checked
     // normally, and the run should exit 2 (errors > 0) instead of panicking.
@@ -56,7 +56,7 @@ fn lint_resilient_to_unparseable_frontmatter() {
     let wiki = tmp.path();
     std::fs::create_dir_all(wiki.join("wiki")).unwrap();
 
-    // Duplicate `type:` key — `serde_yaml::from_str` returns Err.
+    // Duplicate `type:` key — `serde_saphyr::from_str` returns Err.
     let bad = "---\nschema_version: 1\ntitle: Bad\ncreated: 2026-01-01\nupdated: 2026-01-01\ntype: concept\ntype: entity\ntags: [x]\nsources: []\n---\n\nBody\n";
     std::fs::write(wiki.join("wiki/bad-page.md"), bad).unwrap();
 

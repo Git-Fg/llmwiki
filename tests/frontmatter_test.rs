@@ -178,9 +178,9 @@ triggers: [a, b]
 
 #[test]
 fn parse_frontmatter_rejects_duplicate_top_level_keys() {
-    // Duplicate top-level keys must still error (both serde_yaml and
-    // serde-saphyr reject them). The frontmatter-yaml-parse lint code
-    // depends on this.
+    // Duplicate top-level keys must still error (`serde-saphyr` rejects them,
+    // same as the previous `serde_yaml` dependency did). The
+    // frontmatter-yaml-parse lint code depends on this.
     let md = "---\ntype: page\ntype: query\n---\n";
     assert!(
         parse_frontmatter(md).is_err(),
