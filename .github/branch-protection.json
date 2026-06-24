@@ -1,7 +1,7 @@
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["fmt-clippy-test", "marketplace-validate", "skill-smoke", "msrv-check", "changelog-check"]
+    "contexts": ["fmt-clippy-test", "skill-smoke", "msrv-check", "changelog-check"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": {

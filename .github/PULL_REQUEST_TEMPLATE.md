@@ -16,7 +16,6 @@
 - [ ] `cargo clippy --all-targets -- -D warnings` clean
 - [ ] `cargo test` passes (all tests, including new ones)
 - [ ] `cargo build --release` succeeds
-- [ ] `python3 marketplace/scripts/validate.py --strict` passes
 - [ ] `bash tests/skill_smoke.sh` passes (if CLI surface changed)
 - [ ] CHANGELOG.md updated under "Unreleased" or the next version
 - [ ] Docs updated (README, AGENTS.md, or skill content) if user-facing

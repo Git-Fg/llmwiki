@@ -60,8 +60,13 @@ async fn full_pipeline_init_embed_search_status_lint() {
     let tmp = tempfile::tempdir().unwrap();
     let wiki_dir = tmp.path();
 
-    // 1. init
-    wiki().arg("init").arg(wiki_dir).assert().success();
+    // 1. init (use --subdir for legacy wiki/ layout since test fixtures use wiki/ paths)
+    wiki()
+        .arg("init")
+        .arg(wiki_dir)
+        .arg("--subdir")
+        .assert()
+        .success();
 
     // 2. remove the init-template files (overview.md, log.md) — they don't have
     //    valid frontmatter by lint's standards; the real content is what we test.

@@ -115,13 +115,16 @@ fn flat_layout_tree_finds_pages_when_pages_dir_is_empty() {
 }
 
 #[test]
-fn flat_layout_ls_pages_returns_empty_when_pages_dir_defaults_to_wiki() {
-    // Sanity check: if the user has a flat-layout workspace but does NOT set
-    // `wiki.pages_dir = ""`, the CLI still defaults to `wiki/` and reports
-    // 0 pages. This is the documented v0.3.24- behavior for users who
-    // haven't migrated their config yet.
-    let tmp = make_flat_layout_workspace();
-    // No config write — defaults to `wiki/`, which doesn't exist.
+fn wiki_subdir_layout_finds_pages_with_prefix_when_default_is_flat() {
+    // v0.3.26+ with the flat default and no explicit config: `walk_pages`
+    // recursively descends into the workspace root, so pages in a `wiki/`
+    // subdir ARE discovered (with `wiki/`-prefixed slugs). This is
+    // backward-compatible with pre-v0.3.26 wikis that haven't migrated
+    // their config yet — users still see their pages, just with prefix.
+    // For clean slugs without the `wiki/` prefix, set `pages_dir = "wiki"`
+    // explicitly (see `wiki_subdir_layout_works_with_explicit_pages_dir`).
+    let tmp = make_wiki_layout_workspace();
+    // No config write — pages_dir defaults to "" → walks workspace root.
     Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
@@ -130,7 +133,26 @@ fn flat_layout_ls_pages_returns_empty_when_pages_dir_defaults_to_wiki() {
         .arg("--pages")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Pages (0):"));
+        .stdout(predicate::str::contains("wiki/example"))
+        .stdout(predicate::str::contains("wiki/other"));
+}
+
+#[test]
+fn wiki_subdir_layout_works_with_explicit_pages_dir() {
+    // Counterpart: with `wiki.pages_dir = "wiki"` set, the legacy layout
+    // works exactly as before v0.3.26.
+    let tmp = make_wiki_layout_workspace();
+    write_config(tmp.path(), "wiki");
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace")
+        .arg(tmp.path())
+        .arg("ls")
+        .arg("--pages")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("example"))
+        .stdout(predicate::str::contains("other"));
 }
 
 #[test]
@@ -185,4 +207,24 @@ fn flat_layout_with_custom_pages_dir_is_honored() {
         .assert()
         .success()
         .stdout(predicate::str::contains("alpha"));
+}
+
+#[test]
+fn default_pages_dir_is_empty_string_for_flat_layout() {
+    // v0.3.26+: with no config, the CLI defaults to flat layout (pages at
+    // workspace root). The pre-v0.3.26 default of `"wiki"` is gone. Users
+    // who want the legacy subdirectory layout set `pages_dir = "wiki"` explicitly.
+    let tmp = make_flat_layout_workspace();
+    // No config write — defaults to `""` (flat), so the workspace-root
+    // pages ARE discovered.
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace")
+        .arg(tmp.path())
+        .arg("ls")
+        .arg("--pages")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("comparisons/foo"))
+        .stdout(predicate::str::contains("queries/bar"));
 }

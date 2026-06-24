@@ -1,7 +1,6 @@
 pub mod chunker;
 pub mod config;
 pub mod embeddings;
-pub mod lsp_domain;
 pub mod markdown;
 pub mod models_registry;
 pub mod nim;

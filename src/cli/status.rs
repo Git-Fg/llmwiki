@@ -25,11 +25,15 @@ pub fn run(args: StatusArgs) -> Result<(), WikiError> {
     let mut page_count = 0;
     let wiki_dir = pages_dir(&ws, &cfg.wiki.pages_dir);
     if wiki_dir.exists() {
-        for entry in walkdir::WalkDir::new(&wiki_dir) {
+        for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
             let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
-            if entry.path().extension().and_then(|s| s.to_str()) == Some("md") {
-                page_count += 1;
+            if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
             }
+            if !crate::core::workspace::is_wiki_page_entry(&ws, entry.path()) {
+                continue;
+            }
+            page_count += 1;
         }
     }
 

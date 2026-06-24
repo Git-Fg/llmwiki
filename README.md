@@ -74,7 +74,7 @@ git add . && git commit -m "ingest: X" && git push
 
 ## Multi-wiki registry
 
-The CLI supports multiple wikis via `wiki-root.toml` — a git-friendly TOML registry that the CLI, LSP server, and MCP server all read. Concatenation semantics match `git config` (local + global):
+The CLI supports multiple wikis via `wiki-root.toml` — a git-friendly TOML registry that the CLI reads. Concatenation semantics match `git config` (local + global):
 
 - **Project-local** (highest priority): `.agents/wiki-root.toml` at any ancestor of CWD. Closer-to-CWD wins.
 - **User-global** (lowest priority, loaded first): `~/wiki-root.toml`, `~/.claude/wiki-root.toml`, `~/.agents/wiki-root.toml`.
@@ -126,8 +126,6 @@ wiki config show-effective nim. --source ./config.toml --overrides-only --json
 - **Embeddings**: `embeddings.jsonl` (gitignored, regenerated per device via `llmwiki-cli embed`).
 - **Config**: `[defaults]` + per-alias `[alias]` tables in `wiki-root.toml`. Legacy `~/.config/wiki/config.yaml` fallback still supported.
 - **CLI**: Single Rust binary. No database.
-- **LSP**: `llmwiki-cli lsp` — hover, completion, document symbols, diagnostics over stdio.
-- **MCP**: `llmwiki-cli mcp` — validate, hover, completion, schema, doctor over stdio.
 - **Skill**: stub at `~/.agents/skills/wiki/SKILL.md` (copied via `llmwiki-cli install-skill`). Full content served by `llmwiki-cli skill show [topic]`.
 - **Sync**: Git between devices. Embeddings regenerated locally.
 - **No viewer**: The wiki is consumed directly via the CLI; no static site is generated.
@@ -149,8 +147,6 @@ llmwiki-cli models                  list supported NIM models
 llmwiki-cli doctor                  diagnose config + NIM
 llmwiki-cli status                  show wiki stats
 llmwiki-cli config <subcommand>     manage wiki-root.toml (get/set/unset/add/rm/list/path/edit/validate/show-schema)
-llmwiki-cli lsp                     run the LSP server (stdio)
-llmwiki-cli mcp                     run the MCP server (stdio)
 llmwiki-cli install-skill           install the bundled skill
 llmwiki-cli skill show [topic]      print skill content
 llmwiki-cli version                 print version
@@ -175,7 +171,7 @@ Run `llmwiki-cli models` for full specs. Change via `wiki config set nim.embed_m
 - Design spec: `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`
 - Multi-source registry spec: `docs/superpowers/specs/2026-06-23-multi-wiki-resolution-v032-design.md`
 - Agent behavioral layer: `AGENTS.md`
-- Full agent skill: `agents/skills/wiki/SKILL.md` (bundled, `llmwiki-cli skill show`)
+- Full agent skill: `skills/SKILL.md` (bundled, `llmwiki-cli skill get` for inline sub-skills)
 
 ## License
 

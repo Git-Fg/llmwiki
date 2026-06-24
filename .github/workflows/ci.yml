@@ -20,16 +20,6 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
 
-  marketplace-validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Validate skill format
-        run: python marketplace/scripts/validate.py --strict
-
   skill-smoke:
     runs-on: ubuntu-latest
     steps:

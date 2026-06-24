@@ -460,7 +460,7 @@ impl Registry {
         }
 
         // Deserialize into Config
-        let cfg: Config =
+        let mut cfg: Config =
             merged_value
                 .try_into()
                 .map_err(|e: toml::de::Error| WikiError::ConfigInvalid {
@@ -468,6 +468,8 @@ impl Registry {
                     line: 0,
                     message: format!("Failed to deserialize merged config: {e}"),
                 })?;
+        // v0.3.27+: merge canonical exclusion defaults (additive semantics).
+        crate::core::workspace::merge_exclude_defaults(&mut cfg);
 
         Ok(cfg)
     }

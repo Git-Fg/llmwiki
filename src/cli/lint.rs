@@ -39,17 +39,21 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
         };
         if wiki_dir.exists() {
             let mut all_pages: Vec<String> = vec![];
-            for entry in walkdir::WalkDir::new(&wiki_dir) {
+            for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
                 let entry = entry.map_err(|e| anyhow::anyhow!(e))?;
-                if entry.path().extension().and_then(|s| s.to_str()) == Some("md") {
-                    let rel = entry
-                        .path()
-                        .strip_prefix(&ws)
-                        .unwrap()
-                        .to_string_lossy()
-                        .replace('\\', "/");
-                    all_pages.push(rel);
+                if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
+                    continue;
                 }
+                if !crate::core::workspace::is_wiki_page_entry(&ws, entry.path()) {
+                    continue;
+                }
+                let rel = entry
+                    .path()
+                    .strip_prefix(&ws)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                all_pages.push(rel);
             }
 
             let inbound = compute_inbound_links(&ws, &all_pages);
@@ -93,7 +97,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     Err(e) => {
                         all_issues.push(LintIssue {
                             severity: "error".into(),
-                            code: "frontmatter-parse".into(),
+                            code: "frontmatter-yaml-parse".into(),
                             path: page_path.clone(),
                             message: format!("could not parse YAML frontmatter: {e}"),
                         });
@@ -290,7 +294,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                     Err(e) => {
                         all_issues.push(LintIssue {
                             severity: "error".into(),
-                            code: "frontmatter-parse".into(),
+                            code: "frontmatter-yaml-parse".into(),
                             path: rel.clone(),
                             message: format!("could not parse YAML frontmatter: {e}"),
                         });

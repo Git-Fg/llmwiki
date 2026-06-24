@@ -1,5 +1,275 @@
 # Changelog
 
+## [0.3.31] - 2026-06-24 — Machine-readable skill output
+
+**Added — `llmwiki-cli skill list --json`:**
+- Machine-readable JSON array for programmatic consumption by agents and
+  scripts. Output schema: `[{"name": "wiki-search", "lines": 41}, ...]`.
+- Useful for agents that parse available skills programmatically rather
+  than reading human-formatted text.
+
+**Added — `llmwiki-cli skill get --all`:**
+- Prints every sub-skill concatenated with `=== wiki-<name> ===` section
+  headers. Mirrors `agent-browser skills get --full`.
+- Useful when an agent wants to load all sub-skills in one call rather
+  than making nine separate `skill get` invocations.
+- `--all` conflicts with a topic argument: `skill get wiki-search --all`
+  produces a clean error.
+
+**Research finding — `npx skills add` compatibility confirmed:**
+- The repo layout `skills/SKILL.md` (hub at root of `skills/`) is
+  discovered by [`npx skills add`](https://github.com/vercel-labs/skills)
+  (23k stars, 72+ agents) as a single skill named "wiki". All sibling
+  `.md` files are bundled as resource files.
+- No restructuring needed — the current layout works with both
+  `llmwiki-cli install-skill` (small install, hub-only) and
+  `npx skills add` (fat install, all files).
+- Per-agent global paths (from vercel-labs/skills source):
+  Kimi Code CLI / Cursor / Codex / Gemini / Copilot → `~/.agents/skills/`
+  Claude Code → `~/.claude/skills/`
+
+**Correction from v0.3.30:**
+- Cursor DOES support SKILL.md (`.agents/skills/` project,
+  `~/.cursor/skills/` global, per the `npx skills add` agent table).
+  The v0.3.30 note "Cursor does not yet support SKILL.md" was wrong.
+
+**Verification:**
+- 287 tests pass (was 284; +3 for `list --json`, `get --all`,
+  `get --all` error case)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+
+## v0.3.30 — Cross-host install path
+
+**Added — `llmwiki-cli install-skill --install-path <dir>`:**
+- Override the default install directory to target a specific host's
+  skills directory.
+- Default behavior is unchanged: `--global` → `$HOME/.agents/skills/wiki`
+  (works for Kimi Code and any host that follows the
+  [agentskills.io](https://agentskills.io/) cross-host convention).
+- New examples:
+  ```bash
+  # Claude Code
+  llmwiki-cli install-skill --global --install-path ~/.claude/skills/wiki
+  # Cursor (note: Cursor does not yet support SKILL.md; uses .cursorrules)
+  llmwiki-cli install-skill --global --install-path ~/.cursor/skills/wiki
+  # Kimi brand path (in addition to the default ~/.agents/skills/ fallback)
+  llmwiki-cli install-skill --global --install-path ~/.kimi/skills/wiki
+  # Explicit project install at a non-default path
+  llmwiki-cli install-skill --workspace /path/to/wiki --install-path /path/to/wiki/.claude/skills/wiki
+  ```
+- Tilde (`~`) is expanded to `$HOME` so `--install-path ~/foo/bar` works
+  the same as `--install-path $HOME/foo/bar`.
+- Tested: 2 new tests in `tests/install_skill_test.rs`
+  (`install_skill_install_path_overrides_default`,
+  `install_skill_install_path_expands_tilde`).
+
+**Why this was needed:** v0.3.29 installed to `~/.agents/skills/wiki/`
+which is the cross-host generic fallback. Anthropic's [Claude Code Skills
+docs](https://code.claude.com/docs/en/skills) document that Claude Code
+reads from `~/.claude/skills/` (a brand path, not the generic fallback).
+Users on Claude Code had no way to install the skill to a path their
+agent would actually scan, so the install was silently invisible.
+The new `--install-path` flag resolves that gap without changing the
+default for existing users.
+
+**Changed — `build.rs` cleanup:**
+- Dropped redundant `cargo:rerun-if-changed=skills/SKILL.md` (rust-embed
+  emits its own per-file rerun triggers). Behavior unchanged; ~1 line
+  removed + comment explaining the delegation.
+
+**Verification:**
+- 284 tests pass (was 282; +2 for the new flag and tilde expansion)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+- `llmwiki-cli install-skill --install-path <tmp>` verified: writes
+  byte-identical hub to the custom path
+- Tilde expansion verified: `--install-path ~/test-wiki-tilde` resolves
+  to `$HOME/test-wiki-tilde`
+
+**Deferred to v0.3.31+:**
+- `LLMWIKI_SKILLS_DIR` env var override (debugging aid)
+- `skill get --all` and `skill get --full` (matches agent-browser's API;
+  useful when content grows beyond a single SKILL.md per sub-skill)
+- `references/` and `templates/` per-skill subdirectory support
+- Stale `~/.agents/skills/wiki/{SETUP,INGEST,...}/` folders from
+  v0.3.28 are auto-cleaned by `install-skill` (the directory is removed
+  and recreated with just the hub); no action needed.
+
+## v0.3.29 — Flat skill bundle
+
+**Removed — `marketplace/` directory and all plugin-manifest plumbing:**
+- The entire `marketplace/` tree (Claude/Kimi/Cursor/Codex plugin
+  manifests, `marketplace.json`, `VERSION`, `validate.py`) is deleted.
+- `agents/skills/` legacy build-artifact stub is deleted.
+- `marketplace-validate` CI job removed.
+- The `python3 marketplace/scripts/validate.py --strict` PR template
+  step is removed.
+- `~/.agents/skills/wiki/{SETUP,INGEST,...}/` nested sub-skill folders
+  are no longer written to disk.
+
+**Why:** the marketplace layer added packaging complexity (4 sibling
+manifests, a Python validator, multi-host installs) without improving
+agent outcomes. The skill is consumed by the host agent at runtime;
+flat `skills/wiki-{topic}.md` files + one `~/.agents/skills/wiki/SKILL.md`
+hub is enough. Inspired by [`vercel-labs/agent-browser`](https://github.com/vercel-labs/agent-browser)'s
+`skills get core` convention: CLI is source of truth, skill is a thin
+discovery hub.
+
+**Added — `rust-embed` skill bundle:**
+- `src/skills/mod.rs` replaces 9 hand-written `include_str!` constants
+  with one `#[derive(RustEmbed)] #[folder = "skills/"]` over the
+  source-of-truth `skills/` directory.
+- `src/skills::find_skill("search")` and `find_skill("wiki-search")`
+  both work (name normalization).
+- `src/skills::list_skills()` returns the 9 inline sub-skills
+  (sorted), excluding the hub.
+- New dependency: `rust-embed = "6"`.
+
+**Added — `wiki skill get <topic>` canonical discovery primitive:**
+- Mirrors `agent-browser`'s `skills get <topic>` convention.
+- Accepts both `wiki-search` and `search` (normalized).
+- `wiki skill show` retained as an alias for backward compatibility.
+- New `wiki skill path [topic]` prints the install location of the
+  hub (or, with a topic, the embed-time path inside the binary).
+
+**Added — `llmwiki-cli install-skill --global` is hub-only:**
+- Writes **only** `~/.agents/skills/wiki/SKILL.md` (the hub).
+- Sub-skills are served at runtime from bytes embedded in the binary —
+  never written to disk.
+- Reduces install surface from 9 files + 1 hub to **1 file**.
+
+**Rewritten — `skills/SKILL.md` (hub, 115 lines):**
+- Frontmatter + gotchas + how-to, routing every command to
+  `llmwiki-cli <cmd> --help` for the full reference.
+- Explicit "all CLI invocations use `llmwiki-cli`, never `wiki`" rule
+  at the top (was a frequent source of confused doc snippets).
+- Lists the 9 inline sub-skills and how to fetch each.
+
+**Rewritten — 9 inline sub-skills (40-48 lines each, was 35-97):**
+- `wiki-setup.md`, `wiki-config.md`, `wiki-ingest.md`,
+  `wiki-search.md`, `wiki-query.md`, `wiki-lint.md`,
+  `wiki-models.md`, `wiki-sync.md`, `wiki-troubleshooting.md`.
+- Each is **thin**: the routing header + a one-line summary of when to
+  use this command. Full reference is in `llmwiki-cli <cmd> --help`.
+- Removes the previous duplication where sub-skills re-explain flag
+  semantics.
+
+**Migration — existing installs:**
+- Run `llmwiki-cli install-skill --global` to overwrite the hub with
+  the v0.3.29 (smaller) version.
+- The old nested `~/.agents/skills/wiki/{SETUP,INGEST,...}/` folders
+  can be deleted; they're no longer used:
+  ```bash
+  rm -rf ~/.agents/skills/wiki/{SETUP,INGEST,SEARCH,QUERY,LINT,MODELS,SYNC,TROUBLESHOOTING,CONFIG,LSP,MCP}
+  ```
+- If your host editor was reading those nested files, point it at
+  `wiki skill get <topic>` output instead.
+
+## v0.3.28 — Lean CLI
+
+**Removed — `wiki lsp` and `wiki mcp`:**
+- The LSP server (`llmwiki-cli lsp`) and MCP server (`llmwiki-cli mcp`)
+  are removed. The CLI is now a single-purpose file tool.
+- Skills `lsp/` and `mcp/` are removed from the marketplace bundle.
+- Source files removed: `src/cli/lsp.rs`, `src/cli/mcp.rs`,
+  `src/core/lsp_domain.rs` (shared domain, only used by the servers).
+- Dependencies removed: `tower-lsp-server`, `rmcp`.
+- 4 protocol-level tests removed (`lsp_*`, `mcp_*`).
+- ~1,475 lines removed across source + skills + tests + docs.
+
+**Migration:** if you wired `llmwiki-cli lsp` into your editor (Helix,
+Neovim, Zed, VS Code) or `llmwiki-cli mcp` into your AI host (Claude
+Desktop, Claude Code, Cursor, Codex), remove the config block — the
+subcommands no longer exist.
+
+**Added — `wiki config show-schema --section <wiki|nim>`:**
+- Filter the schema output by section. Agents writing configs no
+  longer need to scroll through 200+ lines of JSON.
+
+**Added — `CONFIG` sub-skill:**
+- Teaches AI agents the edit-config workflow:
+  show-effective → show-schema → edit → validate → doctor.
+- Replaces the role the `lsp/` and `mcp/` skills filled.
+
+## v0.3.27 — UX Polish
+
+**Bugfix — `wiki init` default aligned with read path (H1):**
+- Plain `wiki init` now scaffolds **flat layout** (pages at workspace root),
+  matching the `pages_dir = ""` read-path default introduced in v0.3.26.
+  New users see their pages immediately after `wiki init` without editing
+  config. `wiki init --subdir` explicitly opts into the legacy `wiki/`
+  subdirectory layout. `--flat` is still accepted for backward
+  compatibility with v0.3.26 scripts. `--flat` and `--subdir` are mutually
+  exclusive.
+
+**Bugfix — `wiki.exclude_dirs` is now additive (M2):**
+- User-provided `exclude_dirs` now **merges** with the built-in defaults
+  (`node_modules`, `.git`, `.opencode`, etc.) instead of replacing them.
+  This prevents users who add a single custom exclude from accidentally
+  losing the entire default exclusion list. The merge happens at
+  config-load time in both `load_config_unvalidated` and
+  `Registry::resolve_config`, so both `--workspace` and `--wiki <alias>`
+  paths benefit.
+
+**New feature — config key validation (M4):**
+- `wiki config validate` now warns on unknown keys under `[wiki]` and
+  `[nim]` sections. Typos like `pages_dirr = "wiki"` or
+  `embed_modle = "..."` are flagged instead of silently ignored by serde.
+
+**New test — `embed` exclusion (M3):**
+- Integration test verifies `wiki embed` skips pages under excluded
+  directories. Marked `#[ignore]` (requires real NIM API).
+
+## v0.3.26 — Correctness
+
+**Breaking change — `wiki.pages_dir` default flipped:**
+- The default `wiki.pages_dir` is now `""` (flat layout) instead of `"wiki"`.
+  New users get a working wiki out-of-the-box without configuring
+  `pages_dir`. Users with legacy `wiki/`-subdir layouts MUST set
+  `wiki.pages_dir = "wiki"` explicitly. `wiki init --flat` is now the
+  default `wiki init` behavior; the legacy subdir layout is opt-in via
+  `wiki.pages_dir = "wiki"` or a future `--subdir` flag (out of scope
+  for v0.3.26). The pre-release real-wiki smoke test on the five real
+  wikis in `~/.agents/wiki-root.toml` confirms the new default works on
+  `mevin`, `minimax`, `mywiki`, `pharma`, `pharma.nim` (16,210 pages
+  reachable across the four flat-layout wikis).
+
+**New feature — `wiki.exclude_dirs`:**
+- `wiki.exclude_dirs: Vec<String>` configures bare directory basenames
+  that are skipped at any depth when walking the wiki for pages. Default
+  list (`default_exclude_dirs()` in `src/core/config_types.rs`) covers
+  dev-project noise (`node_modules`, `.git`, `target`, `dist`, `build`,
+  `.next`, `.cache`, `.turbo`, `.venv`, `venv`, `env`, `__pycache__`,
+  `.idea`, `.vscode`) and wiki-specific noise observed on the user's
+  real wikis (`.opencode`, `.claude`, `.mavis`, `.harness`, `.serena`,
+  `.principled`, `.swe-bench`). Custom `exclude_dirs` REPLACES the
+  default — append explicitly if you want both. Wired through
+  `workspace::walk_pages`, which replaces six `walkdir::WalkDir::new(...)`
+  call sites in `cli::{ls,tree,embed,lint,status}.rs`. Raw directory
+  walks (`raw/`) are unchanged.
+
+**New feature — `wiki init --flat`:**
+- The `--flat` flag forces flat-layout scaffolding (no `wiki/` subdir).
+  Plain `wiki init` follows `wiki.pages_dir` (default: flat). `wiki init`
+  now prints `Layout:` and `Config:` lines so users can audit what was
+  created.
+
+**Bugfix — lint code rename:**
+- The `frontmatter-parse` lint code (introduced v0.3.25) is renamed
+  `frontmatter-yaml-parse` for clarity — it fires ONLY on YAML parse
+  failures, not generic frontmatter issues.
+
+**Documentation:**
+- `marketplace/skills/wiki/SKILL.md` documents both layouts + the
+  `wiki config show-effective` command.
+- `AGENTS.md` filesystem-layout example shows the flat-layout form.
+
+**Cleanup:**
+- Deleted four per-workspace `~/.llmwiki-cli/<alias>/config.toml` files
+  whose only content was `pages_dir = ""`, now redundant under the new
+  default.
+
 ## [0.3.25] - 2026-06-23 — single-source-of-truth schema generation + flat-layout wiki support
 
 **Refactor (build pipeline):**
@@ -55,7 +325,7 @@
   triggered because the hardcoded `wiki/` path missed every real wiki
   on this machine; v0.3.25's flat-layout discovery exposed it on
   `~/.llmwiki-cli/` `mywiki`. `cli::lint` reports the same condition
-  as a new `frontmatter-parse` lint issue (severity `error`) and
+  as a new `frontmatter-yaml-parse` lint issue (severity `error`) and
   continues checking the remaining pages. New CLI tests
   `lint_resilient_to_unparseable_frontmatter` and
   `flat_layout_ls_resilient_to_unparseable_frontmatter` lock the

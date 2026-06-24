@@ -7,8 +7,6 @@ pub mod init;
 pub mod install_skill;
 pub mod lint;
 pub mod ls;
-pub mod lsp;
-pub mod mcp;
 pub mod models;
 pub mod query;
 pub mod search;
@@ -21,7 +19,40 @@ use clap::{Parser, Subcommand};
 use crate::cli::skill::SkillArgs;
 
 #[derive(Parser)]
-#[command(name = "llmwiki-cli", version, about = "Karpathy-style LLM Wiki")]
+#[command(
+    name = "llmwiki-cli",
+    version,
+    about = "Karpathy-style LLM Wiki",
+    long_about = "Manage a personal LLM Wiki: markdown pages + JSONL embeddings, no database.\n\
+                  Single binary; no server; works offline against local files.\n\
+                  NVIDIA NIM provides embeddings + optional LLM for RAG queries.\n\
+                  \n\
+                  Quick start:\n  \
+                    llmwiki-cli doctor                        # verify config + NIM\n  \
+                    llmwiki-cli skill list                    # discover sub-skills\n  \
+                    llmwiki-cli <command> --help              # full flag reference\n  \n\
+                  For AI agents: start with `llmwiki-cli skill get <topic>`.",
+    after_help = "Categories:\n  \
+                    setup:        init, install-skill, models\n  \
+                    knowledge:    ingest, build, embed, search, query\n  \
+                    maintenance:  lint, ls, tree, status, doctor\n  \
+                    config:       config (see `llmwiki-cli config --help`)\n  \n\
+                  Discovery:\n  \
+                    llmwiki-cli skill list                    # every inline sub-skill\n  \
+                    llmwiki-cli skill get <topic>             # load one (e.g. wiki-search)\n  \
+                    llmwiki-cli <command> --help              # full flag reference\n  \n\
+                  Common flags (all commands):\n  \
+                    --workspace <path>                        # override workspace\n  \
+                    --wiki <alias>                            # select wiki from registry\n  \n\
+                  Env:\n  \
+                    NVIDIA_NIM_API_KEY     required (get at https://build.nvidia.com/)\n  \
+                    NVIDIA_API_KEY         fallback if NVIDIA_NIM_API_KEY is unset\n  \
+                    WIKI_NIM_BASE_URL      override default https://integrate.api.nvidia.com\n  \
+                    LLMWIKI_CONFIG         path to a single config file (overrides walk-up)\n  \n\
+                  Project layout: <workspace>/{wiki/, raw/, index.md, log.md}\n  \
+                                 + per-workspace .llmwiki-cli/config.toml\n  \
+                                 + gitignored embeddings.jsonl (regenerate via `llmwiki-cli embed`)"
+)]
 pub struct Cli {
     #[arg(long, global = true)]
     pub workspace: Option<std::path::PathBuf>,
@@ -47,6 +78,13 @@ pub enum Command {
         /// Wiki alias for wiki-root.toml registration
         #[arg(long)]
         alias: Option<String>,
+        /// Force flat layout (pages at workspace root). Default scaffolds
+        /// pages at workspace root; use `--subdir` for legacy `wiki/` subdir.
+        #[arg(long)]
+        flat: bool,
+        /// Force legacy subdirectory layout (pages under `wiki/`).
+        #[arg(long, conflicts_with = "flat")]
+        subdir: bool,
         /// Tags for this wiki (repeatable)
         #[arg(long = "tag", value_name = "TAG")]
         tags: Vec<String>,
@@ -74,6 +112,17 @@ pub enum Command {
         batch_size: Option<usize>,
     },
     /// Search embedded wiki pages by vector similarity
+    #[command(
+        long_about = "Find existing wiki content by semantic similarity over embedded chunks.\n\
+                            \n\
+                            Workflow:\n  \
+                              1. Embeddings must exist first: llmwiki-cli embed\n  \
+                              2. Run: llmwiki-cli search \"your query\"\n  \
+                              3. Adjust --top-k (more results) or --threshold (higher = stricter)\n  \n\
+                            For RAG question-answering with citations, use `llmwiki-cli query` instead.\n  \n\
+                            For browsing files directly, use native file tools — search is for finding\n  \
+                            content you don't already know exists."
+    )]
     Search {
         query: String,
         #[arg(long, default_value_t = 5)]
@@ -86,6 +135,19 @@ pub enum Command {
         json: bool,
     },
     /// Ask a RAG question over the wiki
+    #[command(
+        long_about = "Ask a question in natural language; get an answer synthesized from\n\
+                            the most relevant wiki pages, with citations back to the source pages.\n\
+                            \n\
+                            Workflow:\n  \
+                              1. Embeddings must exist first: llmwiki-cli embed\n  \
+                              2. Run: llmwiki-cli query \"your question\"\n  \
+                              3. The answer cites the pages it used; pass --no-citations for clean output\n  \n\
+                            For raw semantic search (no LLM synthesis), use `llmwiki-cli search` instead.\n  \n\
+                            The LLM model defaults to the wiki's configured nim.embed_model; override\n  \
+                            with --llm-model. Requires a separate LLM-capable NIM model if your embed\n  \
+                            model is not LLM-capable."
+    )]
     Query {
         question: String,
         #[arg(long, default_value_t = 5)]
@@ -100,6 +162,14 @@ pub enum Command {
         json: bool,
     },
     /// Run quality checks over wiki pages, raw sources, and log
+    #[command(long_about = "Deterministic hygiene checks over the wiki:\n\
+                            - frontmatter validity (required fields, schema_version)\n  \
+                            - wikilink resolution (broken links)\n  \
+                            - tag consistency\n  \
+                            - page tree integrity (orphans, cycles)\n  \n\
+                            Pass --strict to fail on warnings (CI-friendly).\n  \n\
+                            Run before `git commit` to catch issues that `embed` / `search`\n  \
+                            would otherwise surface as opaque failures downstream.")]
     Lint {
         #[arg(long, default_value = "wiki")]
         scope: String,
@@ -124,6 +194,13 @@ pub enum Command {
         json: bool,
     },
     /// Diagnose workspace, config, and NIM connectivity
+    #[command(long_about = "One-shot health check for a wiki workspace:\n\
+                            - workspace discovery (registry → env → walk-up → single-wiki)\n  \
+                            - config parse + alias resolution\n  \
+                            - NIM API key presence (NVIDIA_NIM_API_KEY or NVIDIA_API_KEY)\n  \
+                            - NIM endpoint reachability\n  \n\
+                            Always run `llmwiki-cli doctor` first when anything is misbehaving.\n  \
+                            Pass --json for machine-readable output (CI / scripts).")]
     Doctor {
         #[arg(long)]
         json: bool,
@@ -139,6 +216,18 @@ pub enum Command {
         json: bool,
     },
     /// Add a source file to raw/ and append a log entry
+    #[command(
+        long_about = "Add a single source file (PDF, markdown, text, etc.) to the wiki's\n\
+                            raw/ directory, then compile it into a wiki page.\n\
+                            \n\
+                            Workflow:\n  \
+                              1. llmwiki-cli ingest /path/to/source.pdf     # adds to raw/, compiles\n  \
+                              2. Page appears in wiki/ on next `llmwiki-cli ls`\n  \
+                              3. Run `llmwiki-cli embed` to embed the new page\n  \n\
+                            Pass --no-compile to defer compilation (batch-compile later with `llmwiki-cli build`).\n  \n\
+                            For batch ingestion of multiple files, run this command in a loop or use\n  \
+                            the watch-based pipeline. For bulk historical imports, see the wiki-ingest sub-skill."
+    )]
     Ingest {
         source: std::path::PathBuf,
         #[arg(long)]
@@ -154,6 +243,12 @@ pub enum Command {
         global: bool,
         #[arg(long)]
         workspace: Option<std::path::PathBuf>,
+        /// Override the install directory. Useful for hosts that don't read
+        /// the default `~/.agents/skills/` (e.g. `--install-path
+        /// ~/.claude/skills/wiki` for Claude Code, `~/.cursor/skills/wiki`
+        /// for Cursor). Tilde (`~`) is expanded to $HOME.
+        #[arg(long, value_name = "DIR")]
+        install_path: Option<std::path::PathBuf>,
     },
     /// Print version
     Version,
@@ -172,21 +267,7 @@ pub enum Command {
         #[command(subcommand)]
         cmd: ConfigCmd,
     },
-    /// Run the LSP server (stdio)
-    Lsp(LspArgs),
-    /// Run the MCP server (stdio)
-    Mcp(McpArgs),
 }
-
-#[derive(clap::Args, Debug)]
-pub struct LspArgs {
-    /// Transport (currently only stdio)
-    #[arg(long, default_value = "stdio")]
-    pub transport: String,
-}
-
-#[derive(clap::Args, Debug)]
-pub struct McpArgs {}
 
 #[derive(clap::Subcommand, Debug)]
 pub enum ConfigCmd {
@@ -254,7 +335,11 @@ pub enum ConfigCmd {
     /// Validate wiki-root.toml: parse [defaults] + every [alias], run field-level checks
     Validate,
     /// Print the JSON Schema for the resolved Config type (for editor / LSP use)
-    ShowSchema,
+    ShowSchema {
+        /// Filter output to one section: `wiki` or `nim`.
+        #[arg(long, value_parser = ["wiki", "nim"])]
+        section: Option<String>,
+    },
     /// Print the resolved config search order with each path's existence status.
     /// Useful for debugging why a particular config.toml is or isn't being loaded.
     /// Pass --workspace <path> to override the walk-up start; otherwise the
@@ -323,9 +408,19 @@ pub async fn run(cli: Cli) {
                 dry_run,
             })
         }
-        Some(Command::Init { path, alias, tags }) => {
-            crate::cli::init::run(crate::cli::init::InitArgs { path, alias, tags })
-        }
+        Some(Command::Init {
+            path,
+            alias,
+            flat,
+            subdir,
+            tags,
+        }) => crate::cli::init::run(crate::cli::init::InitArgs {
+            path,
+            alias,
+            flat,
+            subdir,
+            tags,
+        }),
         Some(Command::Models {
             embed,
             rerank,
@@ -400,12 +495,15 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Skill(args)) => crate::cli::skill::run(args),
-        Some(Command::InstallSkill { global, workspace }) => {
-            crate::cli::install_skill::run(crate::cli::install_skill::InstallSkillArgs {
-                global,
-                workspace,
-            })
-        }
+        Some(Command::InstallSkill {
+            global,
+            workspace,
+            install_path,
+        }) => crate::cli::install_skill::run(crate::cli::install_skill::InstallSkillArgs {
+            global,
+            workspace,
+            install_path,
+        }),
         Some(Command::Ingest {
             source,
             no_compile,
@@ -454,8 +552,6 @@ pub async fn run(cli: Cli) {
             json,
         }),
         Some(Command::Config { cmd }) => crate::cli::config::run(cmd).await,
-        Some(Command::Lsp(args)) => crate::cli::lsp::run(args).await,
-        Some(Command::Mcp(args)) => crate::cli::mcp::run(args).await,
         Some(Command::Version) | None => {
             println!("llmwiki-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())

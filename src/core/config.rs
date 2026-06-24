@@ -148,7 +148,7 @@ pub fn load_config_unvalidated(paths: &[PathBuf]) -> Result<Config, WikiError> {
         })?;
         crate::core::registry::deep_merge_into(&mut merged_value, partial);
     }
-    let cfg: Config =
+    let mut cfg: Config =
         merged_value
             .try_into()
             .map_err(|e: toml::de::Error| WikiError::ConfigInvalid {
@@ -160,6 +160,10 @@ pub fn load_config_unvalidated(paths: &[PathBuf]) -> Result<Config, WikiError> {
                 line: 0,
                 message: format!("Failed to deserialize merged config: {e}"),
             })?;
+    // v0.3.27+: merge canonical exclusion defaults into the user's
+    // exclude_dirs so that a custom list supplements (not replaces) the
+    // built-in excludes. See `workspace::DEFAULT_EXCLUDE_DIRS`.
+    crate::core::workspace::merge_exclude_defaults(&mut cfg);
     Ok(cfg)
 }
 
@@ -233,6 +237,68 @@ pub fn validate(cfg: &Config) -> Result<(), Vec<String>> {
 pub fn validate_or_error(cfg: &Config) -> Result<(), crate::error::WikiError> {
     validate(cfg)
         .map_err(|errs| crate::error::WikiError::Other(anyhow::anyhow!(errs.join("\n  - "))))
+}
+
+/// Known keys in the `[wiki]` section of config.toml. Must match the serde
+/// field names of `WikiConfig` (see `src/core/config_types.rs`) — no struct
+/// field carries a `#[serde(rename = ...)]`, so the field names are the TOML
+/// keys verbatim.
+const KNOWN_WIKI_KEYS: &[&str] = &[
+    "pages_dir",
+    "exclude_dirs",
+    "default_chunk_tokens",
+    "chunk_overlap_tokens",
+    "min_chunk_tokens",
+    "require_frontmatter",
+    "require_wikilinks_min",
+];
+
+/// Known keys in the `[nim]` section of config.toml. Must match the serde
+/// field names of `NimConfig` (see `src/core/config_types.rs`). `retry` is the
+/// sub-table `[nim.retry]` (its own leaves `max_attempts` / `backoff_ms` are
+/// not top-level `[nim]` keys, so they are not listed here).
+const KNOWN_NIM_KEYS: &[&str] = &[
+    "base_url",
+    "embed_model",
+    "rerank_model",
+    "embed_dim_override",
+    "api_key_env",
+    "batch_size",
+    "request_timeout_secs",
+    "retry",
+];
+
+/// Validate a config file against known keys. Returns a warning string for
+/// every unrecognized key under the `[wiki]` or `[nim]` sections. serde
+/// silently ignores unknown fields, so a typo like `pages_dirr = "wiki"` is
+/// otherwise invisible to the user. Returns an empty vec when the file does
+/// not exist (so callers can iterate `config_paths` unconditionally).
+pub fn validate_config_file(path: &Path) -> Result<Vec<String>, WikiError> {
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let text = std::fs::read_to_string(path)?;
+    let value: toml::Value = text.parse().map_err(|e| WikiError::ConfigInvalid {
+        path: path.display().to_string(),
+        line: 0,
+        message: format!("TOML parse error: {e}"),
+    })?;
+    let mut warnings = Vec::new();
+    if let Some(wiki) = value.get("wiki").and_then(|v| v.as_table()) {
+        for key in wiki.keys() {
+            if !KNOWN_WIKI_KEYS.contains(&key.as_str()) {
+                warnings.push(format!("unknown key in [wiki]: {key}"));
+            }
+        }
+    }
+    if let Some(nim) = value.get("nim").and_then(|v| v.as_table()) {
+        for key in nim.keys() {
+            if !KNOWN_NIM_KEYS.contains(&key.as_str()) {
+                warnings.push(format!("unknown key in [nim]: {key}"));
+            }
+        }
+    }
+    Ok(warnings)
 }
 
 /// Resolve the NIM API key, trying (in order):

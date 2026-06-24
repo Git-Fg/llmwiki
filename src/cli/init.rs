@@ -8,6 +8,8 @@ use std::path::PathBuf;
 pub struct InitArgs {
     pub path: PathBuf,
     pub alias: Option<String>,
+    pub flat: bool,
+    pub subdir: bool,
     pub tags: Vec<String>,
 }
 
@@ -20,18 +22,25 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         args.path.clone()
     };
 
-    // Read the user's global config to honor `wiki.pages_dir` if set.
-    // If unset, falls back to the default ("wiki") via Config::default().
-    // v0.3.25+: lets users with flat-layout wikis run `wiki init` against
-    // a workspace and get pages at the root instead of a `wiki/` subdir.
-    let cfg =
+    // v0.3.27+: scaffold default is FLAT (matches read-path default).
+    // Use --subdir to get the legacy wiki/ subdir layout.
+    let mut cfg =
         crate::core::config::load_config_unvalidated(&crate::core::config::config_paths(&target))
             .unwrap_or_else(|_| Config::default());
+
+    // --subdir flag forces legacy subdir layout
+    if args.subdir {
+        cfg.wiki.pages_dir = "wiki".into();
+    } else if args.flat {
+        cfg.wiki.pages_dir = String::new();
+    }
+    // If neither flag: use whatever's in config (flat default = ""),
+    // or if user explicitly set pages_dir in config, honor that.
+
     let pages_dir_path = pages_dir(&target, &cfg.wiki.pages_dir);
 
-    // For the `wiki/`-layout default, create the subdirectory. For the
-    // flat layout (pages_dir == ""), pages_dir_path is the workspace root
-    // which already exists — no subdirectory to create.
+    // For flat layout, pages_dir_path is workspace root (already exists).
+    // For subdir layout, create the subdirectory.
     if !cfg.wiki.pages_dir.is_empty() {
         std::fs::create_dir_all(&pages_dir_path)
             .with_context(|| format!("create {}", pages_dir_path.display()))?;
@@ -77,7 +86,8 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
 # batch_size = 8
 
 [wiki]
-# pages_dir = \"wiki\"        # relative to workspace root; \"\" = flat layout (v0.3.25+)
+# pages_dir = \"\"            # relative to workspace root; \"wiki\" = legacy subdir layout (v0.3.26 default was \"wiki\", now \"\")
+# exclude_dirs = [\"node_modules\", \".git\", \".opencode\", ...]  # bare basenames skipped at any depth (v0.3.26+)
 # default_chunk_tokens = 512
 # chunk_overlap_tokens = 128
 # min_chunk_tokens = 32
@@ -129,7 +139,15 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         println!("Registered wiki '{alias}' in wiki-root.toml");
     }
 
+    let layout_label = if args.flat || cfg.wiki.pages_dir.is_empty() {
+        "flat (pages at workspace root)"
+    } else {
+        "subdirectory"
+    };
+    let config_path = target.join(".llmwiki-cli").join("config.toml");
     println!("✓ Initialized wiki at {}", target.display());
+    println!("  Layout: {layout_label}");
+    println!("  Config: {}", config_path.display());
     Ok(())
 }
 

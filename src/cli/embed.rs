@@ -51,11 +51,15 @@ pub async fn run(args: EmbedArgs) -> Result<(), WikiError> {
 
     let mut pages: Vec<PathBuf> = vec![];
     if wiki_dir.exists() {
-        for entry in walkdir::WalkDir::new(&wiki_dir) {
+        for entry in crate::core::workspace::walk_pages(&wiki_dir, &cfg.wiki.exclude_dirs) {
             let e = entry.map_err(|e| WikiError::Other(e.into()))?;
-            if e.path().extension().and_then(|s| s.to_str()) == Some("md") {
-                pages.push(e.path().to_path_buf());
+            if e.path().extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
             }
+            if !crate::core::workspace::is_wiki_page_entry(&ws, e.path()) {
+                continue;
+            }
+            pages.push(e.path().to_path_buf());
         }
     }
     pages.sort();
