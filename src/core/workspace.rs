@@ -1,6 +1,67 @@
+use crate::core::config::Config;
 use crate::core::registry::{home_dir, Registry};
 use crate::error::WikiError;
 use std::path::{Path, PathBuf};
+
+/// Canonical default directory basenames excluded from wiki page walks.
+///
+/// This is the runtime source of truth for exclusion defaults. It is injected
+/// by [`config::load_config_unvalidated`] and [`Registry::resolve_config`] so
+/// that user-provided `wiki.exclude_dirs` **merges with** (rather than
+/// replaces) these entries (v0.3.27+, additive semantics).
+///
+/// **Keep in sync** with `default_exclude_dirs()` in `src/core/config_types.rs`
+/// — that function provides the serde default and JSON Schema `default` for the
+/// `exclude_dirs` field. The `default_exclude_dirs_matches_constant` test in
+/// [`pages_dir_tests`] guards against drift.
+///
+/// See the doc comment on `default_exclude_dirs()` for the rationale behind
+/// each entry.
+pub const DEFAULT_EXCLUDE_DIRS: &[&str] = &[
+    // Dev-project noise (qmd + Foam union; cargo-style excludes)
+    "node_modules",
+    ".git",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    ".cache",
+    ".turbo",
+    ".venv",
+    "venv",
+    "env",
+    "__pycache__",
+    ".idea",
+    ".vscode",
+    // Wiki-specific noise (real-wiki smoke test, 2026-06-24)
+    ".opencode",
+    ".claude",
+    ".mavis",
+    ".harness",
+    ".serena",
+    ".principled",
+    ".swe-bench",
+];
+
+/// Merge canonical default exclusion dirs into `cfg.wiki.exclude_dirs`.
+///
+/// User-provided entries are preserved; any default entry not already present
+/// is appended (dedup). This implements the additive semantics introduced in
+/// v0.3.27: a user who sets `exclude_dirs = ["secret"]` retains all built-in
+/// defaults (`node_modules`, `.git`, `.opencode`, …) rather than silently
+/// replacing them.
+///
+/// Called from both config-load paths — [`load_config_unvalidated`] and
+/// [`Registry::resolve_config`] — so additive merging is consistent regardless
+/// of whether the workspace is resolved via the registry or the config-file
+/// chain.
+pub fn merge_exclude_defaults(cfg: &mut Config) {
+    for default in DEFAULT_EXCLUDE_DIRS {
+        if !cfg.wiki.exclude_dirs.iter().any(|x| x == *default) {
+            cfg.wiki.exclude_dirs.push(default.to_string());
+        }
+    }
+}
 
 /// Discover the wiki workspace root.
 ///
@@ -252,7 +313,13 @@ mod pages_dir_tests {
         fs::write(ws.join("a/b/y.md"), "y").unwrap();
         let mut paths: Vec<String> = walk_pages(ws, &[])
             .filter_map(|e| e.ok())
-            .map(|e| e.path().strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/"))
+            .map(|e| {
+                e.path()
+                    .strip_prefix(ws)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
             .collect();
         paths.sort();
         assert_eq!(paths, vec!["a/b/y.md".to_string(), "a/x.md".to_string()]);
@@ -268,7 +335,13 @@ mod pages_dir_tests {
         let excludes = vec!["node_modules".to_string()];
         let paths: Vec<String> = walk_pages(ws, &excludes)
             .filter_map(|e| e.ok())
-            .map(|e| e.path().strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/"))
+            .map(|e| {
+                e.path()
+                    .strip_prefix(ws)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
             .collect();
         assert_eq!(paths, vec!["keep.md".to_string()]);
     }
@@ -283,7 +356,13 @@ mod pages_dir_tests {
         let excludes = vec![".opencode".to_string()];
         let paths: Vec<String> = walk_pages(ws, &excludes)
             .filter_map(|e| e.ok())
-            .map(|e| e.path().strip_prefix(ws).unwrap().to_string_lossy().replace('\\', "/"))
+            .map(|e| {
+                e.path()
+                    .strip_prefix(ws)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
             .collect();
         assert_eq!(paths, vec!["real.md".to_string()]);
     }
@@ -330,5 +409,18 @@ mod pages_dir_tests {
         // doesn't fault on them.
         let ws = Path::new("/tmp/wiki");
         assert!(is_wiki_page_entry(ws, Path::new("/other/foo.md")));
+    }
+
+    #[test]
+    fn default_exclude_dirs_matches_constant() {
+        // Guards against drift between DEFAULT_EXCLUDE_DIRS (the runtime
+        // source for additive merging) and default_exclude_dirs() (the serde
+        // default + JSON Schema default).
+        let from_fn = crate::core::config::default_exclude_dirs();
+        let from_const: Vec<String> = DEFAULT_EXCLUDE_DIRS.iter().map(|s| s.to_string()).collect();
+        assert_eq!(
+            from_fn, from_const,
+            "DEFAULT_EXCLUDE_DIRS and default_exclude_dirs() drifted out of sync"
+        );
     }
 }

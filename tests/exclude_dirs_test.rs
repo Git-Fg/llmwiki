@@ -139,10 +139,11 @@ fn default_excludes_filter_node_modules_from_lint() {
 }
 
 #[test]
-fn custom_exclude_dirs_overrides_default() {
-    // User sets `wiki.exclude_dirs = ["node_modules", "secret"]` — and
-    // `.opencode` (which is in the default) is NOT in their list, so it
-    // SHOULD appear.
+fn user_exclude_dirs_supplements_defaults() {
+    // v0.3.27+: user exclude_dirs MERGES with defaults (additive).
+    // User sets `wiki.exclude_dirs = ["node_modules", "secret"]` — the user's
+    // custom "secret" applies, AND the defaults the user did NOT list
+    // (e.g. `.opencode`) are RETAINED, so `.opencode/cached.md` is excluded too.
     let tmp = tempdir().unwrap();
     let ws = tmp.path();
     fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
@@ -151,16 +152,18 @@ fn custom_exclude_dirs_overrides_default() {
     fs::write(ws.join("secret/hidden.md"), page_with_title("Hidden")).unwrap();
     fs::create_dir_all(ws.join(".opencode")).unwrap();
     fs::write(ws.join(".opencode/cached.md"), page_with_title("Cached")).unwrap();
-    // Pin flat layout AND replace the default exclude list.
+    fs::create_dir_all(ws.join("node_modules/pkg")).unwrap();
+    fs::write(
+        ws.join("node_modules/pkg/leaked.md"),
+        page_with_title("Leaked"),
+    )
+    .unwrap();
+    // Pin flat layout; user lists node_modules + secret explicitly.
     fs::write(
         ws.join(".llmwiki-cli/config.toml"),
         "[wiki]\npages_dir = \"\"\nexclude_dirs = [\"node_modules\", \"secret\"]\n",
     )
     .unwrap();
-    // Note: node_modules isn't in this fixture (it's already in the
-    // default). The test confirms that user-specified excludes apply, and
-    // importantly that `.opencode` IS visible because the user replaced
-    // the default list rather than appending.
     Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")
@@ -169,7 +172,46 @@ fn custom_exclude_dirs_overrides_default() {
         .arg("--pages")
         .assert()
         .success()
-        .stdout(predicate::str::contains("real"))
-        .stdout(predicate::str::contains("hidden").not())
-        .stdout(predicate::str::contains("Cached")); // not in user's list, so visible
+        .stdout(predicate::str::contains("real")) // real page visible
+        .stdout(predicate::str::contains("hidden").not()) // user's custom exclude
+        .stdout(predicate::str::contains("leaked").not()) // user explicitly listed
+        .stdout(predicate::str::contains("Cached").not()); // retained DEFAULT (.opencode)
+}
+
+#[test]
+fn user_exclude_dirs_merges_with_defaults() {
+    // v0.3.27+: user exclude_dirs MERGES with defaults (additive).
+    // The user adds ["secret"] and retains all defaults (node_modules, .opencode, etc.).
+    let tmp = tempdir().unwrap();
+    let ws = tmp.path();
+    fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
+    fs::write(ws.join("real.md"), page_with_title("Real")).unwrap();
+    fs::create_dir_all(ws.join("secret")).unwrap();
+    fs::write(ws.join("secret/hidden.md"), page_with_title("Hidden")).unwrap();
+    fs::create_dir_all(ws.join("node_modules/pkg")).unwrap();
+    fs::write(
+        ws.join("node_modules/pkg/leaked.md"),
+        page_with_title("Leaked"),
+    )
+    .unwrap();
+    fs::create_dir_all(ws.join(".opencode")).unwrap();
+    fs::write(ws.join(".opencode/cached.md"), page_with_title("Cached")).unwrap();
+    // User adds ["secret"] — should ALSO retain node_modules + .opencode from defaults.
+    fs::write(
+        ws.join(".llmwiki-cli/config.toml"),
+        "[wiki]\npages_dir = \"\"\nexclude_dirs = [\"secret\"]\n",
+    )
+    .unwrap();
+    Command::cargo_bin("llmwiki-cli")
+        .unwrap()
+        .arg("--workspace")
+        .arg(ws)
+        .arg("ls")
+        .arg("--pages")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("Real"))
+        .stdout(predicates::str::contains("Hidden").not()) // user's custom exclude
+        .stdout(predicates::str::contains("Leaked").not()) // retained default
+        .stdout(predicates::str::contains("Cached").not()); // retained default
 }

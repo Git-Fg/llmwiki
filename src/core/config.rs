@@ -148,7 +148,7 @@ pub fn load_config_unvalidated(paths: &[PathBuf]) -> Result<Config, WikiError> {
         })?;
         crate::core::registry::deep_merge_into(&mut merged_value, partial);
     }
-    let cfg: Config =
+    let mut cfg: Config =
         merged_value
             .try_into()
             .map_err(|e: toml::de::Error| WikiError::ConfigInvalid {
@@ -160,6 +160,10 @@ pub fn load_config_unvalidated(paths: &[PathBuf]) -> Result<Config, WikiError> {
                 line: 0,
                 message: format!("Failed to deserialize merged config: {e}"),
             })?;
+    // v0.3.27+: merge canonical exclusion defaults into the user's
+    // exclude_dirs so that a custom list supplements (not replaces) the
+    // built-in excludes. See `workspace::DEFAULT_EXCLUDE_DIRS`.
+    crate::core::workspace::merge_exclude_defaults(&mut cfg);
     Ok(cfg)
 }
 

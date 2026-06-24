@@ -194,7 +194,7 @@ fn default_pages_dir() -> String {
 /// directories, so a user file called `target.md` at the wiki root is
 /// still treated as a page. Skipping files would risk masking user content
 /// for any exclude pattern that overlaps with a plausible wiki filename.
-fn default_exclude_dirs() -> Vec<String> {
+pub fn default_exclude_dirs() -> Vec<String> {
     vec![
         // Dev-project noise (qmd + Foam union; cargo-style excludes)
         "node_modules".into(),
