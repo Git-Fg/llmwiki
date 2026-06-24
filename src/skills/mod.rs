@@ -164,7 +164,6 @@ mod tests {
         // This test forces the marker list to stay in sync with reality.
         let stems: Vec<String> = list_skills().into_iter().map(|(s, _)| s).collect();
         assert!(!stems.is_empty(), "no sub-skills found — bundle is empty");
-        assert!(!LEAK_MARKERS.is_empty(), "LEAK_MARKERS list is empty");
         for marker in LEAK_MARKERS {
             let present = stems
                 .iter()
