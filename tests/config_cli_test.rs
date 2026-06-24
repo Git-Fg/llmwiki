@@ -546,6 +546,78 @@ fn subprocess_config_validate_handles_empty_registry() {
 }
 
 #[test]
+fn subprocess_config_validate_warns_on_unknown_keys() {
+    // A typo'd config.toml under the alias's workspace must surface warnings
+    // on stderr. serde silently ignores unknown fields, so without this check
+    // the user would believe their config is correct.
+    let tmp = tempfile::tempdir().unwrap();
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[wiki]\npages_dir = \"\"\ntypo_key = true\n\
+         [nim]\nembed_model = \"nvidia/nv-embed-v1\"\nbad_key = 1\n",
+    )
+    .unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(
+        &reg_path,
+        format!("[w]\npath = {:?}\n", workspace.display()),
+    )
+    .unwrap();
+
+    let output = isolated_cmd(&reg_path)
+        .args(["config", "validate"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "validate should still pass (warnings, not errors): stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("unknown key in [wiki]: typo_key"),
+        "expected [wiki] typo_key warning in stderr: {stderr}"
+    );
+    assert!(
+        stderr.contains("unknown key in [nim]: bad_key"),
+        "expected [nim] bad_key warning in stderr: {stderr}"
+    );
+}
+
+#[test]
+fn subprocess_config_validate_no_warnings_for_clean_config() {
+    // A valid config.toml with only known keys must produce NO warnings, so
+    // we never cry wolf on a correct file.
+    let tmp = tempfile::tempdir().unwrap();
+    let workspace = tmp.path().join("ws");
+    std::fs::create_dir_all(workspace.join(".llmwiki-cli")).unwrap();
+    std::fs::write(
+        workspace.join(".llmwiki-cli").join("config.toml"),
+        "[wiki]\npages_dir = \"\"\n\n[nim.retry]\nmax_attempts = 5\n",
+    )
+    .unwrap();
+    let reg_path = tmp.path().join("wiki-root.toml");
+    std::fs::write(
+        &reg_path,
+        format!("[w]\npath = {:?}\n", workspace.display()),
+    )
+    .unwrap();
+
+    let output = isolated_cmd(&reg_path)
+        .args(["config", "validate"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unknown key"),
+        "clean config must not emit unknown-key warnings: {stderr}"
+    );
+}
+
+#[test]
 fn subprocess_config_get_returns_unset_for_optional_field() {
     // `nim.embed_dim_override` is Option<usize>. When not set, it should
     // report "(unset)" rather than "unknown config key".

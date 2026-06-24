@@ -560,6 +560,24 @@ async fn cmd_validate() -> Result<(), WikiError> {
                 failures += 1;
             }
         }
+
+        // Check this alias's config.toml files for unknown keys. serde
+        // silently skips unrecognized fields, so a typo like `pages_dirr`
+        // would otherwise leave the user thinking their config is correct.
+        // Uses `entry.path` (registry-only — no workspace discovery) so
+        // `config validate` stays classified as a registry-only subcommand.
+        for path in crate::core::config::config_paths(&entry.path) {
+            if path.is_file() {
+                match crate::core::config::validate_config_file(&path) {
+                    Ok(warnings) => {
+                        for w in &warnings {
+                            eprintln!("[warn] {}: {}", path.display(), w);
+                        }
+                    }
+                    Err(e) => eprintln!("[error] {}: {e}", path.display()),
+                }
+            }
+        }
     }
 
     if failures == 0 {
