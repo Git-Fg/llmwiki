@@ -1,4 +1,4 @@
-# wiki
+# llmwiki
 
 [![CI](https://github.com/Git-Fg/llmwiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Git-Fg/llmwiki/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/llmwiki-cli.svg)](https://crates.io/crates/llmwiki-cli)
