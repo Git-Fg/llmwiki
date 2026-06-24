@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.3.36] - 2026-06-24 — pushy naming + llmwiki rebrand (hard cut)
+
+**User-facing rebrand (no deprecation aliases):**
+
+- Skill renamed `wiki` → `llmwiki`. Install path becomes
+  `~/.agents/skills/llmwiki/SKILL.md` (hard cut from
+  `~/.agents/skills/wiki/SKILL.md`).
+- Sub-skill topics renamed: `wiki-search` → `llmwiki-search`,
+  `wiki-config` → `llmwiki-config`, etc. (9 topics total).
+- **Breaking:** `llmwiki-cli skill get wiki-X` now returns
+  "unknown topic" the same as any other unknown name. No deprecation
+  aliases; update aliases / muscle memory in one pass.
+- Hub SKILL.md `description:` rewritten as an AI-trigger phrase block
+  ("Load this skill whenever the user mentions ANY of: wiki, notes,
+  second brain, RAG, citations, ...") for higher agent pickup rate.
+- Cargo `description` rewritten to lead with the brand tagline
+  "Your LLM's persistent memory in plain markdown. …".
+- Three new Cargo keywords: `llm-memory`, `second-brain`,
+  `semantic-search`.
+- CLI `--help` tagline now leads with brand: "Your LLM's persistent
+  memory in plain markdown — Karpathy-style wiki with semantic
+  search, citations, and no database."
+- README H1: `# wiki` → `# llmwiki`.
+
+**Not changed (avoids breaking `cargo install` + every external link):**
+
+- Binary name `llmwiki-cli`.
+- Cargo package name `llmwiki-cli`.
+- GitHub repo URL `github.com/Git-Fg/llmwiki`.
+
+**Migration:**
+
+- No automatic migration.
+- Users update sub-skill aliases (e.g. `wiki-search` → `llmwiki-search`)
+  in their own tooling.
+- Re-run `llmwiki-cli install-skill --global` — it now installs to
+  `~/.agents/skills/llmwiki/` (the old `wiki/` directory can be
+  removed manually).
+
+**Tests:**
+
+- New guard tests prevent accidental legacy-alias re-introduction:
+  `find_skill_rejects_legacy_wiki_names`,
+  `normalize_topic_rejects_legacy_wiki_prefix`,
+  `skill_get_rejects_legacy_wiki_topic_name`,
+  `skill_install_writes_to_llmwiki_directory`.
+
 ## [0.3.35] - 2026-06-24 — typed Frontmatter + serde-saphyr + clippy + cargo-deny
 
 **Typed Frontmatter (SSOT + type safety):**
