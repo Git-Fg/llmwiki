@@ -24,77 +24,27 @@ llmwiki-cli skill get <topic>           # load one (e.g. wiki-search, wiki-confi
 llmwiki-cli <command> --help            # full flag reference for any command
 ```
 
-The `llmwiki-cli skill get <topic>` content is served by the CLI itself, so it
-is always version-matched with the installed binary. **Always prefer
-`llmwiki-cli skill get` over guessing commands** — the inline sub-skills are
-short, opinionated, and never go stale.
+`wiki skill get` content is served by the CLI itself, so it is always
+version-matched with the installed binary. **Always prefer `wiki skill get`
+over guessing commands** — sub-skills are short, opinionated, never stale.
 
-## Core gotchas (read once, save yourself debugging time)
+## Core gotchas (read once)
 
-1. **Always run `llmwiki-cli doctor` first** if anything is misbehaving. It
-   catches missing API keys, NIM connectivity issues, broken config, and
-   orphans in one pass. `llmwiki-cli doctor --json` is machine-readable for
-   CI / scripts.
-
-2. **Embeddings are gitignored.** After pulling wiki changes from another
-   machine, run `llmwiki-cli embed` to rebuild `embeddings.jsonl` before
-   `llmwiki-cli search` or `llmwiki-cli query` will return useful results.
-
-3. **`llmwiki-cli init` defaults to flat layout** (since v0.3.27). Use
-   `llmwiki-cli init --subdir` for the legacy `wiki/` subdir layout.
-
-4. **`wiki.exclude_dirs` is additive** (since v0.3.27). User-provided
-   entries merge with built-in defaults (node_modules, .git, .opencode,
-   .claude, .mavis, .harness, .principled, etc.), not replace them.
-
-5. **Always run `llmwiki-cli config validate` after editing any `*.toml` file.**
-   It catches typos, invalid TOML syntax, invalid model names, and bad
-   chunk-size combinations before they cause opaque failures downstream.
-
+1. **`llmwiki-cli doctor` first** if anything is misbehaving. Catches
+   missing API keys, NIM connectivity, broken config, orphans in one
+   pass. `--json` is machine-readable for CI.
+2. **Embeddings are gitignored.** After pulling wiki changes from
+   another machine, run `llmwiki-cli embed` before `search` / `query`.
+3. **`llmwiki-cli init` defaults to flat layout** (since v0.3.27).
+   Use `--subdir` for the legacy `wiki/` subdir layout.
+4. **`wiki.exclude_dirs` is additive** (since v0.3.27). User entries
+   merge with built-in defaults (node_modules, .git, .opencode, etc.).
+5. **Run `llmwiki-cli config validate` after editing any `*.toml`.**
+   Catches typos, bad TOML, bad model names before opaque failures.
 6. **Use `--wiki <alias>` to target a specific wiki without `cd`-ing.**
-   Combined with `llmwiki-cli config list` to see registered aliases, this
-   is the fastest way to operate on multiple wikis.
+   Combined with `llmwiki-cli config list` to see registered aliases.
 
-## Internal command summary
-
-| Command | Purpose |
-|---|---|
-| `llmwiki-cli init [path]` | Scaffold a new wiki |
-| `llmwiki-cli ingest <file>` | Add a raw source + append to `log.md` |
-| `llmwiki-cli build` | Compile pending raw sources into pages |
-| `llmwiki-cli embed` | Build `embeddings.jsonl` over wiki pages |
-| `llmwiki-cli search <query>` | Semantic search by vector similarity |
-| `llmwiki-cli query <question>` | RAG question-answering with citations |
-| `llmwiki-cli lint` | Hygiene checks (frontmatter, links, tags) |
-| `llmwiki-cli doctor` | Diagnose config + NIM + workspace |
-| `llmwiki-cli status` | Coverage stats (pages / embeddings / raw) |
-| `llmwiki-cli tree` | Flat, grep-friendly page listing |
-| `llmwiki-cli ls [--pages\|--raw\|--embed\|--links\|--config] [--json]` | Granular workspace listing |
-| `llmwiki-cli models` | List whitelisted NVIDIA NIM models |
-| `llmwiki-cli config <sub>` | show-effective / show-schema / validate / edit |
-| `llmwiki-cli skill list` | List inline sub-skills |
-| `llmwiki-cli skill get <topic>` | Load one inline sub-skill |
-| `llmwiki-cli install-skill [--global\|--workspace <path>]` | Install this bundle |
-
-## Setup (two commands)
-
-```bash
-# 1. Install the CLI
-cargo install llmwiki-cli              # or: curl ... install.sh | sh
-
-# 2. Install the skill globally (optional — for AI agents)
-llmwiki-cli install-skill --global     # writes ~/.agents/skills/wiki/SKILL.md
-```
-
-## Environment
-
-```bash
-export NVIDIA_NIM_API_KEY="nvapi-..."     # required — get at https://build.nvidia.com/
-# NVIDIA_API_KEY is the fallback if NVIDIA_NIM_API_KEY is unset
-# WIKI_NIM_BASE_URL overrides the default https://integrate.api.nvidia.com
-```
-
-## Inline sub-skill index (load via `llmwiki-cli skill get <name>`)
+## Inline sub-skills (load via `llmwiki-cli skill get <name>`)
 
 | Topic | Use when |
 |---|---|
