@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frontmatter",
+  "description": "Typed representation of a wiki page's YAML frontmatter.\n\nThe 21 known fields are the keys with clear semantic purpose\nthat appear in at least one of the 4 real flat-layout wikis\n(`mevin`, `minimax-code-wiki`, `MyWiki`, `PharmaWiki`). 15 of\n21 meet an original ≥50-occurrence target; 6 fall below but are\nkept because each captures a distinct semantic category. See\n`docs/superpowers/specs/2026-06-24-frontmatter-field-audit.md`.\n\n`extra` captures all other keys (per-wiki taxonomy extensions like\n`avatar`, `timezone`, `license`, `requiresBeta`, `session`,\n`schedule`, `retired`, `triggers`, etc.) so they are preserved\nwithout forcing a closed schema.\n\nType imports are intentionally written as full paths on the derive\nattributes (see `src/core/config_types.rs` for rationale) so this\nfile does not need any `use` statements. This keeps the file\nself-contained in any include! scope without introducing duplicate\n`JsonSchema` name collisions when build.rs includes\n`config_types.rs`, `doctor_report.rs`, and this file together.",
+  "type": "object",
+  "properties": {
+    "aliases": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "created": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "descriptions": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "domain": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ingested": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "kind": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "maturity": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "related": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "reviewed": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schema_version": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int64"
+    },
+    "sha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updated": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}
