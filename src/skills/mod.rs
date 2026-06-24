@@ -1,6 +1,7 @@
 pub const SKILL_MD: &str = include_str!("../../marketplace/skills/wiki/SKILL.md");
 
 pub const SETUP: &str = include_str!("../../marketplace/skills/wiki/SETUP/SKILL.md");
+pub const CONFIG: &str = include_str!("../../marketplace/skills/wiki/CONFIG/SKILL.md");
 pub const INGEST: &str = include_str!("../../marketplace/skills/wiki/INGEST/SKILL.md");
 pub const SEARCH: &str = include_str!("../../marketplace/skills/wiki/SEARCH/SKILL.md");
 pub const QUERY: &str = include_str!("../../marketplace/skills/wiki/QUERY/SKILL.md");
@@ -9,11 +10,10 @@ pub const MODELS: &str = include_str!("../../marketplace/skills/wiki/MODELS/SKIL
 pub const SYNC: &str = include_str!("../../marketplace/skills/wiki/SYNC/SKILL.md");
 pub const TROUBLESHOOTING: &str =
     include_str!("../../marketplace/skills/wiki/TROUBLESHOOTING/SKILL.md");
-pub const LSP: &str = include_str!("../../marketplace/skills/wiki/LSP/SKILL.md");
-pub const MCP: &str = include_str!("../../marketplace/skills/wiki/MCP/SKILL.md");
 
 pub const TOPICS: &[(&str, &str)] = &[
     ("setup", SETUP),
+    ("config", CONFIG),
     ("ingest", INGEST),
     ("search", SEARCH),
     ("query", QUERY),
@@ -21,8 +21,6 @@ pub const TOPICS: &[(&str, &str)] = &[
     ("models", MODELS),
     ("sync", SYNC),
     ("troubleshooting", TROUBLESHOOTING),
-    ("lsp", LSP),
-    ("mcp", MCP),
 ];
 
 pub fn find_topic(name: &str) -> Option<&'static str> {
