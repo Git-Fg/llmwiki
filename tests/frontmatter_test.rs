@@ -83,7 +83,10 @@ title: Hello
 type: concept
 tags: [a, b]
 sources: [raw/page.md]
-confidence: 0.85
+# confidence is polymorphic across wikis (numeric on minimax,
+# string on mevin/mywiki/pharma). Preserved as String so both
+# shapes round-trip; consumers parse to f64 if needed.
+confidence: high
 created: '2026-01-01'
 updated: '2026-06-24'
 schema_version: 2
@@ -99,7 +102,11 @@ source_type: article
 sha256: abc123
 ingested: '2026-01-02'
 name: hello
-descriptions: [alt1, alt2]
+# descriptions is a locale → text map (minimax SKILL.md style).
+# None of the other 3 wikis use this field.
+descriptions:
+  en: English description
+  zh-Hans: 中文描述
 ---
 Body content
 ";
@@ -111,7 +118,7 @@ Body content
     assert_eq!(fm.page_type.as_deref(), Some("concept"));
     assert_eq!(fm.tags, vec!["a", "b"]);
     assert_eq!(fm.sources, vec!["raw/page.md"]);
-    assert_eq!(fm.confidence, Some(0.85));
+    assert_eq!(fm.confidence.as_deref(), Some("high"));
     assert_eq!(fm.created.as_deref(), Some("2026-01-01"));
     assert_eq!(fm.updated.as_deref(), Some("2026-06-24"));
     assert_eq!(fm.schema_version, Some(2));
@@ -127,7 +134,13 @@ Body content
     assert_eq!(fm.sha256.as_deref(), Some("abc123"));
     assert_eq!(fm.ingested.as_deref(), Some("2026-01-02"));
     assert_eq!(fm.name.as_deref(), Some("hello"));
-    assert_eq!(fm.descriptions, vec!["alt1", "alt2"]);
+    assert_eq!(
+        fm.descriptions,
+        std::collections::BTreeMap::from([
+            ("en".to_string(), "English description".to_string()),
+            ("zh-Hans".to_string(), "中文描述".to_string()),
+        ])
+    );
     assert!(fm.extra.is_empty());
 }
 
@@ -230,4 +243,66 @@ fn parse_frontmatter_no_block_yields_none() {
     let parsed = parse_frontmatter(md).unwrap();
     assert!(parsed.frontmatter.is_none());
     assert_eq!(parsed.body, md);
+}
+
+#[test]
+fn parse_frontmatter_accepts_string_form_for_tags_and_sources() {
+    // MyWiki writes `tags` and `sources` as bare scalars (e.g.
+    // `sources: raw/articles/foo.md`) instead of inline or block lists.
+    // The typed struct normalizes both shapes to Vec<String> via the
+    // `deserialize_string_or_vec` custom deserializer. Without this,
+    // 100+ mywiki pages would fail to parse.
+    let md = "\
+---
+title: Scalar tags and sources
+tags: model
+sources: raw/articles/single-source.md
+---
+Body
+";
+    let parsed = parse_frontmatter(md).unwrap();
+    let fm = parsed.frontmatter.expect("frontmatter present");
+    assert_eq!(fm.tags, vec!["model"]);
+    assert_eq!(fm.sources, vec!["raw/articles/single-source.md"]);
+}
+
+#[test]
+fn parse_frontmatter_accepts_numeric_or_string_confidence() {
+    // `confidence` is polymorphic across wikis: numeric on minimax
+    // (0.8, 0.85, 0.9, 0.95), string on mevin/mywiki/pharma
+    // ("high", "medium", "low", or pipeline expressions like
+    // "high | medium | low"). Preserved as String so both round-trip.
+    for value in ["0.85", "high", "high | medium | low"] {
+        let md = format!("---\ntitle: t\nconfidence: {value}\n---\n");
+        let parsed = parse_frontmatter(&md).unwrap();
+        let fm = parsed.frontmatter.expect("frontmatter present");
+        assert_eq!(fm.confidence.as_deref(), Some(value), "input: {value}");
+    }
+}
+
+#[test]
+fn parse_frontmatter_accepts_descriptions_as_locale_map() {
+    // minimax-code-wiki SKILL.md files use `descriptions:` as a
+    // locale → text mapping (e.g. `descriptions: { zh-Hans: "..." }`).
+    // Typed as BTreeMap<String, String> to capture this shape; none
+    // of the other 3 wikis use this field.
+    let md = "\
+---
+title: skill
+descriptions:
+  zh-Hans: 中文描述
+  en: English description
+---
+Body
+";
+    let parsed = parse_frontmatter(md).unwrap();
+    let fm = parsed.frontmatter.expect("frontmatter present");
+    assert_eq!(
+        fm.descriptions.get("zh-Hans").map(String::as_str),
+        Some("中文描述")
+    );
+    assert_eq!(
+        fm.descriptions.get("en").map(String::as_str),
+        Some("English description")
+    );
 }
