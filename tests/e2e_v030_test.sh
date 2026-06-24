@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # v0.3.0 end-to-end smoke test.
 #
-# Verifies every user-facing surface introduced or stabilized in v0.3.0:
+# Verifies every user-facing surface introduced or stabilized in v0.3.0
+# and later (skill install layout, rust-embed, marketplace removal):
 #   - binary builds + prints version
 #   - `init` creates a valid workspace
-#   - all v0.3.0 commands (install-skill) respond to --help
-#   - skill bundle covers all 9 sub-skills including the new CONFIG one
-#   - install-skill --workspace bundles the hub + all sub-skills to disk
-#   - marketplace validator passes --strict
+#   - all v0.3.x commands (install-skill) respond to --help
+#   - skill bundle covers all 9 inline sub-skills (served via `skill get`)
+#   - install-skill --workspace installs the hub to disk
 #   - Rust test suite passes
 #
 # Usage:
 #   tests/e2e_v030_test.sh
 #
-# Requires: bash, cargo, python3, grep.
+# Requires: bash, cargo, grep.
 
 set -euo pipefail
 
@@ -43,47 +43,35 @@ for cmd in init build embed search query lint ls doctor tree status models \
     echo "  ok: $cmd --help"
 done
 
-# 3. Skill bundle coverage
+# 3. Skill bundle coverage (served via rust-embed)
 step "skill bundle coverage"
 SKILL_LIST="$(cargo run --quiet -- skill list)"
-for topic in setup config ingest search query lint models sync troubleshooting; do
+for topic in wiki-setup wiki-config wiki-ingest wiki-search wiki-query wiki-lint wiki-models wiki-sync wiki-troubleshooting; do
     echo "$SKILL_LIST" | grep -q "^$topic " \
         || fail "topic '$topic' missing from skill list"
     echo "  ok: topic '$topic' registered"
 done
 
-# Sub-skill show roundtrip
-for topic in setup config; do
-    SHOW="$(cargo run --quiet -- skill show "$topic")"
+# Sub-skill show roundtrip via the agent-browser `skill get` primitive
+for topic in wiki-setup wiki-config; do
+    SHOW="$(cargo run --quiet -- skill get "$topic")"
     echo "$SHOW" | grep -q "name: $topic" \
-        || fail "skill show $topic missing 'name: $topic' frontmatter"
-    echo "  ok: skill show $topic"
+        || fail "skill get $topic missing 'name: $topic' frontmatter"
+    echo "  ok: skill get $topic"
 done
 
-# 4. install-skill bundles hub + 9 sub-skills (workspace-local, non-destructive)
+# 4. install-skill bundles hub only (sub-skills served at runtime)
 step "install-skill (workspace-local)"
 TMP="$(mktemp -d)"
+INIT_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP" "$INIT_DIR"' EXIT
 cargo run --quiet -- install-skill --workspace "$TMP" >/dev/null
 HUB="$TMP/.agents/skills/wiki/SKILL.md"
 test -f "$HUB" || fail "hub SKILL.md not installed to $TMP/.agents/skills/wiki/"
 echo "  ok: hub SKILL.md installed"
-for sub in SETUP CONFIG INGEST SEARCH QUERY LINT MODELS SYNC TROUBLESHOOTING; do
-    test -f "$TMP/.agents/skills/wiki/$sub/SKILL.md" \
-        || fail "sub-skill $sub/SKILL.md not installed"
-    echo "  ok: $sub/SKILL.md installed"
-done
 
-# 5. Marketplace validator (strict)
-step "marketplace validator (strict)"
-python3 marketplace/scripts/validate.py --strict \
-    || fail "marketplace validator failed"
-echo "  ok: marketplace validate --strict"
-
-# 6. Init + workspace discoverability (the file `wiki` knows how to find)
+# 5. Init + workspace discoverability
 step "init + workspace discover"
-INIT_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP" "$INIT_DIR"' EXIT
 cargo run --quiet -- init "$INIT_DIR" >/dev/null
 # From inside the new workspace, `doctor --json` should run (it may report
 # NIM errors, but it must parse the workspace).
@@ -95,4 +83,4 @@ cargo run --quiet -- init "$INIT_DIR" >/dev/null
 echo "  ok: doctor runs from inside a freshly initialized workspace"
 
 echo
-echo "✓ v0.3.0 e2e smoke test passed"
+echo "✓ v0.3.29 e2e smoke test passed"

@@ -21,7 +21,7 @@ fn skill_show_topic_filters() {
         .arg("search")
         .assert()
         .success()
-        .stdout(str::contains("Search"));
+        .stdout(str::contains("semantic similarity"));
 }
 
 #[test]

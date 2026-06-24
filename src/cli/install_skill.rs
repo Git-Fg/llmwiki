@@ -8,6 +8,14 @@ pub struct InstallSkillArgs {
     pub workspace: Option<PathBuf>,
 }
 
+/// Install the small `wiki` skill to the agent's skills directory.
+///
+/// v0.3.29 simplification: only the hub is installed to disk. Inline
+/// sub-skills (`wiki-search`, `wiki-config`, etc.) are served on demand via
+/// `llmwiki-cli skill get <topic>` from bytes embedded in the binary
+/// (`rust-embed` over `skills/`). This keeps the install layout minimal —
+/// one file at `~/.agents/skills/wiki/SKILL.md` — and avoids any
+/// marketplace / validator / multi-plugin-manifest machinery.
 pub fn run(args: InstallSkillArgs) -> Result<(), WikiError> {
     let target = if args.global {
         let home =
@@ -26,20 +34,14 @@ pub fn run(args: InstallSkillArgs) -> Result<(), WikiError> {
     remove_existing_target(&target)?;
     std::fs::create_dir_all(&target)?;
 
-    // Write the hub SKILL.md from the binary-embedded content
-    std::fs::write(target.join("SKILL.md"), skills::SKILL_MD)?;
-
-    // Write each sub-skill from the binary-embedded content
-    for (name, content) in skills::TOPICS {
-        let sub_dir = target.join(name.to_uppercase());
-        std::fs::create_dir_all(&sub_dir)?;
-        std::fs::write(sub_dir.join("SKILL.md"), content)?;
-    }
+    // Write the hub SKILL.md from the binary-embedded content. Sub-skills
+    // are not installed — `llmwiki-cli skill get <topic>` serves them from
+    // the binary at runtime.
+    std::fs::write(target.join("SKILL.md"), skills::hub().as_bytes())?;
 
     println!(
-        "✓ Installed skill bundle to {} (1 hub + {} sub-skills)",
-        target.display(),
-        skills::TOPICS.len()
+        "✓ Installed wiki skill to {}\n  Inline sub-skills served via `llmwiki-cli skill get <topic>`",
+        target.display()
     );
     Ok(())
 }

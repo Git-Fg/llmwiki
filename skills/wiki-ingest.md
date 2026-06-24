@@ -1,0 +1,41 @@
+---
+name: wiki-ingest
+description: |
+  Add a source file to the wiki. Routes to `llmwiki-cli ingest`. Use
+  when the user asks to add a new source, ingest a file, or append
+  to the wiki.
+  Do NOT use for: reading existing pages (use search/query), editing pages.
+allowed-tools: Bash(llmwiki-cli:*)
+---
+
+# wiki-ingest
+
+Add a source file to `raw/` and append a log entry. Pair with `embed`
+to make the new source searchable.
+
+## Commands
+
+```bash
+llmwiki-cli ingest <file>           # add one source to raw/
+llmwiki-cli ingest --batch <dir>    # add every file in a directory
+llmwiki-cli embed                   # (separate command) build embeddings.jsonl
+```
+
+## Workflow
+
+1. Place the source file in `raw/` (or pass a path to `ingest`)
+2. `llmwiki-cli ingest <file>` — copies to `raw/<category>/` and appends to `log.md`
+3. `llmwiki-cli embed` — rebuilds embeddings.jsonl so the new content is searchable
+
+## Sibling skills
+
+- `wiki-search` — find the freshly-ingested content
+- `wiki-query` — RAG question-answering over the new content
+- `wiki-lint` — check that the ingest produced valid pages
+
+## Full reference
+
+```bash
+llmwiki-cli ingest --help
+llmwiki-cli embed --help
+```

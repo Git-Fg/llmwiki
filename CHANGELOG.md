@@ -1,5 +1,75 @@
 # Changelog
 
+## v0.3.29 — Flat skill bundle
+
+**Removed — `marketplace/` directory and all plugin-manifest plumbing:**
+- The entire `marketplace/` tree (Claude/Kimi/Cursor/Codex plugin
+  manifests, `marketplace.json`, `VERSION`, `validate.py`) is deleted.
+- `agents/skills/` legacy build-artifact stub is deleted.
+- `marketplace-validate` CI job removed.
+- The `python3 marketplace/scripts/validate.py --strict` PR template
+  step is removed.
+- `~/.agents/skills/wiki/{SETUP,INGEST,...}/` nested sub-skill folders
+  are no longer written to disk.
+
+**Why:** the marketplace layer added packaging complexity (4 sibling
+manifests, a Python validator, multi-host installs) without improving
+agent outcomes. The skill is consumed by the host agent at runtime;
+flat `skills/wiki-{topic}.md` files + one `~/.agents/skills/wiki/SKILL.md`
+hub is enough. Inspired by [`vercel-labs/agent-browser`](https://github.com/vercel-labs/agent-browser)'s
+`skills get core` convention: CLI is source of truth, skill is a thin
+discovery hub.
+
+**Added — `rust-embed` skill bundle:**
+- `src/skills/mod.rs` replaces 9 hand-written `include_str!` constants
+  with one `#[derive(RustEmbed)] #[folder = "skills/"]` over the
+  source-of-truth `skills/` directory.
+- `src/skills::find_skill("search")` and `find_skill("wiki-search")`
+  both work (name normalization).
+- `src/skills::list_skills()` returns the 9 inline sub-skills
+  (sorted), excluding the hub.
+- New dependency: `rust-embed = "6"`.
+
+**Added — `wiki skill get <topic>` canonical discovery primitive:**
+- Mirrors `agent-browser`'s `skills get <topic>` convention.
+- Accepts both `wiki-search` and `search` (normalized).
+- `wiki skill show` retained as an alias for backward compatibility.
+- New `wiki skill path [topic]` prints the install location of the
+  hub (or, with a topic, the embed-time path inside the binary).
+
+**Added — `llmwiki-cli install-skill --global` is hub-only:**
+- Writes **only** `~/.agents/skills/wiki/SKILL.md` (the hub).
+- Sub-skills are served at runtime from bytes embedded in the binary —
+  never written to disk.
+- Reduces install surface from 9 files + 1 hub to **1 file**.
+
+**Rewritten — `skills/SKILL.md` (hub, 115 lines):**
+- Frontmatter + gotchas + how-to, routing every command to
+  `llmwiki-cli <cmd> --help` for the full reference.
+- Explicit "all CLI invocations use `llmwiki-cli`, never `wiki`" rule
+  at the top (was a frequent source of confused doc snippets).
+- Lists the 9 inline sub-skills and how to fetch each.
+
+**Rewritten — 9 inline sub-skills (40-48 lines each, was 35-97):**
+- `wiki-setup.md`, `wiki-config.md`, `wiki-ingest.md`,
+  `wiki-search.md`, `wiki-query.md`, `wiki-lint.md`,
+  `wiki-models.md`, `wiki-sync.md`, `wiki-troubleshooting.md`.
+- Each is **thin**: the routing header + a one-line summary of when to
+  use this command. Full reference is in `llmwiki-cli <cmd> --help`.
+- Removes the previous duplication where sub-skills re-explain flag
+  semantics.
+
+**Migration — existing installs:**
+- Run `llmwiki-cli install-skill --global` to overwrite the hub with
+  the v0.3.29 (smaller) version.
+- The old nested `~/.agents/skills/wiki/{SETUP,INGEST,...}/` folders
+  can be deleted; they're no longer used:
+  ```bash
+  rm -rf ~/.agents/skills/wiki/{SETUP,INGEST,SEARCH,QUERY,LINT,MODELS,SYNC,TROUBLESHOOTING,CONFIG,LSP,MCP}
+  ```
+- If your host editor was reading those nested files, point it at
+  `wiki skill get <topic>` output instead.
+
 ## v0.3.28 — Lean CLI
 
 **Removed — `wiki lsp` and `wiki mcp`:**

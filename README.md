@@ -171,7 +171,7 @@ Run `llmwiki-cli models` for full specs. Change via `wiki config set nim.embed_m
 - Design spec: `docs/superpowers/specs/2026-06-21-karpathy-wiki-design.md`
 - Multi-source registry spec: `docs/superpowers/specs/2026-06-23-multi-wiki-resolution-v032-design.md`
 - Agent behavioral layer: `AGENTS.md`
-- Full agent skill: `agents/skills/wiki/SKILL.md` (bundled, `llmwiki-cli skill show`)
+- Full agent skill: `skills/SKILL.md` (bundled, `llmwiki-cli skill get` for inline sub-skills)
 
 ## License
 
