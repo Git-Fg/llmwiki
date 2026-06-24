@@ -17,8 +17,6 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=marketplace/skills/wiki/SKILL.md");
     println!("cargo:rerun-if-changed=marketplace/skills/wiki/SETUP/SKILL.md");
-    println!("cargo:rerun-if-changed=marketplace/skills/wiki/LSP/SKILL.md");
-    println!("cargo:rerun-if-changed=marketplace/skills/wiki/MCP/SKILL.md");
     println!("cargo:rerun-if-changed=src/core/config.rs");
     println!("cargo:rerun-if-changed=src/core/config_types.rs");
     println!("cargo:rerun-if-changed=src/cli/doctor.rs");
@@ -53,30 +51,5 @@ fn main() {
     let schema_json = serde_json::to_string_pretty(&schema).expect("schema is always serializable");
     if let Err(e) = fs::write(&schema_path, format!("{schema_json}\n")) {
         println!("cargo:warning=failed to write schema.json {schema_path:?}: {e}");
-    }
-
-    // Write the JSON Schema for the DoctorReport type (output of
-    // `wiki doctor --json`) to MCP/references/doctor.schema.json. The
-    // schema is auto-generated from the `DoctorReport` struct below
-    // (kept in sync with `src/cli/doctor.rs::DoctorReport` — when
-    // either changes, the build will regenerate this file).
-    let doctor_schema_path =
-        manifest_path.join("marketplace/skills/wiki/MCP/references/doctor.schema.json");
-    if let Some(parent) = doctor_schema_path.parent() {
-        if let Err(e) = fs::create_dir_all(parent) {
-            println!("cargo:warning=failed to create doctor schema dir {parent:?}: {e}");
-        }
-    }
-    let doctor_schema = schemars::schema_for!(DoctorReport);
-    // schemars reads `#[serde(deny_unknown_fields)]` on DoctorReport and
-    // emits `"additionalProperties": false` at the root natively, so no
-    // post-processing is needed.
-    let doctor_schema_json =
-        serde_json::to_string_pretty(&doctor_schema).expect("doctor schema is always serializable");
-    // POSIX-text-file convention: end with a trailing newline. Many
-    // editors (Vim with `:set fixendofile`, GitHub's web diff view)
-    // expect one. v0.3.23 polish.
-    if let Err(e) = fs::write(&doctor_schema_path, format!("{doctor_schema_json}\n")) {
-        println!("cargo:warning=failed to write doctor.schema.json {doctor_schema_path:?}: {e}");
     }
 }
