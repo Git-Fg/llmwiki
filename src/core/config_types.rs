@@ -169,7 +169,7 @@ fn default_true() -> bool {
 }
 
 fn default_pages_dir() -> String {
-    "wiki".into()
+    "".into()
 }
 
 /// Default list of directory basenames to skip when walking the wiki.

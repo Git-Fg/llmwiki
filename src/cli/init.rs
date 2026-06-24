@@ -20,22 +20,32 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
         args.path.clone()
     };
 
-    // Read the user's global config to honor `wiki.pages_dir` if set.
-    // If unset, falls back to the default ("wiki") via Config::default().
-    // v0.3.25+: lets users with flat-layout wikis run `wiki init` against
-    // a workspace and get pages at the root instead of a `wiki/` subdir.
-    let cfg =
-        crate::core::config::load_config_unvalidated(&crate::core::config::config_paths(&target))
-            .unwrap_or_else(|_| Config::default());
+    // `wiki init` is a SCAFFOLDING tool. Its layout decision is decoupled
+    // from the read-path default (`Config::default().wiki.pages_dir`,
+    // which became flat in v0.3.26). Scaffolding always uses the legacy
+    // `wiki/` subdir layout so the produced workspace matches what the
+    // test suite + tooling already expect. Users who want flat layout
+    // pass `--flat` (added in Task 6); users who want a different
+    // subdir name set `wiki.pages_dir = "..."` in their per-workspace
+    // config BEFORE running `wiki init`.
+    //
+    // We still LOAD the user's config to honor `wiki.pages_dir` if set
+    // (advanced users with a custom subdir name); only the default
+    // changes from "follow Config::default" to "always wiki unless overridden".
+    let mut cfg = crate::core::config::load_config_unvalidated(
+        &crate::core::config::config_paths(&target),
+    )
+    .unwrap_or_else(|_| Config::default());
+    if cfg.wiki.pages_dir.is_empty() {
+        // No explicit user setting — use the init-scaffold default (subdir).
+        cfg.wiki.pages_dir = "wiki".into();
+    }
     let pages_dir_path = pages_dir(&target, &cfg.wiki.pages_dir);
 
-    // For the `wiki/`-layout default, create the subdirectory. For the
-    // flat layout (pages_dir == ""), pages_dir_path is the workspace root
-    // which already exists — no subdirectory to create.
-    if !cfg.wiki.pages_dir.is_empty() {
-        std::fs::create_dir_all(&pages_dir_path)
-            .with_context(|| format!("create {}", pages_dir_path.display()))?;
-    }
+    // Always create the subdir for the scaffold (init defaults to subdir,
+    // and any explicit `pages_dir` from the user config is also a subdir).
+    std::fs::create_dir_all(&pages_dir_path)
+        .with_context(|| format!("create {}", pages_dir_path.display()))?;
     std::fs::create_dir_all(target.join("raw/articles")).context("create raw/articles/")?;
     std::fs::create_dir_all(target.join(".llmwiki-cli")).context("create .llmwiki-cli/")?;
 
@@ -77,7 +87,8 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
 # batch_size = 8
 
 [wiki]
-# pages_dir = \"wiki\"        # relative to workspace root; \"\" = flat layout (v0.3.25+)
+# pages_dir = \"\"            # relative to workspace root; \"wiki\" = legacy subdir layout (v0.3.26 default was \"wiki\", now \"\")
+# exclude_dirs = [\"node_modules\", \".git\", \".opencode\", ...]  # bare basenames skipped at any depth (v0.3.26+)
 # default_chunk_tokens = 512
 # chunk_overlap_tokens = 128
 # min_chunk_tokens = 32
