@@ -43,6 +43,22 @@ Otherwise: read, search, and match files directly in the wiki's pages (layout de
 
 **`wiki.exclude_dirs` is additive** (v0.3.27+): user-provided entries merge with built-in defaults (node_modules, .git, .opencode, etc.) instead of replacing them. Add `exclude_dirs = ["secret"]` to keep defaults plus your custom exclude.
 
+## Before editing any config
+
+For AI agents editing wiki-root.toml or per-workspace config.toml:
+
+1. Run `wiki config show-effective` first to see what's resolved
+2. Run `wiki config show-schema` (with `--section wiki` or `--section nim`) to discover available keys
+3. Edit the file with the Edit tool
+4. Run `wiki config validate` after every change — it catches:
+   - Unknown keys (typos)
+   - Invalid TOML syntax
+   - Invalid model names
+   - Bad chunk-size combinations
+5. Run `wiki doctor` for full diagnostic if something feels off
+
+See the `CONFIG` sub-skill for the full workflow.
+
 ## Sub-skills
 
 Run `llmwiki-cli skill show <topic>` to load the full content for a sub-skill.
