@@ -29,7 +29,7 @@ fn version_prints_current_cargo_version() {
 //  1. The version (so the user can verify which build they have).
 //  2. The active wiki alias, workspace, and resolution source (or a
 //     graceful "no active wiki" line when the resolver returns nothing).
-//  3. A hint pointing at `wiki --help` and `wiki doctor`.
+//  3. A hint pointing at `llmwiki-cli --help` and `llmwiki-cli doctor`.
 // This is the single most useful thing the user can run to orient
 // themselves when they don't know which wiki the CLI is operating on.
 

@@ -7,8 +7,8 @@
 //! hardcoded `ws.join("wiki")` and reported "0 pages" against these wikis.
 //!
 //! v0.3.25 introduces `wiki.pages_dir` (default `"wiki"`, empty string = flat).
-//! These tests verify the end-to-end behavior of `wiki ls --pages` and
-//! `wiki tree` against both layouts.
+//! These tests verify the end-to-end behavior of `llmwiki-cli ls --pages` and
+//! `llmwiki-cli tree` against both layouts.
 
 use assert_cmd::Command;
 use predicates::prelude::*;
@@ -100,7 +100,7 @@ fn flat_layout_ls_pages_finds_pages_when_pages_dir_is_empty() {
 
 #[test]
 fn flat_layout_tree_finds_pages_when_pages_dir_is_empty() {
-    // Same for `wiki tree` — should list the flat-layout pages.
+    // Same for `llmwiki-cli tree` — should list the flat-layout pages.
     let tmp = make_flat_layout_workspace();
     write_config(tmp.path(), "");
     Command::cargo_bin("llmwiki-cli")
@@ -157,7 +157,7 @@ fn wiki_subdir_layout_works_with_explicit_pages_dir() {
 
 #[test]
 fn flat_layout_ls_resilient_to_unparseable_frontmatter() {
-    // v0.3.25+: `wiki ls` must not crash the whole listing when one page
+    // v0.3.25+: `llmwiki-cli ls` must not crash the whole listing when one page
     // has YAML that `serde-saphyr` cannot parse. The bad page is silently
     // skipped (its data would be useless anyway); the good page is listed
     // normally. This is a pre-existing fragility exposed by the page-

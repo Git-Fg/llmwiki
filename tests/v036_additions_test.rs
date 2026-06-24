@@ -1,10 +1,10 @@
 //! Integration tests for the v0.3.36+ additions:
-//!   - `wiki completion <shell>`
-//!   - `wiki use <alias>` and the per-workspace active-wiki pointer
-//!   - `wiki status --all` fleet mode
+//!   - `llmwiki-cli completion <shell>`
+//!   - `llmwiki-cli use <alias>` and the per-workspace active-wiki pointer
+//!   - `llmwiki-cli status --all` fleet mode
 //!
 //! These exercise the CLI surface end-to-end. Unit tests for the
-//! resolution chain (which is what `wiki use` ultimately feeds) live
+//! resolution chain (which is what `llmwiki-cli use` ultimately feeds) live
 //! in `tests/registry_test.rs`.
 
 use assert_cmd::Command;
@@ -25,9 +25,9 @@ fn write_registry(dir: &std::path::Path, content: &str) -> std::path::PathBuf {
     path
 }
 
-// ─── `wiki completion` ───────────────────────────────────────────────
+// ─── `llmwiki-cli completion` ───────────────────────────────────────────────
 
-/// `wiki completion bash` must print a non-empty script to stdout.
+/// `llmwiki-cli completion bash` must print a non-empty script to stdout.
 /// Doesn't snapshot the exact bytes (clap_complete output is stable
 /// but we don't want a brittle test) — just asserts the structural
 /// invariants every shell expects.
@@ -46,7 +46,7 @@ fn completion_bash_emits_function_with_llmwiki_cli() {
         .stdout(predicates::str::contains("complete"));
 }
 
-/// `wiki completion zsh` must emit a `#compdef` header (the zsh
+/// `llmwiki-cli completion zsh` must emit a `#compdef` header (the zsh
 /// completion system reads this to register the function).
 #[test]
 fn completion_zsh_emits_compdef_header() {
@@ -59,7 +59,7 @@ fn completion_zsh_emits_compdef_header() {
         .stdout(predicates::str::contains("#compdef llmwiki-cli"));
 }
 
-/// `wiki completion fish` must emit a `complete -c llmwiki-cli` line
+/// `llmwiki-cli completion fish` must emit a `complete -c llmwiki-cli` line
 /// (the fish completion registration syntax).
 #[test]
 fn completion_fish_emits_complete_directive() {
@@ -83,10 +83,10 @@ fn completion_unknown_shell_errors() {
         .failure();
 }
 
-// ─── `wiki use <alias>` ───────────────────────────────────────────────
+// ─── `llmwiki-cli use <alias>` ───────────────────────────────────────────────
 
-/// `wiki use <alias>` writes the alias to
-/// `<workspace>/.llmwiki-cli/state/active-wiki` and `wiki use` (no
+/// `llmwiki-cli use <alias>` writes the alias to
+/// `<workspace>/.llmwiki-cli/state/active-wiki` and `llmwiki-cli use` (no
 /// args) reads it back. Mirrors the `npm use` / `cargo --manifest-path`
 /// per-workspace-default idiom.
 #[test]
@@ -125,7 +125,7 @@ description = "Mevin"
     let content = std::fs::read_to_string(&pointer).unwrap();
     assert_eq!(content.trim(), "mevin");
 
-    // Reading it back via `wiki use` (no alias) shows the value.
+    // Reading it back via `llmwiki-cli use` (no alias) shows the value.
     isolated_cmd(&reg_path)
         .arg("--workspace")
         .arg(workspace.path())
@@ -137,7 +137,7 @@ description = "Mevin"
         ));
 }
 
-/// `wiki use <unknown>` must error with a clear message — never
+/// `llmwiki-cli use <unknown>` must error with a clear message — never
 /// silently write a broken pointer.
 #[test]
 fn use_rejects_unregistered_alias() {
@@ -171,7 +171,7 @@ path = "/tmp/mevin-bad-use"
     assert!(!pointer.exists(), "broken pointer must not be written");
 }
 
-/// `wiki use --unset` removes the pointer.
+/// `llmwiki-cli use --unset` removes the pointer.
 #[test]
 fn use_unset_removes_pointer() {
     let reg_dir = tempfile::tempdir().unwrap();
@@ -202,7 +202,7 @@ path = "/tmp/mevin-unset"
     assert!(!pointer.exists(), "--unset must remove the pointer file");
 }
 
-/// JSON output for `wiki use <alias>`: stable shape for CI/agents.
+/// JSON output for `llmwiki-cli use <alias>`: stable shape for CI/agents.
 #[test]
 fn use_json_output_has_stable_shape() {
     let reg_dir = tempfile::tempdir().unwrap();
@@ -224,7 +224,7 @@ path = "/tmp/mevin-json"
         .arg("mevin")
         .arg("--json")
         .output()
-        .expect("wiki use --json must run");
+        .expect("llmwiki-cli use --json must run");
     assert!(output.status.success());
     let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(v["action"], "set");
@@ -233,7 +233,7 @@ path = "/tmp/mevin-json"
 }
 
 /// The active-wiki pointer must be respected by the resolution chain
-/// (step 5.5): running `wiki config current` from inside the workspace
+/// (step 5.5): running `llmwiki-cli config current` from inside the workspace
 /// must show `active_wiki_pointer` as the resolution source, NOT
 /// `walk_up` or `single_wiki`.
 #[test]
@@ -273,7 +273,7 @@ description = "Mevin"
     assert_eq!(v["source"], "active_wiki_pointer");
 }
 
-// ─── `wiki status --all` ──────────────────────────────────────────────
+// ─── `llmwiki-cli status --all` ──────────────────────────────────────────────
 
 /// Fleet mode loops over every registered alias. Empty registry → no
 /// entries, no failures, exit 0.

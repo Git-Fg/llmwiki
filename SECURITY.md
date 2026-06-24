@@ -25,7 +25,7 @@ via a public issue tagged `@Git-Fg` asking for triage.
 In scope:
 - Code execution via crafted `wiki-root.toml`, `raw/`, or `.wiki/config.yaml`
 - NIM API key leakage (config, logs, error messages, telemetry)
-- Path traversal in `init`, `ingest`, or `wiki config path`
+- Path traversal in `init`, `ingest`, or `llmwiki-cli config path`
 - Unsafe `unwrap()`/`expect()` reachable from public CLI commands
 - Memory unsafety in `unsafe` blocks (currently none in the codebase)
 

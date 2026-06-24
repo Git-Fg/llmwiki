@@ -95,7 +95,7 @@ pub async fn run(args: DoctorArgs) -> Result<(), WikiError> {
             .into_iter()
             .collect();
 
-    // Per-key source attribution (mirrors `wiki config show-effective`).
+    // Per-key source attribution (mirrors `llmwiki-cli config show-effective`).
     // Maps each config key to the file it was loaded from (`<default>` if
     // no file explicitly set it). Lets users see which file is in effect
     // for every key without running a separate command.

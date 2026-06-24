@@ -96,7 +96,7 @@ pub async fn run(args: LintArgs) -> Result<(), WikiError> {
                 all_issues.extend(check_frontmatter(page_path, &content));
 
                 // Report unparseable frontmatter as a lint error rather than
-                // failing the whole `wiki lint` run. This makes the command
+                // failing the whole `llmwiki-cli lint` run. This makes the command
                 // resilient to individual bad pages in large wikis.
                 let parsed = match parse_frontmatter(&content) {
                     Ok(p) => p,

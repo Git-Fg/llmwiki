@@ -22,8 +22,8 @@ pub const HUB_SOURCE: &str = include_str!("../../skills/SKILL.md");
 #[folder = "src/skills/data/"]
 struct SubSkillBundle;
 
-/// Returns the hub SKILL.md content. Used by `wiki skill install --global`
-/// to write `~/.agents/skills/wiki/SKILL.md`, and by `wiki skill` (no args)
+/// Returns the hub SKILL.md content. Used by `llmwiki-cli skill install --global`
+/// to write `~/.agents/skills/wiki/SKILL.md`, and by `llmwiki-cli skill` (no args)
 /// to print the hub on stdout.
 pub fn hub() -> Cow<'static, str> {
     Cow::Borrowed(HUB_SOURCE)
@@ -39,7 +39,7 @@ pub fn find_skill(name: &str) -> Option<Cow<'static, str>> {
 }
 
 /// Enumerates every CLI-internal sub-skill. Returns `(file_stem, line_count)`
-/// sorted alphabetically. Used by `wiki skill list`.
+/// sorted alphabetically. Used by `llmwiki-cli skill list`.
 pub fn list_skills() -> Vec<(String, usize)> {
     let mut out: Vec<(String, usize)> = SubSkillBundle::iter()
         .filter_map(|p| {

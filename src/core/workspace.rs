@@ -119,7 +119,7 @@ pub fn discover_workspace(
     // `~/.llmwiki-cli/` is treated as per-computer config, not a workspace).
     if let Some(p) = walk_up_for_llmwiki_cli_dir(&cwd) {
         // Step 5.5: honor the per-workspace active-wiki pointer
-        // (`wiki use <alias>`) by looking up the alias in the registry
+        // (`llmwiki-cli use <alias>`) by looking up the alias in the registry
         // and returning ITS path, not the workspace marker. The
         // pointer is the user's explicit "this project uses THAT wiki"
         // signal — it should override walk-up so the resolution chain
@@ -257,7 +257,7 @@ pub fn walk_pages<'a>(
 /// is not under `base` (e.g. via a symlink that escaped the
 /// workspace). The forward-slash conversion is the agent-friendly
 /// format — `walkdir` returns native separators (backslash on
-/// Windows), but `wiki ls`, `wiki tree`, and `wiki embed` all
+/// Windows), but `llmwiki-cli ls`, `llmwiki-cli tree`, and `llmwiki-cli embed` all
 /// report paths with `/` regardless of OS so the output is
 /// stable across machines and shell-pipable.
 ///

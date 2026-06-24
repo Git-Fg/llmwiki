@@ -8,7 +8,7 @@ fn write_tmp_toml(content: &str) -> (std::path::PathBuf, tempfile::TempDir) {
     (path, dir)
 }
 
-/// Run `wiki config paths` with a temp HOME, temp WIKI_ROOT_CONFIG, and
+/// Run `llmwiki-cli config paths` with a temp HOME, temp WIKI_ROOT_CONFIG, and
 /// given `--workspace`. Returns (status, stdout).
 fn run_config_paths(workspace: &std::path::Path) -> (i32, String) {
     use assert_cmd::Command;
@@ -34,7 +34,7 @@ fn run_config_paths(workspace: &std::path::Path) -> (i32, String) {
     )
 }
 
-/// Run `wiki config paths --json`. Returns parsed JSON.
+/// Run `llmwiki-cli config paths --json`. Returns parsed JSON.
 fn run_config_paths_json(workspace: &std::path::Path) -> serde_json::Value {
     use assert_cmd::Command;
     let tmp = tempfile::tempdir().unwrap();
@@ -242,7 +242,7 @@ description = "modify me"
     assert_eq!(modify.description, "modify me");
 }
 
-// ---------- Subprocess tests for the `wiki config` CLI surface ----------
+// ---------- Subprocess tests for the `llmwiki-cli config` CLI surface ----------
 //
 // All subprocess tests redirect `WIKI_ROOT_CONFIG` to a temp file so the
 // user's real registry is never mutated. The temp dir is kept alive for the
@@ -622,7 +622,7 @@ fn subprocess_config_validate_no_warnings_for_clean_config() {
 fn config_validate_after_edit_catches_typo() {
     // v0.3.28+: AI agents that edit a wiki config (whether the central
     // `wiki-root.toml` or a per-workspace `.llmwiki-cli/config.toml`) should
-    // run `wiki config validate` after every change. This test simulates
+    // run `llmwiki-cli config validate` after every change. This test simulates
     // that workflow: write a valid config, run validate (passes, no
     // warnings), introduce a typo, run validate again (still exits 0 but
     // emits the unknown-key warning on stderr).
@@ -727,7 +727,7 @@ fn subprocess_config_show_schema_outputs_valid_json() {
     assert!(v["$defs"]["NimConfig"].is_object());
 }
 
-// ─── `wiki config show-effective` (git config --show-origin style) ───
+// ─── `llmwiki-cli config show-effective` (git config --show-origin style) ───
 
 fn isolated_cmd_with_workspace_and_config(
     reg_path: &std::path::Path,
@@ -865,7 +865,7 @@ fn show_effective_per_workspace_overrides_per_computer() {
     assert!(src.contains("ws/.llmwiki-cli/config.toml"));
 }
 
-// ─── `wiki config config-edit` ───
+// ─── `llmwiki-cli config config-edit` ───
 
 #[test]
 fn config_edit_picks_per_workspace_when_present() {
@@ -1064,7 +1064,7 @@ fn every_config_subcommand_is_either_workspace_aware_or_registry_only() {
     }
 }
 
-/// `wiki config config-edit` specifically: with a stub editor and the global
+/// `llmwiki-cli config config-edit` specifically: with a stub editor and the global
 /// `--workspace` flag set, the editor must be invoked with the per-workspace
 /// config file path. This is the exact regression test for the v0.3.9 bug.
 #[test]
@@ -1114,7 +1114,7 @@ fn global_workspace_flag_propagates_to_config_edit() {
 
 // ─── Registry-only config subcommands must ignore --workspace ───
 //
-// `wiki config add`, `rm`, `set`, `unset`, `list`, `get`, `path`, `edit`,
+// `llmwiki-cli config add`, `rm`, `set`, `unset`, `list`, `get`, `path`, `edit`,
 // `validate`, `show-schema` operate on the central registry (`wiki-root.toml`)
 // which is intentionally workspace-independent. Asserting that they succeed
 // even when a global `--workspace` points at a non-wiki directory guards
@@ -1157,7 +1157,7 @@ fn registry_only_config_subcommands_ignore_workspace_flag() {
     }
 }
 
-// ─── `wiki config show-effective` filters (v0.3.12) ───
+// ─── `llmwiki-cli config show-effective` filters (v0.3.12) ───
 //
 // Two filters narrow the output:
 //   - `[<prefix>]` positional: only keys starting with the prefix
@@ -1397,7 +1397,7 @@ fn show_schema_section_filters_output() {
         .stdout(predicates::str::contains("\"embed_model\"").not());
 }
 
-// ─── `wiki config current` tests ──────────────────────────────────────
+// ─── `llmwiki-cli config current` tests ──────────────────────────────────────
 //
 // These exercise the new "active wiki report" command. It must:
 //  - Exit 0 in all cases (it's a *report* command, not a do-command).
@@ -1450,7 +1450,7 @@ description = "Solo"
         .arg("current")
         .arg("--json")
         .output()
-        .expect("wiki config current --json must run");
+        .expect("llmwiki-cli config current --json must run");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -1523,7 +1523,7 @@ path = "{}"
         .arg("current")
         .arg("--json")
         .output()
-        .expect("wiki config current --json must run");
+        .expect("llmwiki-cli config current --json must run");
     assert!(output.status.success());
     let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(v["alias"].is_null(), "alias must be null: {v}");

@@ -128,7 +128,7 @@ A test suite that uses `wiremock` and `tempfile`-isolated workspaces cannot dete
 The user's real wikis use the Karpathy pattern with pages at the workspace root (no `wiki/` subdirectory). v0.3.25 added `wiki.pages_dir` to `Config`:
 
 - **Default** `wiki.pages_dir = ""` (flat) — v0.3.26+ default, pages at workspace root. Used by all real wikis in `~/.agents/wiki-root.toml`.
-- **Legacy subdir** `wiki.pages_dir = "wiki"` — pages in `wiki/` subdirectory. Opt-in via config or `wiki init --subdir`.
+- **Legacy subdir** `wiki.pages_dir = "wiki"` — pages in `wiki/` subdirectory. Opt-in via config or `llmwiki-cli init --subdir`.
 
 To switch a real wiki to flat layout, create `<wiki>/.llmwiki-cli/config.toml`:
 
@@ -184,14 +184,14 @@ full list.
 If a source wiki uses a different layout (e.g. Obsidian `notes/`),
 either move the files into one of the two supported layouts above, or
 set `wiki.pages_dir = "notes"` to point at the existing directory. Use
-`wiki config show-effective` to see the resolved `pages_dir`.
+`llmwiki-cli config show-effective` to see the resolved `pages_dir`.
 
 ```bash
 llmwiki-cli init /path/to/new-wiki
 # Delete the init-template pages you don't want
 rm /path/to/new-wiki/wiki/log.md /path/to/new-wiki/wiki/overview.md
 cp -r /path/to/old-wiki/concepts/* /path/to/new-wiki/wiki/
-llmwiki-cli lint --scope wiki --fix
+llmwiki-cli lint --scope wiki
 ```
 
 `llmwiki-cli import` is intentionally not provided — automatic frontmatter inference and wikilink rewriting are speculative heuristics and a wrong inference corrupts the wiki. See `CHANGELOG.md` for the full decision.
@@ -290,7 +290,7 @@ These type files are intentionally self-contained — type imports are written a
 
 **Schema root contract — `additionalProperties: false`**: Only the `DoctorReport` type carries `#[serde(deny_unknown_fields)]`. Schemars reads the serde attribute and emits `"additionalProperties": false` at the schema root natively. The `Config` type intentionally does NOT set `additionalProperties: false` — extra keys are tolerated in the config layer because users may add their own keys under `[wiki]` or `[nim]` sections that the typed `Config` struct doesn't surface, and the deep-merge semantics in `src/core/registry.rs::deep_merge_into` need to see those keys.
 
-**End-to-end validation**: `tests/doctor_test.rs::doctor_json_validates_against_schema` runs `wiki doctor --json` against a mocked NIM and asserts the output validates against the on-disk `doctor.schema.json` via the `jsonschema` crate. This catches (a) `include!` silently failing to expand, (b) schemars emit bugs in future versions, (c) serialization drift (e.g., a field accidentally `serde(skip)`-ed). Pre-v0.3.25 also had a structural-keys assertion (`config_schema_has_canonical_keys` + a 15-key check inside the doctor test) but that became tautological once build.rs no longer carried struct duplicates — schema by construction equals struct.
+**End-to-end validation**: `tests/doctor_test.rs::doctor_json_validates_against_schema` runs `llmwiki-cli doctor --json` against a mocked NIM and asserts the output validates against the on-disk `doctor.schema.json` via the `jsonschema` crate. This catches (a) `include!` silently failing to expand, (b) schemars emit bugs in future versions, (c) serialization drift (e.g., a field accidentally `serde(skip)`-ed). Pre-v0.3.25 also had a structural-keys assertion (`config_schema_has_canonical_keys` + a 15-key check inside the doctor test) but that became tautological once build.rs no longer carried struct duplicates — schema by construction equals struct.
 
 ## Cargo.lock (v0.3.20+, platform-specific question resolved in v0.3.23)
 

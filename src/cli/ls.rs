@@ -218,7 +218,7 @@ fn build_page_entries(
         // Pre-v0.3.25 this never triggered because the hardcoded `wiki/`
         // path missed flat-layout wikis entirely; v0.3.25+ exposes the
         // pre-existing fragility, so we make the listing command resilient
-        // rather than crashing the whole `wiki ls` on a single bad page.
+        // rather than crashing the whole `llmwiki-cli ls` on a single bad page.
         let Ok(parsed) = parse_frontmatter(&content) else {
             continue;
         };
@@ -273,7 +273,7 @@ fn build_raw_entries(ws: &Path) -> Result<Vec<RawEntry>, WikiError> {
         };
         let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
         // Same resilience: skip raw files with unparseable frontmatter
-        // rather than failing the whole `wiki ls`.
+        // rather than failing the whole `llmwiki-cli ls`.
         let Ok(parsed) = parse_frontmatter(&content) else {
             continue;
         };
@@ -354,7 +354,7 @@ fn build_link_entries(
         let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
         // Same resilience as build_page_entries: skip links from pages
         // with unparseable frontmatter instead of failing the whole
-        // `wiki ls --links` invocation.
+        // `llmwiki-cli ls --links` invocation.
         let Ok(parsed) = parse_frontmatter(&content) else {
             continue;
         };

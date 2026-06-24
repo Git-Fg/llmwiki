@@ -1,7 +1,7 @@
-//! Integration tests for `wiki init --flat` (v0.3.26+).
+//! Integration tests for `llmwiki-cli init --flat` (v0.3.26+).
 //!
 //! The `--flat` flag scaffolds a flat-layout wiki (no `wiki/` subdir, all
-//! pages at workspace root). Plain `wiki init` (without `--flat`) keeps
+//! pages at workspace root). Plain `llmwiki-cli init` (without `--flat`) keeps
 //! the legacy `wiki/` subdir scaffold for backward compatibility with
 //! existing tests + tooling.
 //!
@@ -54,7 +54,7 @@ fn init_with_flat_flag_creates_no_wiki_subdir() {
 
 #[test]
 fn init_with_subdir_flag_uses_subdirectory_layout() {
-    // v0.3.27+: plain `wiki init` (no `--subdir`) scaffolds flat layout.
+    // v0.3.27+: plain `llmwiki-cli init` (no `--subdir`) scaffolds flat layout.
     // Use `--subdir` to get the legacy `wiki/` subdir layout.
     let (_tmp, registry, mut cmd) = isolated_cmd();
     let target = _tmp.path().join("mywiki");
@@ -76,7 +76,7 @@ fn init_with_subdir_flag_uses_subdirectory_layout() {
 
 #[test]
 fn init_prints_layout_and_config_path() {
-    // v0.3.27+: `wiki init` must report what layout it picked and where
+    // v0.3.27+: `llmwiki-cli init` must report what layout it picked and where
     // the config file lives so users can audit.
     let (_tmp, registry, mut cmd) = isolated_cmd();
     let target = _tmp.path().join("mywiki");
@@ -112,7 +112,7 @@ fn init_prints_layout_and_config_path() {
 
 #[test]
 fn init_without_flags_creates_flat_layout() {
-    // v0.3.27+: plain `wiki init` now scaffolds flat layout (no `wiki/` subdir).
+    // v0.3.27+: plain `llmwiki-cli init` now scaffolds flat layout (no `wiki/` subdir).
     let (_tmp, registry, mut cmd) = isolated_cmd();
     let target = _tmp.path().join("mywiki");
     cmd.env("WIKI_ROOT_CONFIG", &registry)

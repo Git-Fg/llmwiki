@@ -13,7 +13,7 @@ pub struct StatusArgs {
     /// Loop over every registered alias and print a one-line summary
     /// per wiki. Exits non-zero if any sub-call failed. Used for
     /// fleet-wide health checks — the multi-wiki equivalent of
-    /// `wiki status`.
+    /// `llmwiki-cli status`.
     pub all: bool,
     pub json: bool,
 }
@@ -84,7 +84,7 @@ fn run_fleet(json: bool) -> Result<(), WikiError> {
                 }))?
             );
         } else {
-            println!("No wikis registered. Run `wiki init <path>` to add one.");
+            println!("No wikis registered. Run `llmwiki-cli init <path>` to add one.");
         }
         return Ok(());
     }

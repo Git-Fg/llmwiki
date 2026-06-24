@@ -29,7 +29,7 @@ use crate::core::registry::home_dir;
 ///   2. `<workspace>/.llmwiki-cli/config.toml` — per-workspace
 ///   3. `$LLMWIKI_CONFIG` env var (highest; only added when set + non-empty)
 ///
-/// `wiki config paths` reverses this list before printing so users see the
+/// `llmwiki-cli config paths` reverses this list before printing so users see the
 /// "highest priority first" order they intuitively expect when debugging.
 pub fn config_paths(workspace: &Path) -> Vec<PathBuf> {
     let mut lowest_first: Vec<PathBuf> = Vec::new();
@@ -63,7 +63,7 @@ pub fn config_paths(workspace: &Path) -> Vec<PathBuf> {
 /// found in an ancestor (which may or may not exist on disk — `load_config`
 /// skips missing files), or `<workspace>/.llmwiki-cli/config.toml` as the
 /// default location if no ancestor carries one. Returning `Some`
-/// unconditionally lets `wiki config paths` print the candidate location so
+/// unconditionally lets `llmwiki-cli config paths` print the candidate location so
 /// users see where to put a per-workspace config, even when the workspace
 /// directory doesn't exist yet (e.g., scripted setup).
 fn walk_up_for_llmwiki_cli_config(start: &Path) -> Option<PathBuf> {
@@ -126,7 +126,7 @@ pub fn load_config(paths: &[PathBuf]) -> Result<Config, WikiError> {
 }
 
 /// Like `load_config` but skips the whitelist/model validation step.
-/// Used by `wiki config validate` and by tests that want to inspect a
+/// Used by `llmwiki-cli config validate` and by tests that want to inspect a
 /// config regardless of whether it's valid.
 pub fn load_config_unvalidated(paths: &[PathBuf]) -> Result<Config, WikiError> {
     // Deep-merge TOML values across all sources in priority order (lowest
@@ -184,7 +184,7 @@ pub fn resolve_config(workspace: &Path) -> Result<Config, WikiError> {
     load_config(&config_paths(workspace))
 }
 
-/// Field-level validation independent of `load_config`. Used by `wiki config
+/// Field-level validation independent of `load_config`. Used by `llmwiki-cli config
 /// validate` and by callers that load a `Config` directly from the registry.
 /// Returns `Ok(())` if all whitelisted values are valid; otherwise a list of
 /// human-readable errors.

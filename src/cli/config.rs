@@ -114,7 +114,7 @@ async fn cmd_paths(workspace: Option<PathBuf>, json: bool) -> Result<(), WikiErr
     Ok(())
 }
 
-/// Tag a config path with the source it came from, for `wiki config paths`
+/// Tag a config path with the source it came from, for `llmwiki-cli config paths`
 /// output. Helps users tell which priority slot a path occupies without
 /// having to compare canonical paths.
 fn label_for(p: &std::path::Path) -> String {
@@ -166,7 +166,7 @@ async fn cmd_list(wiki: Option<&str>, json: bool) -> Result<(), WikiError> {
             } else {
                 if reg.entries.is_empty() {
                     println!(
-                        "No wikis registered. Use 'wiki config add <alias> <path>' to add one."
+                        "No wikis registered. Use 'llmwiki-cli config add <alias> <path>' to add one."
                     );
                     return Ok(());
                 }
@@ -255,7 +255,7 @@ async fn cmd_edit() -> Result<(), WikiError> {
 /// 3. existing per-computer config (`~/.llmwiki-cli/config.toml`)
 /// 4. per-workspace candidate (creates a new file when saved)
 ///
-/// This is the config-file analog of `wiki config edit` (which opens
+/// This is the config-file analog of `llmwiki-cli config edit` (which opens
 /// `wiki-root.toml`). Lets users edit either registry or per-workspace config
 /// without remembering the path.
 ///
@@ -495,7 +495,7 @@ fn is_default_value(
     }
 }
 
-/// Shorten a path for `wiki config show-effective` output. Replaces HOME
+/// Shorten a path for `llmwiki-cli config show-effective` output. Replaces HOME
 /// prefix with `~`, workspace suffix with `<workspace>/...`.
 fn shorten_path_for_display(p: &str) -> String {
     let home = crate::core::registry::home_dir()

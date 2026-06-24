@@ -56,8 +56,8 @@ pub struct WikiConfig {
     /// wikis where pages live at the workspace root (e.g. `comparisons/foo.md`,
     /// `queries/bar.md`, `index.md`). v0.3.26+: flipped from `"wiki"` so
     /// new users hit a working layout out-of-the-box. Set to `"wiki"` for the
-    /// legacy subdirectory layout. `wiki init --flat` selects flat; plain
-    /// `wiki init` selects the value of `wiki.pages_dir` (default: flat).
+    /// legacy subdirectory layout. `llmwiki-cli init --flat` selects flat; plain
+    /// `llmwiki-cli init` selects the value of `wiki.pages_dir` (default: flat).
     #[serde(default = "default_pages_dir")]
     pub pages_dir: String,
 

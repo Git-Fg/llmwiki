@@ -69,7 +69,7 @@ pub fn run(args: InitArgs) -> Result<(), WikiError> {
     )?;
     write_if_absent(
         &target.join(".gitignore"),
-        // `.llmwiki-cli/state/` is written by `wiki use <alias>` and
+        // `.llmwiki-cli/state/` is written by `llmwiki-cli use <alias>` and
         // holds the per-workspace active-wiki pointer — it's session
         // state, not config, and must not be committed (mirrors how
         // `embeddings.jsonl` is generated locally per device).

@@ -5,15 +5,15 @@
 //! query the registry on every TAB) because the alias list lives in
 //! `wiki-root.toml` and the script can be much smaller + faster by
 //! just listing `--wiki` as a free-form argument with a hint that
-//! `wiki config list` shows the available values.
+//! `llmwiki-cli config list` shows the available values.
 //!
 //! Supported shells: bash, zsh, fish, elvish, powershell.
 //!
 //! Install:
-//!   wiki completion bash  > ~/.local/share/bash-completion/completions/llmwiki-cli
-//!   wiki completion zsh   > "${fpath[1]}/_llmwiki-cli"
-//!   wiki completion fish  > ~/.config/fish/completions/llmwiki-cli.fish
-//!   wiki completion powershell > $HOME\Documents\PowerShell\Completions\llmwiki-cli.ps1
+//!   llmwiki-cli completion bash  > ~/.local/share/bash-completion/completions/llmwiki-cli
+//!   llmwiki-cli completion zsh   > "${fpath[1]}/_llmwiki-cli"
+//!   llmwiki-cli completion fish  > ~/.config/fish/completions/llmwiki-cli.fish
+//!   llmwiki-cli completion powershell > $HOME\Documents\PowerShell\Completions\llmwiki-cli.ps1
 use crate::error::WikiError;
 use clap::CommandFactory;
 use clap_complete::{generate, Shell};

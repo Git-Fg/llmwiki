@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 /// Which step of the resolution chain produced the active wiki. Returned
-/// by [`Registry::resolve_active`] and surfaced by `wiki config current` plus
+/// by [`Registry::resolve_active`] and surfaced by `llmwiki-cli config current` plus
 /// the bare-`llmwiki-cli` startup line, so users can see exactly *why* a
 /// particular workspace is in effect — the resolution chain is otherwise
 /// invisible from the CLI.
@@ -28,7 +28,7 @@ pub enum ResolutionSource {
     /// CWD is under a registered wiki's path.
     CwdPrefix,
     /// Per-workspace pointer file (`<workspace>/.llmwiki-cli/state/active-wiki`)
-    /// written by `wiki use <alias>`. Sets the active wiki for a
+    /// written by `llmwiki-cli use <alias>`. Sets the active wiki for a
     /// project without modifying the registry or needing env vars.
     ActiveWikiPointer,
     /// Walked up from CWD to find `.llmwiki-cli/` (skips HOME so the
@@ -40,7 +40,7 @@ pub enum ResolutionSource {
 
 impl ResolutionSource {
     /// Human-readable one-liner describing this source. Stable text
-    /// suitable for `wiki config current` output and assertions in
+    /// suitable for `llmwiki-cli config current` output and assertions in
     /// tests. Used in both the human and `--json` paths (the JSON
     /// shape includes the variant name separately).
     pub fn label(self) -> &'static str {
@@ -70,7 +70,7 @@ impl std::fmt::Display for ResolutionSource {
 /// Result of resolving the active wiki. Returned by
 /// [`Registry::resolve_active`]. Bundles the resolved alias, path, merged
 /// `Config`, and which step of the resolution chain matched so callers
-/// (especially `wiki config current` and the bare-`llmwiki-cli` startup
+/// (especially `llmwiki-cli config current` and the bare-`llmwiki-cli` startup
 /// line) can tell users *how* the wiki was chosen, not just *what* it is.
 #[derive(Debug, Clone)]
 pub struct ResolvedWiki {
@@ -437,7 +437,7 @@ impl Registry {
             }
         }
 
-        // 5.5 Per-workspace active-wiki pointer (wiki use <alias>).
+        // 5.5 Per-workspace active-wiki pointer (llmwiki-cli use <alias>).
         // Walks up from CWD to find the closest `.llmwiki-cli/` ancestor
         // (the workspace marker), then checks for `state/active-wiki`
         // inside it. Lower priority than CWD-prefix match (step 5) so
@@ -465,7 +465,7 @@ impl Registry {
                         // Pointer references a stale alias (e.g. wiki was
                         // renamed or removed). Fall through silently —
                         // the next step (walk-up) will still find the
-                        // workspace marker, and `wiki config current` will
+                        // workspace marker, and `llmwiki-cli config current` will
                         // surface the divergence.
                     }
                 }
@@ -517,7 +517,7 @@ impl Registry {
     }
 
     /// Soft variant of [`resolve_active`]: returns `None` instead of
-    /// `Err` when no wiki can be resolved. Used by `wiki config current`
+    /// `Err` when no wiki can be resolved. Used by `llmwiki-cli config current`
     /// and the bare-`llmwiki-cli` startup line, both of which want to
     /// degrade gracefully (report "no active wiki" with hints) rather
     /// than exit non-zero when the user simply hasn't picked one yet.
@@ -668,7 +668,7 @@ impl Registry {
         Ok(cfg)
     }
 
-    /// Resolve `[defaults]` alone (used when `wiki config get <key>` is called
+    /// Resolve `[defaults]` alone (used when `llmwiki-cli config get <key>` is called
     /// without `--wiki`). Falls back to `Config::default()` if no `[defaults]`
     /// table exists.
     pub fn resolve_defaults(&self) -> Result<Config, WikiError> {

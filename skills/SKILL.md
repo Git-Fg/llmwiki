@@ -70,7 +70,7 @@ Multi-wiki quick reference:
 - `llmwiki-cli status --all` — one-line health summary per wiki
 - `llmwiki-cli use <alias>` — pin this workspace to a specific wiki
   (writes `<workspace>/.llmwiki-cli/state/active-wiki`, gitignored by
-  `wiki init`)
+  `llmwiki-cli init`)
 
 When in doubt, run `llmwiki-cli doctor` first — catches missing API keys,
 NIM connectivity, broken config, orphans in one pass. If you don't know

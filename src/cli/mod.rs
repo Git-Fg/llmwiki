@@ -252,7 +252,7 @@ pub enum Command {
     },
     /// Show or list the embedded wiki agent skill
     Skill(SkillArgs),
-    /// Install the wiki skill as a global or workspace-local agent skill
+    /// Install the llmwiki skill as a global or workspace-local agent skill
     InstallSkill {
         #[arg(long)]
         global: bool,
@@ -260,7 +260,7 @@ pub enum Command {
         workspace: Option<std::path::PathBuf>,
         /// Override the install directory. Useful for hosts that don't read
         /// the default `~/.agents/skills/` (e.g. `--install-path
-        /// ~/.claude/skills/wiki` for Claude Code, `~/.cursor/skills/wiki`
+        /// ~/.claude/skills/llmwiki` for Claude Code, `~/.cursor/skills/llmwiki`
         /// for Cursor). Tilde (`~`) is expanded to $HOME.
         #[arg(long, value_name = "DIR")]
         install_path: Option<std::path::PathBuf>,
@@ -268,7 +268,7 @@ pub enum Command {
     /// Print version
     Version,
     /// Generate a shell completion script to stdout. Install once per
-    /// shell: `wiki completion bash > ~/.local/share/bash-completion/completions/llmwiki-cli`
+    /// shell: `llmwiki-cli completion bash > ~/.local/share/bash-completion/completions/llmwiki-cli`
     /// (and similarly for zsh, fish, elvish, powershell).
     Completion(crate::cli::completion::CompletionArgs),
     /// Set or clear the per-workspace active-wiki pointer. With no
@@ -277,9 +277,9 @@ pub enum Command {
     /// default wiki without changing the registry.
     ///
     /// Writes to `<workspace>/.llmwiki-cli/state/active-wiki` (gitignored
-    /// automatically by `wiki init` since v0.3.36+). The resolution chain
+    /// automatically by `llmwiki-cli init` since v0.3.36+). The resolution chain
     /// checks this pointer as step 5.5, between env-vars and CWD-prefix
-    /// match — so once you `wiki use mevin` in your project, every
+    /// match — so once you `llmwiki-cli use mevin` in your project, every
     /// `llmwiki-cli` command picks `mevin` without `--wiki`.
     Use(crate::cli::use_cmd::UseArgs),
     /// Manage wiki-root.toml and per-workspace configuration
@@ -290,8 +290,8 @@ pub enum Command {
     ///   3. `~/.llmwiki-cli/config.toml` (per-computer fallback)
     ///   4. built-in defaults
     ///
-    /// Use `wiki config paths` to see the resolved search order for the
-    /// current workspace, and `wiki config show-effective` to see which file
+    /// Use `llmwiki-cli config paths` to see the resolved search order for the
+    /// current workspace, and `llmwiki-cli config show-effective` to see which file
     /// overrode which key.
     Config {
         #[command(subcommand)]
@@ -663,7 +663,7 @@ fn print_startup_banner() -> Result<(), crate::error::WikiError> {
         Err(_) => {
             // No registry at all — fall back to walk-up-only behavior.
             // Don't error; the user may simply not have a wiki-root.toml
-            // yet. Print a hint pointing them at `wiki init`.
+            // yet. Print a hint pointing them at `llmwiki-cli init`.
             println!("No wiki-root.toml registry found in any of the candidate paths.");
             println!("  hint:       run `llmwiki-cli init <path>` to scaffold a new wiki, or");
             println!("              run `llmwiki-cli doctor` for the full resolution path.");

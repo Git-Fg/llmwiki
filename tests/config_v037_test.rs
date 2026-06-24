@@ -95,7 +95,7 @@ fn config_paths_includes_per_workspace_when_present() {
 #[test]
 fn config_paths_includes_per_workspace_candidate_when_absent() {
     // When no per-workspace config exists, config_paths still returns the
-    // candidate path `<workspace>/.llmwiki-cli/config.toml` so `wiki config paths`
+    // candidate path `<workspace>/.llmwiki-cli/config.toml` so `llmwiki-cli config paths`
     // can show the user where to put it. `load_config` skips missing files.
     with_lock(|| {
         without_wiki_root_config(|| {
@@ -353,7 +353,7 @@ fn registry_resolve_config_no_per_workspace_config_is_noop() {
     });
 }
 
-// ─── `wiki init` scaffolds `.llmwiki-cli/config.toml` ───
+// ─── `llmwiki-cli init` scaffolds `.llmwiki-cli/config.toml` ───
 
 #[test]
 fn wiki_init_creates_dot_llmwiki_cli_config_template() {

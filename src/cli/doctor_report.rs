@@ -1,4 +1,4 @@
-/// JSON Schema for the output of `wiki doctor --json`. Auto-generated
+/// JSON Schema for the output of `llmwiki-cli doctor --json`. Auto-generated
 /// from this struct (included via `include!` from `src/cli/doctor.rs`
 /// and from `build.rs`). This file is the single source of truth —
 /// do NOT duplicate this struct in `build.rs`.
@@ -44,7 +44,7 @@ pub struct DoctorReport {
     pub embed_model_available: bool,
     /// Reflective dump of the resolved effective config as dotted-key → value pairs.
     #[schemars(
-        description = "dotted-key to value map (same shape as `wiki config show-effective`)"
+        description = "dotted-key to value map (same shape as `llmwiki-cli config show-effective`)"
     )]
     pub config: std::collections::BTreeMap<String, String>,
     /// Per-key source attribution: dotted-key → file-it-came-from (`<default>` for built-in defaults).

@@ -219,7 +219,7 @@ fn user_exclude_dirs_merges_with_defaults() {
 #[test]
 #[ignore = "requires NIM API"]
 fn exclude_dirs_skips_excluded_pages_from_embed() {
-    // v0.3.27+: wiki embed must not embed pages under excluded dirs.
+    // v0.3.27+: llmwiki-cli embed must not embed pages under excluded dirs.
     let tmp = tempdir().unwrap();
     let ws = tmp.path();
     fs::create_dir_all(ws.join(".llmwiki-cli")).unwrap();
@@ -235,7 +235,7 @@ fn exclude_dirs_skips_excluded_pages_from_embed() {
         "[wiki]\npages_dir = \"\"\n",
     )
     .unwrap();
-    // wiki embed should succeed, and leaked.md should NOT appear in embeddings.jsonl.
+    // llmwiki-cli embed should succeed, and leaked.md should NOT appear in embeddings.jsonl.
     Command::cargo_bin("llmwiki-cli")
         .unwrap()
         .arg("--workspace")

@@ -97,7 +97,7 @@ The CLI supports multiple wikis via `wiki-root.toml` — a git-friendly TOML reg
 - **Project-local** (highest priority): `.agents/wiki-root.toml` at any ancestor of CWD. Closer-to-CWD wins.
 - **User-global** (lowest priority, loaded first): `~/wiki-root.toml`, `~/.claude/wiki-root.toml`, `~/.agents/wiki-root.toml`.
 
-All sources merge — every wiki from every file is visible. `wiki config set/add/rm/unset` writes to the highest-priority file (project-local if present, otherwise user-global). To target a specific file, set `$WIKI_ROOT_CONFIG` to its absolute path.
+All sources merge — every wiki from every file is visible. `llmwiki-cli config set/add/rm/unset` writes to the highest-priority file (project-local if present, otherwise user-global). To target a specific file, set `$WIKI_ROOT_CONFIG` to its absolute path.
 
 ```bash
 llmwiki-cli config list                 # show all registered wikis
@@ -116,16 +116,16 @@ Beyond the multi-wiki registry, NIM and wiki settings can be split between a **p
 3. `~/.llmwiki-cli/config.toml` — per-computer fallback (hidden dotfile directory).
 4. Built-in defaults.
 
-Use `wiki config paths` to see the resolved search order for the current workspace, `wiki config show-effective` to see which file overrode which key (mirrors `git config --list --show-origin`), and `wiki config config-edit` to open the highest-priority existing config file (or the per-workspace candidate if none exists) in `$EDITOR`.
+Use `llmwiki-cli config paths` to see the resolved search order for the current workspace, `llmwiki-cli config show-effective` to see which file overrode which key (mirrors `git config --list --show-origin`), and `llmwiki-cli config config-edit` to open the highest-priority existing config file (or the per-workspace candidate if none exists) in `$EDITOR`.
 
-### `wiki config show-effective` filters
+### `llmwiki-cli config show-effective` filters
 
 Three orthogonal filters narrow the output for common audit workflows:
 
 - `[<prefix>]` (positional) — only show keys starting with the prefix.
-  Example: `wiki config show-effective nim.` shows only the `[nim]` table.
+  Example: `llmwiki-cli config show-effective nim.` shows only the `[nim]` table.
 - `--source <path>` — only show keys whose source file matches the path.
-  Example: `wiki config show-effective --source ~/.llmwiki-cli/config.toml`
+  Example: `llmwiki-cli config show-effective --source ~/.llmwiki-cli/config.toml`
   answers "what did the per-computer fallback set?".
 - `--overrides-only` — hide keys whose value equals the built-in default.
   Surfaces only the keys your config files actually changed (the most
@@ -134,7 +134,7 @@ Three orthogonal filters narrow the output for common audit workflows:
 Filters can be combined and apply to both text and JSON output. Example combining all three:
 
 ```bash
-wiki config show-effective nim. --source ./config.toml --overrides-only --json
+llmwiki-cli config show-effective nim. --source ./config.toml --overrides-only --json
 ```
 
 ## Architecture
@@ -144,7 +144,7 @@ wiki config show-effective nim. --source ./config.toml --overrides-only --json
 - **Embeddings**: `embeddings.jsonl` (gitignored, regenerated per device via `llmwiki-cli embed`).
 - **Config**: `[defaults]` + per-alias `[alias]` tables in `wiki-root.toml`. Legacy `~/.config/wiki/config.yaml` fallback still supported.
 - **CLI**: Single Rust binary. No database.
-- **Skill**: stub at `~/.agents/skills/wiki/SKILL.md` (copied via `llmwiki-cli install-skill`). Full content served by `llmwiki-cli skill show [topic]`.
+- **Skill**: stub at `~/.agents/skills/llmwiki/SKILL.md` (copied via `llmwiki-cli install-skill`). Full content served by `llmwiki-cli skill show [topic]`.
 - **Sync**: Git between devices. Embeddings regenerated locally.
 - **No viewer**: The wiki is consumed directly via the CLI; no static site is generated.
 
@@ -182,7 +182,7 @@ Default: `nvidia/nv-embed-v1` (4096 dims, non-commercial). Other supported model
 - `nvidia/llama-nemotron-embed-vl-1b-v2` (multimodal)
 - Plus 3 reranker models
 
-Run `llmwiki-cli models` for full specs. Change via `wiki config set nim.embed_model <model>`.
+Run `llmwiki-cli models` for full specs. Change via `llmwiki-cli config set nim.embed_model <model>`.
 
 ## Documentation
 

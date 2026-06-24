@@ -65,7 +65,7 @@ pub fn run(args: IngestArgs) -> Result<(), WikiError> {
     std::fs::write(&log_path, log)?;
 
     if !args.no_compile {
-        println!("Note: LLM-driven compile pass is not yet implemented in v1. Run `wiki build` to trigger it.");
+        println!("Note: LLM-driven compile pass is not yet implemented in v1. Run `llmwiki-cli build` to trigger it.");
     }
 
     Ok(())

@@ -1,4 +1,4 @@
-//! `wiki use <alias>` — per-workspace active-wiki pointer.
+//! `llmwiki-cli use <alias>` — per-workspace active-wiki pointer.
 //!
 //! Writes the alias to `<workspace>/.llmwiki-cli/state/active-wiki`
 //! (single line, just the alias). The resolution chain checks this
@@ -6,10 +6,10 @@
 //! who work on a project with one primary wiki can stop typing
 //! `--wiki mevin` for every command.
 //!
-//! `wiki use --unset` (or `wiki use --clear`) removes the pointer.
+//! `llmwiki-cli use --unset` removes the pointer.
 //!
-//! `wiki use` with no args prints the current value (if any) and
-//! the path of the pointer file — same shape as `wiki config current`
+//! `llmwiki-cli use` with no args prints the current value (if any) and
+//! the path of the pointer file — same shape as `llmwiki-cli config current`
 //! for the registry side.
 
 use crate::core::registry::Registry;
@@ -21,7 +21,7 @@ use std::path::PathBuf;
 pub struct UseArgs {
     /// Override the workspace used as the walk-up start. `from_global`
     /// receives the value of the top-level `--workspace` flag so
-    /// `wiki --workspace <ws> use mevin` works.
+    /// `llmwiki-cli --workspace <ws> use mevin` works.
     #[arg(from_global)]
     pub workspace: Option<PathBuf>,
     /// Select wiki by alias from wiki-root.toml. `from_global`
@@ -50,7 +50,7 @@ pub fn active_wiki_path(workspace: &std::path::Path) -> std::path::PathBuf {
 
 pub fn run(args: UseArgs) -> Result<(), WikiError> {
     // Resolve the workspace the same way the rest of the CLI does, so
-    // `wiki use mevin` (no --workspace) writes to the active workspace.
+    // `llmwiki-cli use mevin` (no --workspace) writes to the active workspace.
     let workspace = crate::core::workspace::discover_workspace(
         args.workspace.clone(),
         args.wiki.as_deref(),
@@ -82,7 +82,7 @@ fn run_set(
     json: bool,
 ) -> Result<(), WikiError> {
     // Validate the alias exists in the registry. Without this check,
-    // `wiki use typo` would silently set a broken pointer that
+    // `llmwiki-cli use typo` would silently set a broken pointer that
     // resolves to nothing at next use.
     let reg = Registry::discover()?;
     if !reg.entries.iter().any(|e| e.alias == alias) {
@@ -94,8 +94,8 @@ fn run_set(
             .join(", ");
         return Err(WikiError::Other(anyhow::anyhow!(
             "alias '{alias}' is not registered. Available: {available}. \
-             Run `wiki config add {alias} <path>` to register it, or \
-             `wiki config list` to see all registered wikis."
+             Run `llmwiki-cli config add {alias} <path>` to register it, or \
+             `llmwiki-cli config list` to see all registered wikis."
         )));
     }
 
@@ -126,7 +126,7 @@ fn run_set(
         println!();
         println!("(From now on, any `llmwiki-cli` command in this workspace will");
         println!(" resolve to '{alias}' without needing --wiki.)");
-        println!(" Override with --wiki, $WIKI_ACTIVE, or `wiki use <other>`.");
+        println!(" Override with --wiki, $WIKI_ACTIVE, or `llmwiki-cli use <other>`.");
     }
     Ok(())
 }
@@ -136,7 +136,7 @@ fn run_unset(
     workspace: &std::path::Path,
     json: bool,
 ) -> Result<(), WikiError> {
-    if pointer_path.exists() {
+    if pointer_path.is_file() {
         std::fs::remove_file(pointer_path).map_err(|e| {
             WikiError::Other(anyhow::anyhow!("remove {}: {e}", pointer_path.display()))
         })?;
@@ -193,7 +193,7 @@ fn run_show(
             None => {
                 println!("No active wiki set for this workspace.");
                 println!("  workspace: {}", workspace.display());
-                println!("  hint:      run `wiki use <alias>` to set one.");
+                println!("  hint:      run `llmwiki-cli use <alias>` to set one.");
             }
         }
     }

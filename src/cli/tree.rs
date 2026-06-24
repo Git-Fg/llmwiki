@@ -71,7 +71,7 @@ pub fn run(args: TreeArgs) -> Result<(), WikiError> {
 
         let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
         // Resilience: skip pages with unparseable frontmatter rather
-        // than failing the whole `wiki tree` listing.
+        // than failing the whole `llmwiki-cli tree` listing.
         let Ok(parsed) = crate::core::markdown::parse_frontmatter(&content) else {
             continue;
         };

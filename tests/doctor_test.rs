@@ -120,7 +120,7 @@ async fn doctor_reports_missing_api_key() {
 async fn doctor_json_includes_config_sources_attribution() {
     // When both per-workspace and per-computer config files set the same
     // key, the doctor JSON must report which file each key came from.
-    // This is the same attribution shown by `wiki config show-effective`
+    // This is the same attribution shown by `llmwiki-cli config show-effective`
     // and lets users audit precedence without running a separate command.
     let tmp = tempfile::tempdir().unwrap();
     let reg_path = tmp.path().join("wiki-root.toml");
