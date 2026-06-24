@@ -176,4 +176,23 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn normalize_topic_rejects_legacy_wiki_prefix() {
+        // Hard cut (v0.3.36+): legacy `wiki-X` names are NOT supported aliases.
+        // They normalize to themselves (unknown topic) so the caller can
+        // produce a single "unknown topic" error message.
+        assert_eq!(normalize_topic("wiki-search"), "wiki-search");
+        assert_eq!(normalize_topic("wiki-config"), "wiki-config");
+    }
+
+    #[test]
+    fn find_skill_rejects_legacy_wiki_names() {
+        // Guard against accidental alias re-introduction. After Task 2
+        // renames the files, this test will pass because `wiki-search.md`
+        // no longer exists in the bundle. Until then, it fails — which
+        // is the desired TDD red signal.
+        assert!(find_skill("wiki-search").is_none());
+        assert!(find_skill("wiki-config").is_none());
+    }
 }
