@@ -1,6 +1,47 @@
 # Changelog
 
-## [0.3.33] - 2026-06-24 — Entrypoint-only architecture
+## [0.3.34] - 2026-06-24 — Dependency cleanup + low-risk bumps
+
+**Removed — 3 dead direct dependencies:**
+
+These were declared in `Cargo.toml` but never imported anywhere in `src/`
+or `tests/`. Likely cargo-cult entries from earlier iterations (markdown
+rendering, filesystem watching, progress bars) that were refactored out
+without removing the Cargo.toml entries.
+
+- **`pulldown-cmark = "0.12"`** — zero source references
+- **`notify = "6"`** — zero source references
+- **`indicatif = "0.17"`** — zero source references
+
+Smaller dep tree → faster compile, smaller attack surface, less Dependabot
+noise. The 3 corresponding bumps from PR #10 are dropped (no point bumping
+code paths that don't exist).
+
+**Bumped — 3 used dependencies, zero or low migration cost:**
+
+| Dep | From | To | Risk | Notes |
+|---|---|---|---|---|
+| `thiserror` | 1.0.69 | 2.0.18 | **None for us** | All 4 breaking changes audited against `src/error.rs` (52 lines): no `r#type` fields, no tuple-struct mixed args, direct dep already. Bumped with zero code changes. |
+| `rust-embed` | 6.8.1 | 8.11.0 | **Low** | `docs.rs/changelog` confirms our `#[derive(RustEmbed)]` + `::get()` + `::iter()` + `EmbeddedFile.data` surface unchanged across 6.x → 8.x. 8.0 added binary-search lookup (perf), 8.4 re-exported as `Embed` (old import still works). |
+| `jsonschema` (dev) | 0.18.3 | 0.46.6 | **Low** | Dev-dep only; CI catches breakage. |
+
+**Deferred — `toml 0.8.23 → 1.1.2`:**
+
+Without an authoritative `toml-rs/toml` changelog URL responding (404 on
+both `main/CHANGELOG.md` and `raw.githubusercontent.com/toml-rs/toml/main/CHANGELOG.md`),
+the exact API changes between 0.8 and 1.1 are unknown. `src/core/registry.rs`
+and `src/core/models_registry.rs` use both `toml::from_str` and raw
+`toml::Value` parsing. Recommend a follow-up commit with explicit migration
+work, or pin to `toml = "<0.9"` until validated.
+
+**Validation:**
+- 289 tests pass (was 289 — no change; 3 dead-dep removals didn't enable any new tests, but the dep-tree audit at `f5dfc90` confirmed zero source references)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --check` clean
+- `cargo build --release` succeeds in ~43s (was ~?; comparable to v0.3.33)
+- Binary at `/Users/felix/.cargo-target/release/llmwiki-cli` runs
+
+**Migration plan:** see `docs/superpowers/specs/2026-06-24-dependabot-pr10-migration-plan.md`.
 
 **Restructured — sub-skills moved from `skills/` to `src/skills/data/`:**
 
