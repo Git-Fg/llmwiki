@@ -1,12 +1,21 @@
 ---
-name: wiki
+name: llmwiki
 description: |
-  Personal Karpathy-style LLM Wiki. Install the CLI
-  (`cargo install llmwiki-cli --locked`), then `llmwiki-cli skill list`
-  to discover sub-skills and `llmwiki-cli skill get <topic>` to load one
-  on demand. Use when the user asks to ingest a source, search the wiki,
-  answer a question with citations, lint or maintain the wiki, set up on
-  a new device, or pick a different NVIDIA NIM model.
+  Your LLM's persistent memory in plain markdown — Karpathy-style wiki with
+  semantic search, citations, and no database. Load this skill whenever the
+  user mentions ANY of: wiki, notes, knowledge base, second brain, RAG,
+  citations, ingest, search-by-meaning, "find my notes on X", "I keep
+  forgetting", "set up on a new device", "pick a different model",
+  "lint the wiki", "sync across machines", or wants to embed markdown for
+  semantic search.
+
+  Install the CLI once: cargo install llmwiki-cli --locked (or
+  curl -LsSf https://github.com/Git-Fg/llmwiki/releases/latest/download/install.sh | sh).
+  Then ALWAYS start with `llmwiki-cli --help` — it shows the active wiki
+  and full command surface. Use `llmwiki-cli skill list` to enumerate
+  sub-skills and `llmwiki-cli skill get <topic>` to load one on demand.
+  Sub-skills are version-matched with the binary, served on demand —
+  never write commands from memory.
 license: Apache-2.0
 compatibility: |
   Requires the llmwiki-cli binary on PATH and network access to NVIDIA NIM
@@ -19,7 +28,7 @@ metadata:
 allowed-tools: Bash(llmwiki-cli:*)
 ---
 
-# wiki — Karpathy-style LLM Wiki
+# llmwiki — your LLM's persistent memory
 
 This is the entrypoint. The CLI is the source of truth.
 
