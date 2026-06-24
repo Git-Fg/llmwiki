@@ -77,23 +77,12 @@ pub fn run(args: TreeArgs) -> Result<(), WikiError> {
         let Ok(parsed) = crate::core::markdown::parse_frontmatter(&content) else {
             continue;
         };
-        let title = parsed
-            .frontmatter
-            .as_mapping()
-            .and_then(|m| m.get("title"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let title = parsed.frontmatter.as_ref().and_then(|fm| fm.title.clone());
 
         let tags = parsed
             .frontmatter
-            .as_mapping()
-            .and_then(|m| m.get("tags"))
-            .and_then(|v| v.as_sequence())
-            .map(|seq| {
-                seq.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
+            .as_ref()
+            .map(|fm| fm.tags.clone())
             .unwrap_or_default();
 
         // Check if embedded

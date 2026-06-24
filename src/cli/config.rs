@@ -496,6 +496,12 @@ fn shorten_path_for_display(p: &str) -> String {
         .map(|h| h.display().to_string())
         .unwrap_or_default();
     if !home.is_empty() && p.starts_with(&home) {
+        // p.starts_with(&home) confirmed the prefix matches byte-for-byte,
+        // so home.len() is at a char boundary of p.
+        #[expect(
+            clippy::string_slice,
+            reason = "starts_with(&home) just confirmed p[..home.len()] == home; home.len() is at a char boundary"
+        )]
         return format!("~{}", &p[home.len()..]);
     }
     p.to_string()

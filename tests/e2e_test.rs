@@ -22,7 +22,7 @@ fn valid_page(title: &str, outbound: Vec<&str>, body: &str) -> String {
          updated: 2026-06-22\n\
          type: concept\n\
          tags: [reference]\n\
-         sources: []\n\
+         sources: [raw/page.md]\n\
          ---\n\n\
          # {title}\n\n\
          {body}\n\n\

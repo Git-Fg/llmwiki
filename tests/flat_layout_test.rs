@@ -158,7 +158,7 @@ fn wiki_subdir_layout_works_with_explicit_pages_dir() {
 #[test]
 fn flat_layout_ls_resilient_to_unparseable_frontmatter() {
     // v0.3.25+: `wiki ls` must not crash the whole listing when one page
-    // has YAML that `serde_yaml` cannot parse. The bad page is silently
+    // has YAML that `serde-saphyr` cannot parse. The bad page is silently
     // skipped (its data would be useless anyway); the good page is listed
     // normally. This is a pre-existing fragility exposed by the page-
     // discovery fix in v0.3.25 — see `tests/flat_layout_test.rs` for the
@@ -166,7 +166,7 @@ fn flat_layout_ls_resilient_to_unparseable_frontmatter() {
     // lint_resilient_to_unparseable_frontmatter` for the lint-side analogue
     // (which reports the same condition as a lint issue instead of skipping).
     let tmp = make_flat_layout_workspace();
-    // Add a page with duplicate `type:` keys — `serde_yaml::from_str`
+    // Add a page with duplicate `type:` keys — `serde_saphyr::from_str`
     // returns Err on this.
     let bad = "---\ntitle: Bad\ncreated: 2026-01-01\nupdated: 2026-01-01\ntype: concept\ntype: entity\ntags: [x]\nsources: []\n---\n\nBody\n";
     std::fs::write(tmp.path().join("comparisons/broken.md"), bad).unwrap();

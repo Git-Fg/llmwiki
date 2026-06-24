@@ -42,7 +42,7 @@ pub enum WikiError {
     Json(#[from] serde_json::Error),
 
     #[error(transparent)]
-    Yaml(#[from] serde_yaml::Error),
+    Yaml(#[from] serde_saphyr::Error),
 
     #[error(transparent)]
     Http(#[from] reqwest::Error),
