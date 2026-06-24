@@ -18,7 +18,7 @@
 /// self-contained in any include! scope without introducing duplicate
 /// `JsonSchema` name collisions when build.rs includes
 /// `config_types.rs`, `doctor_report.rs`, and this file together.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct Frontmatter {
     pub title: Option<String>,
     #[serde(default)]
@@ -49,37 +49,4 @@ pub struct Frontmatter {
     pub descriptions: Vec<String>,
     #[serde(flatten)]
     pub extra: std::collections::BTreeMap<String, serde_json::Value>,
-}
-
-// Manual `Default` (instead of `#[derive(Default)]`) keeps all 21 field names
-// visible at the impl site — important for the drift test in Task 3 which
-// compares the struct fields against the schema's `properties` keys.
-#[allow(clippy::derivable_impls)]
-impl Default for Frontmatter {
-    fn default() -> Self {
-        Self {
-            title: None,
-            tags: Vec::new(),
-            page_type: None,
-            sources: Vec::new(),
-            confidence: None,
-            created: None,
-            updated: None,
-            schema_version: None,
-            status: None,
-            kind: None,
-            domain: None,
-            maturity: None,
-            reviewed: None,
-            aliases: Vec::new(),
-            description: None,
-            related: Vec::new(),
-            source_type: None,
-            sha256: None,
-            ingested: None,
-            name: None,
-            descriptions: Vec::new(),
-            extra: std::collections::BTreeMap::new(),
-        }
-    }
 }

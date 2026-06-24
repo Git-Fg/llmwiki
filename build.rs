@@ -24,18 +24,13 @@ fn main() {
     // `cargo:rerun-if-changed=` lines for every file in
     // `src/skills/data/`, so we don't need to list them here.
 
-    emit_json_schema::<Frontmatter>(
+    emit_json_schema(
         "skills/references/frontmatter.schema.json",
         schemars::schema_for!(Frontmatter),
     );
 }
 
-// `T` is unused in the body (the schema is built at the call site via
-// `schemars::schema_for!(T)` and passed in as a `schemars::Schema`). We keep
-// the generic so the call site can read `emit_json_schema::<Frontmatter>(...)`
-// for documentation, but silence the unused-type-parameter lint.
-#[allow(clippy::extra_unused_type_parameters)]
-fn emit_json_schema<T: schemars::JsonSchema>(path: &str, schema: schemars::Schema) {
+fn emit_json_schema(path: &str, schema: schemars::Schema) {
     let json = serde_json::to_string_pretty(&schema).expect("serialize schema");
     let dest = Path::new(path);
     if let Some(parent) = dest.parent() {
