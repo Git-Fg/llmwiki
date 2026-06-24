@@ -1384,9 +1384,14 @@ fn show_schema_section_filters_output() {
     let tmp = tempfile::tempdir().unwrap();
     Command::cargo_bin("llmwiki-cli")
         .unwrap()
-        .arg("--workspace").arg(tmp.path())
-        .arg("config").arg("show-schema").arg("--section").arg("wiki")
-        .assert().success()
+        .arg("--workspace")
+        .arg(tmp.path())
+        .arg("config")
+        .arg("show-schema")
+        .arg("--section")
+        .arg("wiki")
+        .assert()
+        .success()
         .stdout(predicates::str::contains("\"pages_dir\""))
         .stdout(predicates::str::contains("\"exclude_dirs\""))
         .stdout(predicates::str::contains("\"embed_model\"").not());

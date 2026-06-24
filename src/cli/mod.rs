@@ -261,7 +261,11 @@ pub enum ConfigCmd {
     /// Validate wiki-root.toml: parse [defaults] + every [alias], run field-level checks
     Validate,
     /// Print the JSON Schema for the resolved Config type (for editor / LSP use)
-    ShowSchema,
+    ShowSchema {
+        /// Filter output to one section: `wiki` or `nim`.
+        #[arg(long, value_parser = ["wiki", "nim"])]
+        section: Option<String>,
+    },
     /// Print the resolved config search order with each path's existence status.
     /// Useful for debugging why a particular config.toml is or isn't being loaded.
     /// Pass --workspace <path> to override the walk-up start; otherwise the

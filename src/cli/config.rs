@@ -20,7 +20,7 @@ pub async fn run(cmd: ConfigCmd) -> Result<(), WikiError> {
         ConfigCmd::Edit => cmd_edit().await,
         ConfigCmd::ConfigEdit { workspace } => cmd_config_edit(workspace).await,
         ConfigCmd::Validate => cmd_validate().await,
-        ConfigCmd::ShowSchema => cmd_show_schema().await,
+        ConfigCmd::ShowSchema { section } => cmd_show_schema(section).await,
         ConfigCmd::ShowEffective {
             workspace,
             json,
@@ -501,10 +501,60 @@ fn shorten_path_for_display(p: &str) -> String {
     p.to_string()
 }
 
-/// Print the JSON Schema for the `Config` type. Useful for editor autocomplete,
-/// LSP configuration, or external tooling.
-async fn cmd_show_schema() -> Result<(), WikiError> {
-    let schema = schemars::schema_for!(crate::core::config::Config);
+/// Print the JSON Schema for the `Config` type. Optional `--section <wiki|nim>`
+/// filters output to just that section so agents can scope schema discovery.
+async fn cmd_show_schema(section: Option<String>) -> Result<(), WikiError> {
+    let mut schema = schemars::schema_for!(crate::core::config::Config);
+    if let Some(sec) = section.as_deref() {
+        // `Config` exposes `wiki: WikiConfig` and `nim: NimConfig` (with a
+        // nested `RetryConfig` reachable only through `nim`), so the section
+        // key maps 1:1 to a `$defs` entry name — except for the extra nested
+        // def reachable from `nim`.
+        let (key, def): (&str, &[&str]) = match sec {
+            "wiki" => ("wiki", &["WikiConfig"]),
+            "nim" => ("nim", &["NimConfig", "RetryConfig"]),
+            _ => unreachable!("clap value_parser rejects this"),
+        };
+        // Drop the other section from the top-level properties.
+        if let Some(props) = schema
+            .as_object_mut()
+            .and_then(|o| o.get_mut("properties"))
+            .and_then(|p| p.as_object_mut())
+        {
+            let drop: Vec<String> = props
+                .keys()
+                .filter(|k| k.as_str() != key)
+                .cloned()
+                .collect();
+            for k in drop {
+                props.remove(&k);
+            }
+        }
+        if let Some(req) = schema
+            .as_object_mut()
+            .and_then(|o| o.get_mut("required"))
+            .and_then(|r| r.as_array_mut())
+        {
+            req.retain(|v| v.as_str() != Some(key));
+        }
+        // Drop unrelated `$defs` entries so the output actually reflects the
+        // requested section (e.g. `--section wiki` no longer leaks `embed_model`
+        // through `$defs.NimConfig`).
+        if let Some(defs) = schema
+            .as_object_mut()
+            .and_then(|o| o.get_mut("$defs"))
+            .and_then(|d| d.as_object_mut())
+        {
+            let drop: Vec<String> = defs
+                .keys()
+                .filter(|k| !def.contains(&k.as_str()))
+                .cloned()
+                .collect();
+            for k in drop {
+                defs.remove(&k);
+            }
+        }
+    }
     println!(
         "{}",
         serde_json::to_string_pretty(&schema).expect("schema serialization is infallible")
