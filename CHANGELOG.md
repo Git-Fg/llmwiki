@@ -130,10 +130,12 @@ ships three new primitives that work together:
 
 **Tests:**
 
-- 324 pass, 0 fail, 1 ignored (was 301 in v0.3.35; +23 for the
+- 330 pass, 0 fail, 1 ignored (was 301 in v0.3.35; +29 for the
   rebrand guard tests, the new `config current` / `use` / `status --all`
-  / `completion` test coverage, and the symlink-panic regression
-  tests).
+  / `completion` test coverage, the symlink-panic regression
+  tests, the `use --unset` JSON `existed` branches, the
+  `status --all` exit-2 failure test, and the `completion
+  power-shell` / `completion elvish` shell coverage).
 - `cargo clippy --all-targets -- -D warnings` clean.
 - `cargo fmt --check` clean.
 - Pre-release real-wiki smoke test against the 5 wikis in
