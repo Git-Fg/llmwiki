@@ -46,8 +46,7 @@ pub fn run(args: BuildArgs) -> Result<(), WikiError> {
     if args.dry_run {
         println!("Would compile {} source(s):", pending.len());
         for p in pending {
-            let rel = rel_path(&ws, &p)
-                .unwrap_or_else(|| p.display().to_string());
+            let rel = rel_path(&ws, &p).unwrap_or_else(|| p.display().to_string());
             println!("  - {rel}");
         }
         return Ok(());

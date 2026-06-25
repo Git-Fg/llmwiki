@@ -331,10 +331,7 @@ path = "{wiki_path_str}"
     // The source tag depends on the priority chain — --wiki wins via
     // WikiFlag, but the alias may also match CWD/registry. The key
     // assertion is that the alias is resolved correctly.
-    assert!(
-        v["source"].is_string(),
-        "source must be a string, got: {v}"
-    );
+    assert!(v["source"].is_string(), "source must be a string, got: {v}");
 }
 
 // ─── `llmwiki-cli status --all` ──────────────────────────────────────────────

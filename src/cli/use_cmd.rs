@@ -157,7 +157,10 @@ fn run_unset(
     } else if existed {
         println!("✓ Removed active-wiki pointer for {}", workspace.display());
     } else {
-        println!("✓ No active-wiki pointer to remove (already absent) for {}", workspace.display());
+        println!(
+            "✓ No active-wiki pointer to remove (already absent) for {}",
+            workspace.display()
+        );
     }
     Ok(())
 }
