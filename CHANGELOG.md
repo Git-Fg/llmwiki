@@ -1,5 +1,65 @@
 # Changelog
 
+## [0.3.37] - 2026-06-24 — fleet fallback for `search` / `query`
+
+**New behavior: implicit fleet fallback when no workspace resolves.**
+
+Before: `llmwiki-cli search "type safety"` (with no `--workspace`,
+`--wiki`, `$WIKI_WORKSPACE`, `$WIKI_ACTIVE`, no CWD prefix match,
+no `.llmwiki-cli/` walk-up, registry has >1 entry) hard-errored with
+"workspace not found".
+
+After: the same command automatically falls back to **fleet mode** —
+embeds the query once via NIM, searches every registered wiki that has
+`embeddings.jsonl`, and returns merged results tagged with their source
+wiki alias.
+
+The fallback only fires when the user did NOT pin a workspace
+explicitly (no flag, no env var). Explicit `--wiki <unknown-alias>`
+still errors out with the alias-not-found message, respecting the
+user's intent.
+
+This matches the "just works" UX that AI agents expect — an agent
+running blind shouldn't have to know which wiki it's in to find
+relevant content.
+
+**Behavior changes:**
+
+- `llmwiki-cli search "Q"` from outside any wiki → searches all wikis
+  with embeddings, returns results tagged `[<wiki> <score>]`
+- `llmwiki-cli query "Q"` from outside any wiki → fleet search + single
+  LLM call with merged context; citations tagged `[wiki/path]`
+- `llmwiki-cli search --wiki <unknown> "Q"` still errors (explicit pin)
+- Fleet output adds `fleet: true`, `wikis_searched: [...]`,
+  `wikis_skipped: N` to JSON; human output adds `(searched N wiki(s))`
+
+**Code refactoring:**
+
+- Extracted `score_chunks()` helper in `src/cli/search.rs` shared by
+  single-wiki and fleet paths
+- Added `run_fleet()` to both `search.rs` and `query.rs`
+- Added `call_llm()` shared by single-wiki and fleet query paths
+  (de-duplicates the chat-completion request builder)
+
+**Sub-skill update:**
+
+- `llmwiki-search.md` now documents the fleet fallback behavior with
+  example output
+
+**Tests:**
+
+- 4 new integration tests in `tests/fleet_search_test.rs`:
+  - `fleet_search_returns_results_from_matching_wiki` — 2 wikis,
+    1 query, only matching wiki's results returned
+  - `fleet_search_skips_wikis_without_embeddings` — wikis without
+    `embeddings.jsonl` are silently filtered out
+  - `fleet_search_respects_explicit_wiki_failure` — `--wiki
+    <unknown>` still errors (fallback does NOT fire)
+  - `single_wiki_search_no_fleet_flag` — `--wiki <known>` still
+    produces single-wiki output (no `fleet` field)
+- Total: 334 pass, 0 fail, 1 ignored (was 330 in v0.3.36; +4 for
+  fleet search tests)
+
 ## [0.3.36] - 2026-06-24 — pushy naming + llmwiki rebrand (hard cut)
 
 **User-facing rebrand (no deprecation aliases):**

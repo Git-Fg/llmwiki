@@ -16,10 +16,37 @@ Find existing content by semantic similarity over the embedded chunks.
 ## Commands
 
 ```bash
-llmwiki-cli search "<query>"           # top 5 results
+llmwiki-cli search "<query>"           # top 5 results from active wiki
 llmwiki-cli search "<query>" --json    # machine-readable
 llmwiki-cli --wiki <alias> search ...   # search a different wiki without cd
 ```
+
+## Fleet fallback (v0.3.37+)
+
+If no workspace can be resolved (no `--workspace`, `--wiki`,
+`$WIKI_WORKSPACE`, `$WIKI_ACTIVE`, no CWD prefix match, no
+`.llmwiki-cli/` walk-up, registry has >1 entry), `search` automatically
+falls back to **fleet mode**: it embeds the query once, searches every
+registered wiki that has `embeddings.jsonl`, and returns merged results
+tagged with their source wiki alias. Wikis without embeddings are
+skipped silently (test fixtures, empty wikis).
+
+Fleet output example:
+
+```text
+✓ 12 result(s) for "type safety" (searched 4 wiki(s)):
+
+  [minimax           0.892] comparisons/rust-enum-patterns.md
+  [mywiki            0.871] concepts/type-safety-in-rust.md
+  [mevin             0.834] guides/agent-device-design.md
+```
+
+Fleet JSON output adds `fleet: true`, `wikis_searched: [...]`, and a
+`wiki` field on each result.
+
+To force single-wiki mode (and respect an explicit `--workspace` /
+`--wiki` that fails to resolve), pass the flag — the fallback only
+fires when no explicit signal was given.
 
 ## Workflow
 
