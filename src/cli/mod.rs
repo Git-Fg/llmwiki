@@ -269,7 +269,7 @@ pub enum Command {
     Version,
     /// Generate a shell completion script to stdout. Install once per
     /// shell: `llmwiki-cli completion bash > ~/.local/share/bash-completion/completions/llmwiki-cli`
-    /// (and similarly for zsh, fish, elvish, powershell).
+    /// (and similarly for zsh, fish, elvish, power-shell).
     Completion(crate::cli::completion::CompletionArgs),
     /// Set or clear the per-workspace active-wiki pointer. With no
     /// arguments, prints the current pointer (if any). Mirrors

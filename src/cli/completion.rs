@@ -21,7 +21,7 @@ use std::io;
 
 #[derive(clap::Args, Debug)]
 pub struct CompletionArgs {
-    /// Shell to generate completions for: bash, zsh, fish, elvish, powershell
+    /// Shell to generate completions for: bash, zsh, fish, elvish, power-shell
     #[arg(value_enum)]
     pub shell: ShellArg,
 }
